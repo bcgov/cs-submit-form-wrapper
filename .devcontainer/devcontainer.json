@@ -1,0 +1,23 @@
+{
+  "name": "SOBA Dev Environment",
+
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devcontainer",
+
+  "workspaceFolder": "/workspaces/soba",
+
+  "forwardPorts": [4000, 5173, 27017],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+
+  "postCreateCommand": "npm install --prefix backend && npm install --prefix frontend",
+
+  "remoteUser": "node"
+}
