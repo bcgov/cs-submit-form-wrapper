@@ -1,0 +1,18 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+
+# Docker artifacts
+Dockerfile
+
+# Ignore lockfile
+package-lock.json

@@ -1,0 +1,23 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+build
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+
+# Vite output (if configured)
+*.local
+
+# Public assets that shouldn't be formatted
+public/*.svg
+public/*.html
+
+# Ignore lockfile
+package-lock.json
