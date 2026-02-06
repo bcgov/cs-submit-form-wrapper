@@ -1,6 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import axios from 'axios'
+import rateLimit from 'express-rate-limit';
 
 const FORMIO_URL = process.env.FORMIO_BASE_URL
 const FORMIO_ADMIN_USER = process.env.FORMIO_ADMIN_USERNAME
@@ -11,6 +12,13 @@ import { User, ADMIN } from '../../types/user';
 import { hasRole } from '../../middleware/auth';
 
 type RequestWithUser = express.Request & { user?: User };
+
+const formioLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 const authToFormio = async (user: User) => {
   const body = {
@@ -34,6 +42,7 @@ const authToFormio = async (user: User) => {
 };
 
 // define the home page route
+router.use(formioLimiter);
 router.use('/', async (req: RequestWithUser, res: express.Response) => {
   try {
     const method = req.method;
