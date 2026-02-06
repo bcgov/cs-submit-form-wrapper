@@ -1,0 +1,59 @@
+{
+  "locale": "fr",
+  "general": {
+    "login": "Connecter",
+    "loggedAs": "Connecter á",
+    "logout": "Déconnexion",
+    "title": "SOBA",
+    "description": "Formulaires de Nouvelle Génération",
+    "notAuthenticated": "Vous n'êtes pas authentifié. Veuillez vous connecter pour accéder à cette section."
+  },
+  "header": {
+    "list": "Liste des Formulaires",
+    "builder": "Constructeur de Formulaires"
+  },
+  
+  "Basic": "Basique",
+  "Text Field": "Champ de Texte",
+  "Text Area": "Zone de Texte",
+  "Number": "Nombre",
+  "Password": "Mot de Passe",
+  "Checkbox": "Case à Cocher",
+  "Select Boxes": "Cases Sélectionnables",
+  "Select": "Sélectionner",
+  "Radio": "Bouton Radio",
+  "Button": "Bouton",
+
+  "Advanced": "Avancé",
+  "Email": "Email",
+  "Url": "Url",
+  "Phone Number": "Numéro de Téléphone",
+  "Tags": "Balises",
+  "Address": "Adresse",
+  "Date / Time": "Date / Heure",
+  "Day": "Jour",
+  "Time": "Heure",
+  "Currency": "Devise",
+  "Survey": "Sondage",
+  "Signature": "Signature",
+
+  "Layout": "Disposition",
+  "HTML Element": "Élément HTML",
+  "Content": "Contenu",
+  "Columns": "Colonnes",
+  "Fieldset": "Fieldset",
+  "Panel": "Panneau",
+  "Table": "Tableau",
+  "Tabs": "Onglets",
+  "Well": "Panneau",
+
+  "Data": "Données",
+  "Hidden": "Caché",
+  "Container": "Conteneur",
+  "Data Map": "Carte de Données",
+  "Data Grid": "Grille de Données",
+  "Edit Grid": "Modifier la Grille de Données",
+
+  "Submit": "Soumettre",
+  "Drag and Drop a form component": "Glisser-déposer un composant de formulaire"
+}

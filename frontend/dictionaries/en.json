@@ -1,0 +1,59 @@
+{
+  "locale": "en",
+  "general": {
+    "login": "Login",
+    "loggedAs": "Logged in as",
+    "logout": "Logout",
+    "title": "SOBA",
+    "description": "Next Gen Forms",
+    "notAuthenticated": "You are not authenticated. Please login to access this section."
+  },
+  "header": {
+    "list": "Form List",
+    "builder": "Form Builder"
+  },
+  
+  "Basic": "Basic",
+  "Text Field": "Text Field",
+  "Text Area": "Text Area",
+  "Number": "Number",
+  "Password": "Password",
+  "Checkbox": "Checkbox",
+  "Select Boxes": "Select Boxes",
+  "Select": "Select",
+  "Radio": "Radio",
+  "Button": "Button",
+
+  "Advanced": "Advanced",
+  "Email": "Email",
+  "Url": "Url",
+  "Phone Number": "Phone Number",
+  "Tags": "Tags",
+  "Address": "Address",
+  "Date / Time": "Date / Time",
+  "Day": "Day",
+  "Time": "Time",
+  "Currency": "Currency",
+  "Survey": "Survey",
+  "Signature": "Signature",
+
+  "Layout": "Layout",
+  "HTML Element": "HTML Element",
+  "Content": "Content",
+  "Columns": "Columns",
+  "Fieldset": "Fieldset",
+  "Panel": "Panel",
+  "Table": "Table",
+  "Tabs": "Tabs",
+  "Well": "Well",
+
+  "Data": "Data",
+  "Hidden": "Hidden",
+  "Container": "Container",
+  "Data Map": "Data Map",
+  "Data Grid": "Data Grid",
+  "Edit Grid": "Edit Grid",
+
+  "Submit": "Submit",
+  "Drag and Drop a form component": "Drag and Drop a form component"
+}

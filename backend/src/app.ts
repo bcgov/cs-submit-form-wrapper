@@ -1,11 +1,18 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: ['.env.local', '.env'] });
 
+<<<<<<< Updated upstream
 import express from 'express';
 import session from 'express-session';
 import passport from 'passport';
 import { authenticate } from './middleware/auth.js';
 import { formioRouter } from './routes';
+=======
+import express from 'express'
+import session from 'express-session'
+import passport from 'passport'
+import { router } from './routes/index.js'
+>>>>>>> Stashed changes
 import cors from 'cors';
 
 const app = express();
@@ -35,11 +42,8 @@ app.get('/api/health', (_, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/formio', authenticate, formioRouter);
-
-app.use('/api/*', (_, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
-});
+// Mount API router at /api so routes like /api/form/test map correctly.
+app.use('/api', router);
 
 app.listen(port, () => {
   return console.log(`Express is listening at http://localhost:${port}`);
