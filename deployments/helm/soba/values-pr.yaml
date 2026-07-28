@@ -2,11 +2,18 @@
 backend:
   replicas: 1
   config:
+    documentGenerationDefaultCode: cdogs-v2
     # Ephemeral PR namespaces stage temp bytes under os.tmpdir() — no RWX PVC.
     tempStorageDefaultCode: tempstorage-os
     # Virus scan inherits virusscan-clamav from values.yaml: PRs deploy into the dev
     # namespace, so the <release>-clamav alias resolves to the shared dev clamav
     # (same namespace — no externalName override, no cross-namespace NSP needed).
+  documentGeneration:
+    cdogsV2:
+      endpoint: https://cdogs-dev.api.gov.bc.ca/api
+      tokenUrl: https://dev.loginproxy.gov.bc.ca/auth/realms/comsvcauth/protocol/openid-connect/token
+    cdogsV3:
+      endpoint: http://common-document-generation-service:3000/api
   sso:
     jwksUri: https://dev.loginproxy.gov.bc.ca/auth/realms/standard/protocol/openid-connect/certs
     jwtIssuer: https://dev.loginproxy.gov.bc.ca/auth/realms/standard

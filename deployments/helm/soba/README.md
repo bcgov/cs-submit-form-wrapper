@@ -78,6 +78,7 @@ templates/
 │   ├── migration-job.yaml       # Pre-install/pre-upgrade: drizzle migrate + seed
 │   ├── configmap-app.yaml       # General app config
 │   ├── configmap-formio.yaml    # Form.io plugin config
+│   ├── configmap-document-generation.yaml # Document generation plugin config
 │   ├── configmap-sso.yaml       # SSO / JWT config
 │   ├── configmap-ratelimit.yaml # Rate limiting config
 │   └── configmap-storage.yaml   # Files feature + storage profiles config
@@ -101,10 +102,10 @@ templates/
 
 The frontend ConfigMap wires two base URLs (see `frontend/src/shared/config/runtimeConfig.ts`):
 
-| Variable | Purpose |
-|----------|---------|
-| `NEXT_PUBLIC_SOBA_API_BASE_URL` | Browser / client — public HTTPS URL from `soba.backendHost` (Route or Ingress). |
-| `SOBA_API_INTERNAL_URL` | Next.js server (SSR) — cluster Service DNS: `http://<release>-backend.<namespace>.svc.cluster.local:<backend.service.port>/api/v1` |
+| Variable                        | Purpose                                                                                                                            |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SOBA_API_BASE_URL` | Browser / client — public HTTPS URL from `soba.backendHost` (Route or Ingress).                                                    |
+| `SOBA_API_INTERNAL_URL`         | Next.js server (SSR) — cluster Service DNS: `http://<release>-backend.<namespace>.svc.cluster.local:<backend.service.port>/api/v1` |
 
 Override the internal URL with `frontend.internalApiBaseUrl` if you use a mesh, split namespaces, or a different Service name.
 
@@ -156,6 +157,27 @@ When `database.uri` is set, the component values (`host`, `port`, `user`, `name`
 are **not** written to the ConfigMap — the backend uses `DATABASE_URL` from the
 Secret exclusively. `DB_PASSWORD` is only written to the Secret when `database.uri`
 is empty.
+
+## Document Generation Configuration
+
+Document-generation plugin configuration is split between ConfigMap (non-secret)
+and Vault/Kubernetes Secret (secret) values.
+
+### Non-secret values (ConfigMap `<fullname>-backend-document-generation`)
+
+| Helm value                                     | Env var                            | Used by                  |
+| ---------------------------------------------- | ---------------------------------- | ------------------------ |
+| `backend.config.documentGenerationDefaultCode` | `DOCUMENT_GENERATION_DEFAULT_CODE` | default backend resolver |
+| `backend.documentGeneration.cdogsV2.endpoint`  | `PLUGIN_CDOGS_V2_ENDPOINT`         | cdogs-v2 adapter         |
+| `backend.documentGeneration.cdogsV2.tokenUrl`  | `PLUGIN_CDOGS_V2_TOKEN_URL`        | cdogs-v2 adapter         |
+| `backend.documentGeneration.cdogsV3.endpoint`  | `PLUGIN_CDOGS_V3_ENDPOINT`         | cdogs-v3 adapter         |
+
+### Secret values (Vault template in backend Deployment)
+
+| Vault key                       | Env var                         |
+| ------------------------------- | ------------------------------- |
+| `PLUGIN_CDOGS_V2_CLIENT_ID`     | `PLUGIN_CDOGS_V2_CLIENT_ID`     |
+| `PLUGIN_CDOGS_V2_CLIENT_SECRET` | `PLUGIN_CDOGS_V2_CLIENT_SECRET` |
 
 ## Database Migration
 

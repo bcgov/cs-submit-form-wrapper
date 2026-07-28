@@ -16,6 +16,13 @@ backend:
   config:
     nodeEnv: production
     logLevel: warn
+    documentGenerationDefaultCode: cdogs-v2
+  documentGeneration:
+    cdogsV2:
+      endpoint: https://cdogs.api.gov.bc.ca/api
+      tokenUrl: https://loginproxy.gov.bc.ca/auth/realms/comsvcauth/protocol/openid-connect/token
+    cdogsV3:
+      endpoint: http://common-document-generation-service:3000/api
 
 frontend:
   replicas: 3

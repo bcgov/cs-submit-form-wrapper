@@ -11,6 +11,13 @@ backend:
   config:
     logLevel: debug
     nodeEnv: development
+    documentGenerationDefaultCode: cdogs-v2
+  documentGeneration:
+    cdogsV2:
+      endpoint: https://cdogs-dev.api.gov.bc.ca/api
+      tokenUrl: https://dev.loginproxy.gov.bc.ca/auth/realms/comsvcauth/protocol/openid-connect/token
+    cdogsV3:
+      endpoint: http://common-document-generation-service:3000/api
 
 frontend:
   replicas: 1
@@ -54,7 +61,7 @@ temporalWorker:
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
-  
+
 vault:
   enabled: true
   role: acf456-nonprod
