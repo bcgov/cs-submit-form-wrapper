@@ -77,7 +77,7 @@ spec:
             - configMapRef:
                 name: {{ include "soba.fullname" . }}-backend-formio
             - configMapRef:
-              name: {{ include "soba.fullname" . }}-backend-document-generation
+                name: {{ include "soba.fullname" . }}-backend-document-generation
             - configMapRef:
                 name: {{ include "soba.fullname" . }}-backend-sso
             - configMapRef:
