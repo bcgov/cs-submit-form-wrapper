@@ -1,0 +1,61 @@
+# SOBA application UAT overrides. Secrets and image digests are supplied at
+# deployment time; do not put secret values or image digests in this file.
+
+backend:
+  replicas: 2
+  config:
+    nodeEnv: production
+  sso:
+    jwksUri: https://test.loginproxy.gov.bc.ca/auth/realms/standard/protocol/openid-connect/certs
+    jwtIssuer: https://test.loginproxy.gov.bc.ca/auth/realms/standard
+    jwtAudience: connected-services-submit-6349
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+database:
+  # Created and managed by the separate Crunchy deployment workflow.
+  existingSecretName: pg-soba-crunchy-pguser-app
+  existingSecretKey: uri
+
+formio:
+  internal:
+    enabled: true
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+mongodb:
+  # Created and managed by the separate MongoDB deployment workflow.
+  internal:
+    enabled: false
+  external:
+    # The authenticated TLS URI belongs in the pre-created soba-uat-formio
+    # Secret as NODE_CONFIG; it must never be committed here.
+    uri: ""
+    tls:
+      caSecretName: soba-uat-mongodb-ca
+      caSecretKey: mongodb-ca-cert
+      caMountPath: /certs/mongodb-ca-cert
+
+vault:
+  enabled: false

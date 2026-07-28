@@ -1,0 +1,35 @@
+---
+name: Deploy MongoDB UAT
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mongodb-uat-db
+  cancel-in-progress: false
+
+jobs:
+  deploy-mongodb-uat:
+    name: Deploy MongoDB UAT
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: uat-db
+    outputs:
+      release: ${{ steps.deploy.outputs.release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Deploy MongoDB UAT
+        id: deploy
+        uses: ./.github/actions/deploy-mongodb-uat
+        with:
+          oc_namespace: ${{ secrets.OC_NAMESPACE }}
+          oc_token: ${{ secrets.OC_TOKEN }}
+          oc_server: ${{ vars.OC_SERVER }}
+          release_name: soba-uat-mongodb
+          values_file: deployments/helm/action-mongodb/values-uat.yml

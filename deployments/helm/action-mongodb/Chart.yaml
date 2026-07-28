@@ -1,0 +1,14 @@
+apiVersion: v2
+name: action-mongodb
+description: Standalone, highly available MongoDB deployment for SOBA environments
+type: application
+version: 0.1.1
+appVersion: "8.2.3"
+
+# The dependency version is the Helm chart version, not the MongoDB image tag.
+dependencies:
+  - name: mongodb
+    alias: mongodb
+    version: "19.1.17"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: mongodb.enabled

@@ -1,0 +1,67 @@
+# SOBA UAT overrides for the standalone MongoDB chart.
+#
+# Only environment-specific settings belong here. Shared replica-set security
+# and authentication settings remain in values.yaml.
+
+mongodb:
+  # -- mongodb.enabled deploys MongoDB in UAT.
+  enabled: true
+  # -- mongodb.fullnameOverride gives the UAT release stable resource names.
+  fullnameOverride: soba-uat-mongodb
+
+  # -- mongodb.replicaCount sets UAT data-bearing replica capacity.
+  replicaCount: 3
+  # -- mongodb.arbiter keeps UAT to three data-bearing members with no arbiter.
+  arbiter:
+    enabled: false
+
+  # -- mongodb.tls.resources sets UAT TLS-init container resources.
+  tls:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # -- mongodb.persistence sets UAT persistent storage requirements.
+  persistence:
+    enabled: true
+    storageClass: netapp-block-standard
+    size: 10Gi
+
+  # -- mongodb.resources sets UAT MongoDB container resources.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+  # -- mongodb.networkPolicy sets UAT application access and DNS egress.
+  networkPolicy:
+    # -- mongodb.networkPolicy.extraEgress permits the OpenShift DNS target port.
+    extraEgress:
+      - ports:
+          - port: 5353
+            protocol: UDP
+          - port: 5353
+            protocol: TCP
+    ingressPodMatchLabels:
+      app.kubernetes.io/name: soba
+      app.kubernetes.io/component: formio
+
+  # -- mongodb.metrics.resources sets UAT exporter resources.
+  metrics:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# Backups, off-cluster retention, and point-in-time recovery are intentionally
+# deferred. Do not represent this environment as production-restorable.

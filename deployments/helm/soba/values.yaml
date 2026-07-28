@@ -204,6 +204,11 @@ mongodb:
     enabled: true
   external:
     uri: ""
+    tls:
+      # Mount a CA only when connecting Form.io to an external TLS-enabled MongoDB.
+      caSecretName: ""
+      caSecretKey: mongodb-ca-cert
+      caMountPath: /certs/mongodb-ca-cert
   image:
     repository: docker.io/mongo
     tag: "7"

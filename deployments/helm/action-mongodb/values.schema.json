@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "SOBA standalone MongoDB chart values",
+  "type": "object",
+  "properties": {
+    "global": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "mongodb": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "fullnameOverride": { "type": "string" },
+        "architecture": { "enum": ["replicaset"] },
+        "replicaSetName": { "type": "string", "minLength": 1 },
+        "replicaCount": { "type": "integer", "minimum": 1 },
+        "image": {
+          "type": "object",
+          "properties": {
+            "registry": { "type": "string", "minLength": 1 },
+            "repository": { "type": "string", "minLength": 1 },
+            "tag": { "type": "string", "minLength": 1 },
+            "digest": { "type": "string" },
+            "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+          },
+          "additionalProperties": true
+        },
+        "persistence": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "storageClass": { "type": "string" },
+            "size": { "type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi|Ti)$" }
+          },
+          "additionalProperties": true
+        },
+        "resources": { "type": "object" },
+        "tls": { "type": "object" },
+        "networkPolicy": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

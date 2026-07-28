@@ -86,6 +86,13 @@ spec:
             - secretRef:
                 name: {{ include "soba.fullname" . }}-formio
           {{- end }}
+          {{- if and (not .Values.mongodb.internal.enabled) .Values.mongodb.external.tls.caSecretName }}
+          volumeMounts:
+            - name: mongodb-ca
+              mountPath: {{ .Values.mongodb.external.tls.caMountPath | quote }}
+              subPath: {{ .Values.mongodb.external.tls.caSecretKey | quote }}
+              readOnly: true
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health
@@ -101,4 +108,13 @@ spec:
             timeoutSeconds: {{ .Values.formio.readinessProbe.timeoutSeconds }}
           resources:
             {{- toYaml .Values.formio.resources | nindent 12 }}
+      {{- if and (not .Values.mongodb.internal.enabled) .Values.mongodb.external.tls.caSecretName }}
+      volumes:
+        - name: mongodb-ca
+          secret:
+            secretName: {{ .Values.mongodb.external.tls.caSecretName | quote }}
+            items:
+              - key: {{ .Values.mongodb.external.tls.caSecretKey | quote }}
+                path: {{ .Values.mongodb.external.tls.caSecretKey | quote }}
+      {{- end }}
 {{- end }}

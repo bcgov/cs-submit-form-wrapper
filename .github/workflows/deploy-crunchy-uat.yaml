@@ -1,0 +1,47 @@
+---
+name: Deploy Crunchy UAT
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, labeled, synchronize]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crunchy-uat-db
+  cancel-in-progress: false
+
+jobs:
+  deploy-crunchy-uat:
+    name: Deploy Crunchy UAT
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'deploy-uat-db')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: uat-db
+    outputs:
+      release: ${{ steps.deploy.outputs.release }}
+      cluster: ${{ steps.deploy.outputs.cluster }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Deploy Crunchy UAT
+        id: deploy
+        # This action checks out its own repository into the workspace. Invoke it
+        # directly: wrapping it in a local composite action causes GitHub to look
+        # for that wrapper after the workspace has been replaced.
+        uses: bcgov/action-crunchy@7ee9c0bdec27f5251a8239373f51db1e01c7c4d9 # v2.1.0
+        with:
+          oc_namespace: ${{ secrets.OC_NAMESPACE }}
+          oc_token: ${{ secrets.OC_TOKEN }}
+          oc_server: ${{ vars.OC_SERVER }}
+          environment: uat
+          release_name: pg-soba
+          values_file: deployments/helm/action-crunchy/values-uat.yml
+          ref: v2.1.0

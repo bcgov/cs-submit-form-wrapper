@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: soba-uat-postgres-access
+  labels:
+    app.kubernetes.io/instance: soba-uat
+    app.kubernetes.io/name: soba
+spec:
+  podSelector:
+    matchLabels:
+      postgres-operator.crunchydata.com/cluster: pg-soba-crunchy
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: soba-uat
+              app.kubernetes.io/name: soba
+      ports:
+        - protocol: TCP
+          port: 5432

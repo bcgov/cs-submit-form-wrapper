@@ -1,0 +1,45 @@
+---
+name: Deploy Crunchy UAT
+description: Deploy the SOBA Crunchy PostgreSQL cluster for UAT.
+
+inputs:
+  oc_namespace:
+    description: OpenShift namespace for UAT.
+    required: true
+  oc_token:
+    description: OpenShift token for UAT.
+    required: true
+  oc_server:
+    description: OpenShift API server.
+    required: true
+  release_name:
+    description: Helm release name for the Crunchy database.
+    required: false
+    default: pg-soba
+  values_file:
+    description: Crunchy values file.
+    required: false
+    default: deployments/helm/action-crunchy/values-uat.yml
+
+outputs:
+  release:
+    description: Helm release name.
+    value: ${{ steps.crunchy.outputs.release }}
+  cluster:
+    description: Crunchy PostgresCluster name.
+    value: ${{ steps.crunchy.outputs.cluster }}
+
+runs:
+  using: composite
+  steps:
+    - name: Deploy Crunchy
+      id: crunchy
+      uses: bcgov/action-crunchy@7ee9c0bdec27f5251a8239373f51db1e01c7c4d9 # v2.1.0
+      with:
+        oc_namespace: ${{ inputs.oc_namespace }}
+        oc_token: ${{ inputs.oc_token }}
+        oc_server: ${{ inputs.oc_server }}
+        environment: uat
+        values_file: ${{ inputs.values_file }}
+        release_name: ${{ inputs.release_name }}
+        ref: v2.1.0

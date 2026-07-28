@@ -1,0 +1,102 @@
+# Crunchy Postgres values for SOBA UAT.
+# Backups are intentionally disabled for the initial UAT deployment.
+# Storage: data 5Gi x 3 replicas + WAL 2Gi x 3 replicas = 21Gi.
+global:
+  config:
+    dbName: app
+
+crunchy:
+  enabled: true
+  postgresVersion: 18
+  postGISVersion: ~
+  openshift: true
+  imagePullPolicy: IfNotPresent
+  # Required because the external deployment action renders this UAT file alone.
+  image: "artifacts.developer.gov.bc.ca/bcgov-docker-local/crunchy-postgres-gis:ubi9-18.1-3.6-2547"
+  clone:
+    enabled: false
+    s3:
+      enabled: false
+    pvc:
+      enabled: false
+    path: ~
+  restore:
+    repoName: ~
+    enabled: false
+    target: ~
+  instances:
+    name: db
+    replicas: 3
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+    dataVolumeClaimSpec:
+      storage: 5Gi
+      storageClassName: netapp-block-standard
+      walStorage: 2Gi
+    requests:
+      # UAT sizing: keeps three PostgreSQL replicas plus the UAT application
+      # within the namespace's current 4 CPU / 16Gi request quota with headroom.
+      cpu: 150m
+      memory: 1536Mi
+    replicaCertCopy:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+  pgBackRest:
+    enabled: false
+    # Required by the external chart even when pgBackRest is disabled.
+    s3:
+      enabled: false
+  patroni:
+    postgresql:
+      pg_hba:
+        - "host all all 0.0.0.0/0 scram-sha-256"
+        - "host all all ::1/128 scram-sha-256"
+      parameters:
+        shared_buffers: 512MB
+        wal_buffers: "-1"
+        min_wal_size: 128MB
+        max_wal_size: 512MB
+        max_slot_wal_keep_size: 1GB
+        work_mem: 32MB
+        log_min_duration_statement: 1000ms
+        effective_io_concurrency: 20
+  proxy:
+    enabled: true
+    pgBouncer:
+      replicas: 2
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      maxConnections: 100
+      poolMode: transaction
+  pgmonitor:
+    enabled: true
+    exporter:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+  users:
+    - name: "{{ .Values.global.config.dbName }}"
+      databases:
+        - "{{ .Values.global.config.dbName }}"
+      options: "SUPERUSER CREATEDB CREATEROLE"
+    - name: "postgres"
+      databases:
+        - "postgres"
+        - "{{ .Values.global.config.dbName }}"
+    - name: "{{ .Values.global.config.dbName }}proxy"
+      databases:
+        - "{{ .Values.global.config.dbName }}"
+        - "postgres"
+    - name: "{{ .Values.global.config.dbName }}proxytest"
+      databases:
+        - "{{ .Values.global.config.dbName }}"
+        - "postgres"
+    - name: "temporal"
+      databases:
+        - "temporal"
+        - "temporal_visibility"
+      options: "SUPERUSER CREATEDB CREATEROLE"

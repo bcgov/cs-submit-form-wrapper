@@ -1,0 +1,186 @@
+---
+name: Deploy to UAT
+run-name: Deploy existing UAT image to UAT
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/deploy-to-uat.yaml"
+      - "deployments/helm/soba/**"
+      - "deployments/helm/soba-uat-github-secrets/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: soba-uat
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Verify databases and deploy SOBA to UAT
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.ref == 'feat/CCP-4817-Deploy-UAT' &&
+      !contains(github.event.pull_request.labels.*.name, 'deploy-uat-db'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment:
+      name: uat
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
+      - name: Install OpenShift CLI
+        uses: redhat-actions/openshift-tools-installer@v1
+        with:
+          oc: "4.14"
+
+      - name: Login to OpenShift
+        uses: redhat-actions/oc-login@v1
+        with:
+          openshift_server_url: ${{ vars.OC_SERVER }}
+          openshift_token: ${{ secrets.OC_TOKEN }}
+          insecure_skip_tls_verify: true
+          namespace: ${{ secrets.OC_NAMESPACE }}
+
+      - name: Apply UAT PostgreSQL access policy
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          oc -n "$NAMESPACE" apply \
+            -f deployments/helm/soba-uat-github-secrets/postgres-access-networkpolicy.yaml
+
+      - name: Apply UAT GitHub Secret Bridge
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+          FORMIO_ADMIN_PASSWORD: ${{ secrets.FORMIO_ADMIN_PASSWORD }}
+          FORMIO_JWT_SECRET: ${{ secrets.FORMIO_JWT_SECRET }}
+          MONGODB_FORMIO_URI: ${{ secrets.MONGODB_FORMIO_URI }}
+        run: |
+          set -euo pipefail
+          secret_dir="$(mktemp -d)"
+          trap 'rm -rf "$secret_dir"' EXIT
+
+          printf '%s' 'formio@soba.gov.bc.ca' > "$secret_dir/PLUGIN_FORMIO_V5_ADMIN_USERNAME"
+          printf '%s' "$FORMIO_ADMIN_PASSWORD" > "$secret_dir/PLUGIN_FORMIO_V5_ADMIN_PASSWORD"
+          printf '%s' 'formio@soba.gov.bc.ca' > "$secret_dir/ROOT_EMAIL"
+          printf '%s' "$FORMIO_ADMIN_PASSWORD" > "$secret_dir/ROOT_PASSWORD"
+          printf '%s' "$FORMIO_JWT_SECRET" > "$secret_dir/FORMIO_JWT_SECRET"
+          jq -cn \
+            --arg mongo "$MONGODB_FORMIO_URI" \
+            --arg jwt "$FORMIO_JWT_SECRET" \
+            '{mongo: $mongo, port: 3001, jwt: {secret: $jwt}, reservedForms: ["submissions", "submission", "exists", "export", "role", "current", "logout", "import", "form", "access", "health"]}' \
+            > "$secret_dir/NODE_CONFIG"
+
+          oc -n "$NAMESPACE" create secret generic soba-uat-formio-github-runtime \
+            --from-file="$secret_dir/PLUGIN_FORMIO_V5_ADMIN_USERNAME" \
+            --from-file="$secret_dir/PLUGIN_FORMIO_V5_ADMIN_PASSWORD" \
+            --from-file="$secret_dir/ROOT_EMAIL" \
+            --from-file="$secret_dir/ROOT_PASSWORD" \
+            --from-file="$secret_dir/FORMIO_JWT_SECRET" \
+            --from-file="$secret_dir/NODE_CONFIG" \
+            --dry-run=client -o yaml \
+            | oc -n "$NAMESPACE" apply -f -
+
+      - name: Verify separately managed databases
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+        run: |
+          set -euo pipefail
+
+          helm status pg-soba --namespace "$NAMESPACE" >/dev/null
+          PG_DATABASE_PODS="$(oc -n "$NAMESPACE" get pods \
+            -l 'postgres-operator.crunchydata.com/cluster=pg-soba-crunchy,postgres-operator.crunchydata.com/data=postgres' \
+            -o jsonpath='{range .items[*]}{.status.phase}{" "}{range .status.containerStatuses[*]}{.ready}{","}{end}{"\n"}{end}')"
+          test "$(printf '%s\n' "$PG_DATABASE_PODS" | grep -Ec '^Running true,true,true,$')" = "3"
+          oc -n "$NAMESPACE" get secret pg-soba-crunchy-pguser-app >/dev/null
+
+          helm status soba-uat-mongodb --namespace "$NAMESPACE" >/dev/null
+          MONGO_DESIRED="$(oc -n "$NAMESPACE" get statefulset soba-uat-mongodb -o jsonpath='{.spec.replicas}')"
+          MONGO_READY="$(oc -n "$NAMESPACE" get statefulset soba-uat-mongodb -o jsonpath='{.status.readyReplicas}')"
+          test "$MONGO_DESIRED" = "3"
+          test "$MONGO_READY" = "$MONGO_DESIRED"
+          oc -n "$NAMESPACE" rollout status statefulset/soba-uat-mongodb --timeout=30s
+          oc -n "$NAMESPACE" get secret soba-uat-mongodb-ca >/dev/null
+          oc -n "$NAMESPACE" get secret soba-uat-formio-github-runtime >/dev/null
+
+      - name: Render and deploy SOBA to UAT
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+          DOMAIN: ${{ vars.OC_DOMAIN }}
+          REPOSITORY: ${{ github.repository }}
+          # Temporary Sprint 33 promotion. Replace this pin with the UAT
+          # environment variable once the release-promotion process is finalized.
+          IMAGE_TAG: sha-019e4fd
+          FORMIO_HELM_SECRET: soba-uat-formio
+          FORMIO_RUNTIME_SECRET: soba-uat-formio-github-runtime
+        run: |
+          set -euo pipefail
+          test -n "$IMAGE_TAG"
+          case "$IMAGE_TAG" in
+            sha-[0-9a-f]*) ;;
+            *) echo "UAT_IMAGE_TAG must be an immutable sha-<commit> image tag" >&2; exit 1 ;;
+          esac
+
+          REPO_LC="$(echo "$REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          IMAGE_SHA="${IMAGE_TAG#sha-}"
+
+          cat > /tmp/values-override.yaml <<EOF
+          global:
+            domain: "${DOMAIN}"
+          backend:
+            image:
+              repository: "ghcr.io/${REPO_LC}/backend"
+              tag: "${IMAGE_TAG}"
+            config:
+              gitSha: "${IMAGE_SHA}"
+              gitTag: "${IMAGE_TAG}"
+              imageTag: "${IMAGE_TAG}"
+          frontend:
+            image:
+              repository: "ghcr.io/${REPO_LC}/frontend"
+              tag: "${IMAGE_TAG}"
+          EOF
+
+          helm lint deployments/helm/soba \
+            --values deployments/helm/soba/values-uat.yaml \
+            --values /tmp/values-override.yaml
+          helm upgrade --install soba-uat deployments/helm/soba \
+            --namespace "$NAMESPACE" \
+            --values deployments/helm/soba/values-uat.yaml \
+            --values /tmp/values-override.yaml \
+            --post-renderer "$GITHUB_WORKSPACE/deployments/helm/soba-uat-github-secrets/post-render.rb" \
+            --wait \
+            --wait-for-jobs \
+            --timeout 15m \
+            --history-max 10
+
+      - name: Confirm application rollouts
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          oc -n "$NAMESPACE" rollout status deployment/soba-uat-backend --timeout=300s
+          oc -n "$NAMESPACE" rollout status deployment/soba-uat-frontend --timeout=300s
+          oc -n "$NAMESPACE" rollout status deployment/soba-uat-formio --timeout=300s

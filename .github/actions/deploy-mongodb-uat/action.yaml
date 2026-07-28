@@ -1,0 +1,73 @@
+---
+name: Deploy MongoDB UAT
+description: Install or upgrade the SOBA UAT MongoDB Helm release.
+
+inputs:
+  oc_namespace:
+    description: OpenShift namespace for UAT.
+    required: true
+  oc_token:
+    description: OpenShift token for UAT.
+    required: true
+  oc_server:
+    description: OpenShift API server.
+    required: true
+  release_name:
+    description: Helm release name for MongoDB.
+    required: false
+    default: soba-uat-mongodb
+  values_file:
+    description: Environment-specific MongoDB values file.
+    required: false
+    default: deployments/helm/action-mongodb/values-uat.yml
+
+outputs:
+  release:
+    description: Helm release name.
+    value: ${{ steps.deploy.outputs.release }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: v3.17.3
+
+    - name: Install OpenShift CLI
+      uses: redhat-actions/openshift-tools-installer@v1
+      with:
+        oc: "4.14"
+
+    - name: Login to OpenShift Cluster
+      uses: redhat-actions/oc-login@v1
+      with:
+        openshift_server_url: ${{ inputs.oc_server }}
+        openshift_token: ${{ inputs.oc_token }}
+        insecure_skip_tls_verify: true
+        namespace: ${{ inputs.oc_namespace }}
+
+    - name: Validate MongoDB chart
+      shell: bash
+      run: |
+        set -euo pipefail
+        helm dependency build deployments/helm/action-mongodb
+        helm lint deployments/helm/action-mongodb \
+          --values "${{ inputs.values_file }}"
+        helm template "${{ inputs.release_name }}" deployments/helm/action-mongodb \
+          --namespace "${{ inputs.oc_namespace }}" \
+          --values "${{ inputs.values_file }}" \
+          > /dev/null
+
+    - name: Install or upgrade MongoDB
+      id: deploy
+      shell: bash
+      run: |
+        set -euo pipefail
+        helm upgrade --install "${{ inputs.release_name }}" deployments/helm/action-mongodb \
+          --namespace "${{ inputs.oc_namespace }}" \
+          --values "${{ inputs.values_file }}" \
+          --wait \
+          --timeout 15m \
+          --history-max 10
+        echo "release=${{ inputs.release_name }}" >> "$GITHUB_OUTPUT"
