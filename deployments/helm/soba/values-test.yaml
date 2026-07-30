@@ -20,7 +20,7 @@ backend:
       endpoint: https://cdogs-test.api.gov.bc.ca/api
       tokenUrl: https://test.loginproxy.gov.bc.ca/auth/realms/comsvcauth/protocol/openid-connect/token
     cdogsV3:
-      endpoint: http://common-document-generation-service:3000/api
+      endpoint: http://common-document-generation-service-master.a12c97-prod:3000
 
 frontend:
   replicas: 2
