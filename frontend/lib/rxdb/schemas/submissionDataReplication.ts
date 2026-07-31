@@ -1,5 +1,5 @@
 import { replicateRxCollection } from 'rxdb/plugins/replication';
-import type { RxReplicationWriteToMasterRow } from 'rxdb';
+import type { RxReplicationWriteToMasterRow, RxCollection, WithDeleted } from 'rxdb';
 import {
   saveSobaFormSubmission,
   submitSobaFormSubmission,
@@ -7,7 +7,6 @@ import {
 } from '@/src/shared/api/sobaApi';
 import { ApiError } from '@/src/shared/api/sobaHelpers';
 import { getSobaApiBaseUrl } from '@/src/shared/config/runtimeConfig';
-import type { RxCollection } from 'rxdb';
 import { useEffect, useRef } from 'react';
 import { useRxDb } from '@/src/app/providers/DbProviders';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
@@ -26,12 +25,12 @@ interface StreamPayload {
 const handlePushError = async (
   err: unknown,
   doc: RxReplicationWriteToMasterRow<SubmissionDataDocument>,
-  token: string | undefined
+  token: string | undefined,
 ) => {
   if (err instanceof ApiError && err.status === 409) {
     try {
       const serverS = await getSubmitSubmissionData(token, doc.newDocumentState.id);
-      if (serverS && serverS.data) {
+      if (serverS?.data) {
         return {
           id: doc.newDocumentState.id,
           data: serverS.data,
@@ -56,7 +55,7 @@ const handlePushError = async (
 
 const processPushDocument = async (
   doc: RxReplicationWriteToMasterRow<SubmissionDataDocument>,
-  token: string | undefined
+  token: string | undefined,
 ) => {
   const data = doc.newDocumentState.data;
   const submissionId = doc.newDocumentState.id;
@@ -87,12 +86,15 @@ export function setupSubmissionDataReplication(
     replicationIdentifier: `submission-data-rest-replication`,
     pull: {
       async handler(lastCheckpoint?: { updatedAt: string }) {
-        return { documents: [] as import('rxdb').WithDeleted<SubmissionDataDocument>[], checkpoint: lastCheckpoint };
+        return {
+          documents: [] as WithDeleted<SubmissionDataDocument>[],
+          checkpoint: lastCheckpoint,
+        };
       },
     },
     push: {
       async handler(docs) {
-        const conflicts: import('rxdb').WithDeleted<SubmissionDataDocument>[] = [];
+        const conflicts: WithDeleted<SubmissionDataDocument>[] = [];
         for (const doc of docs) {
           const conflict = await processPushDocument(doc, token);
           if (conflict) {
@@ -160,13 +162,16 @@ export function useSubmissionDataReplication() {
     if (db && !ref.current && isOnline) {
       ref.current = setupSubmissionDataReplication(db.submissionData, token, () => {});
 
-      intervalId = setInterval(() => {
-        if (ref.current) {
-          ref.current.replicationState.reSync();
-        }
-      }, 5 * 60 * 1000); // 5 minutes
+      intervalId = setInterval(
+        () => {
+          if (ref.current) {
+            ref.current.replicationState.reSync();
+          }
+        },
+        5 * 60 * 1000,
+      ); // 5 minutes
     }
-    
+
     return () => {
       if (intervalId) clearInterval(intervalId);
       if (ref.current && !isOnline) {

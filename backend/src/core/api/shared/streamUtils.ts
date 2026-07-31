@@ -1,7 +1,7 @@
 import { Response } from 'express';
 
 export class StreamManager {
-  private connections = new Map<string, Response[]>();
+  private readonly connections = new Map<string, Response[]>();
 
   addConnection(userId: string, res: Response) {
     if (!this.connections.has(userId)) {

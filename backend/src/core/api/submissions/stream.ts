@@ -1,5 +1,3 @@
-import { Response } from 'express';
-
 import { StreamManager } from '../shared/streamUtils';
 
 const submissionStream = new StreamManager();

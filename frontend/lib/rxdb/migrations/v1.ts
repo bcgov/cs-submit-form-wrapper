@@ -2,8 +2,14 @@ import { SubmissionDataDocument } from '../schemas/submissionDataSchema';
 import { SubmissionDocument } from '../schemas/submissionSchema';
 import { WorkspaceDocument } from '../schemas/workspaceSchema';
 
+function addServerSynced(oldDoc: Record<string, unknown>){
+  return {
+    ...oldDoc,
+    serverSynced: false,
+  };
+}
+
 export function submission_1(oldDoc: SubmissionDocument) {
-  // Add serverSynced
   return {
     ...oldDoc,
     serverSynced: true,
@@ -11,7 +17,6 @@ export function submission_1(oldDoc: SubmissionDocument) {
 }
 
 export function submissionData_1(oldDoc: SubmissionDataDocument) {
-  // Add serverSynced
   return {
     ...oldDoc,
     serverSynced: false,
@@ -19,7 +24,7 @@ export function submissionData_1(oldDoc: SubmissionDataDocument) {
 }
 
 export function workspace_1(oldDoc: WorkspaceDocument) {
-  // Add serverSynced
+    // Add serverSynced
   return {
     ...oldDoc,
     serverSynced: false,
