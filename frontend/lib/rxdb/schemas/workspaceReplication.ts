@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
 import { useRxDb } from '@/src/app/providers/DbProviders';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useNetworkStatus } from '@/lib/hooks/useNetworkStatus';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { setupSseReplication } from '@/lib/rxdb/sseHelper';
 
 const processWorkspacePush = async (
   doc: RxReplicationWriteToMasterRow<WorkspaceItem>,
@@ -72,8 +72,6 @@ export function setupWorkspaceReplication(collection: RxCollection<WorkspaceItem
         if (isFirstPull) {
           isFirstPull = false;
           const seenIds = new Set(response.items.map(item => item.id));
-          
-          // Schedule purge to run safely outside RxDB's internal lock
           setTimeout(async () => {
             try {
               const allLocal = await collection.find().exec();
@@ -84,9 +82,7 @@ export function setupWorkspaceReplication(collection: RxCollection<WorkspaceItem
               if (staleDocs.length > 0) {
                 await collection.bulkRemove(staleDocs.map(d => d.get('id')));
               }
-            } catch {
-              // Silently ignore purge errors
-            }
+            } catch {}
           }, 1000);
         }
 
@@ -114,45 +110,14 @@ export function setupWorkspaceReplication(collection: RxCollection<WorkspaceItem
   const abortController = new AbortController();
   const sseUrl = `${getSobaApiBaseUrl()}/workspaces/stream`;
 
-  const headers: Record<string, string> = {
-    Accept: 'text/event-stream',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  let currentRetryDelay = 1000;
-  const MAX_RETRY_DELAY = 30000;
-
-  fetchEventSource(sseUrl, {
-    method: 'GET',
-    headers,
-    signal: abortController.signal,
-    openWhenHidden: true,
-
-    async onopen(response) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(`Stream connection failed with status: ${response.status}`);
+  setupSseReplication({
+    sseUrl,
+    token,
+    abortController,
+    onMessage: (data: unknown) => {
+      if (data && typeof data === 'object' && 'id' in data) {
+        replicationState.reSync();
       }
-      if (!response.ok) {
-        throw new Error(`Server returned unexpected error status: ${response.status}`);
-      }
-      currentRetryDelay = 1000;
-    },
-
-    async onmessage(event) {
-      try {
-        const data = JSON.parse(event.data);
-        if (data?.id) {
-          replicationState.reSync();
-        }
-      } catch {}
-    },
-
-    onerror() {
-      const delayToWait = currentRetryDelay;
-      currentRetryDelay = Math.min(currentRetryDelay * 2, MAX_RETRY_DELAY);
-      return delayToWait;
     },
   });
 
@@ -180,10 +145,7 @@ export function useWorkspaceReplication() {
       ref.current = setupWorkspaceReplication(db.workspaces, token);
       const { replicationState } = ref.current;
 
-      // Log replication errors for debugging
       errorSub = replicationState.error$.subscribe(() => {});
-
-      // Trigger after a successful push
       pushSub = replicationState.active$.subscribe(() => {});
 
       // Periodic sync as a fallback to ensure stuck pushes are retried

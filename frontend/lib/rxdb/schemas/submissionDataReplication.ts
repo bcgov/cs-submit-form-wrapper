@@ -14,21 +14,13 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useNetworkStatus } from '@/lib/hooks/useNetworkStatus';
 import type { SubmissionDataDocument } from './submissionDataSchema';
 import { deepEqual } from '@/src/shared/util/deepEqual';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { setupSseReplication } from '@/lib/rxdb/sseHelper';
 
 interface StreamPayload {
   id: string;
   data: Record<string, unknown>;
   updatedAt?: string;
   isDraft?: boolean;
-}
-
-// Custom error to halt retries on authorization failures
-class FatalAuthError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'FatalAuthError';
-  }
 }
 
 const handlePushError = async (
@@ -116,48 +108,14 @@ export function setupSubmissionDataReplication(
   const abortController = new AbortController();
   const sseUrl = `${getSobaApiBaseUrl()}/submit/submissions/stream`;
 
-  const headers: Record<string, string> = {
-    Accept: 'text/event-stream',
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  // Tracking exponential backoff delay (starting at 1000ms, capping at 30000ms)
-  let currentRetryDelay = 1000;
-  const MAX_RETRY_DELAY = 30000;
-
-  fetchEventSource(sseUrl, {
-    method: 'GET',
-    headers,
-    signal: abortController.signal,
-    openWhenHidden: true,
-
-    async onopen(response) {
-      // 1. Handle HTTP Authorization failures early before streaming begins
-      if (response.status === 401 || response.status === 403) {
-        if (onAuthRequired) {
-          onAuthRequired();
-        }
-        throw new FatalAuthError(`Stream connection failed with status: ${response.status}`);
-      }
-
-      // 2. Reject non-2xx statuses entirely to trigger the onerror strategy
-      if (!response.ok) {
-        throw new Error(`Server returned unexpected error status: ${response.status}`);
-      }
-
-      // Successful connection! Reset the backoff timer.
-      currentRetryDelay = 1000;
-    },
-
-    async onmessage(event) {
-      if (!event.data) return;
-
+  setupSseReplication({
+    sseUrl,
+    token,
+    abortController,
+    onAuthRequired,
+    onMessage: async (data: unknown) => {
       try {
-        const parsed = JSON.parse(event.data) as unknown;
-
+        const parsed = data as unknown;
         if (isStreamPayload(parsed)) {
           await collection.upsert({
             id: parsed.id,
@@ -168,19 +126,6 @@ export function setupSubmissionDataReplication(
           });
         }
       } catch {}
-    },
-
-    onerror(err: unknown) {
-      // If it's a fatal authorization error, rethrow it to permanently stop connection retries
-      if (err instanceof FatalAuthError) {
-        throw err;
-      }
-
-      // Exponential backoff strategy for transient network/server drops
-      const delayToWait = currentRetryDelay;
-      currentRetryDelay = Math.min(currentRetryDelay * 2, MAX_RETRY_DELAY);
-
-      return delayToWait;
     },
   });
 
@@ -231,7 +176,6 @@ export function useSubmissionDataReplication() {
     };
   }, [db, token, isOnline]);
 
-  // Handle final cleanup on unmount regardless of online status
   useEffect(() => {
     return () => {
       if (ref.current) {

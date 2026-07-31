@@ -8,7 +8,7 @@ import { useRxDb } from '@/src/app/providers/DbProviders';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useNetworkStatus } from '@/lib/hooks/useNetworkStatus';
 import { useAppSelector } from '@/lib/store';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
+import { setupSseReplication } from '@/lib/rxdb/sseHelper';
 
 
 export function setupSubmissionReplication(
@@ -91,45 +91,14 @@ export function setupSubmissionReplication(
   const abortController = new AbortController();
   const sseUrl = `${getSobaApiBaseUrl()}/design/submissions/stream`;
 
-  const headers: Record<string, string> = {
-    Accept: 'text/event-stream',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  let currentRetryDelay = 1000;
-  const MAX_RETRY_DELAY = 30000;
-
-  fetchEventSource(sseUrl, {
-    method: 'GET',
-    headers,
-    signal: abortController.signal,
-    openWhenHidden: true,
-
-    async onopen(response) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(`Stream connection failed with status: ${response.status}`);
+  setupSseReplication({
+    sseUrl,
+    token,
+    abortController,
+    onMessage: (data: unknown) => {
+      if (data && typeof data === 'object' && 'id' in data) {
+        replicationState.reSync();
       }
-      if (!response.ok) {
-        throw new Error(`Server returned unexpected error status: ${response.status}`);
-      }
-      currentRetryDelay = 1000;
-    },
-
-    async onmessage(event) {
-      try {
-        const data = JSON.parse(event.data);
-        if (data?.id) {
-          replicationState.reSync();
-        }
-      } catch {}
-    },
-
-    onerror() {
-      const delayToWait = currentRetryDelay;
-      currentRetryDelay = Math.min(currentRetryDelay * 2, MAX_RETRY_DELAY);
-      return delayToWait;
     },
   });
 
@@ -158,12 +127,9 @@ export function useSubmissionReplication() {
       ref.current = setupSubmissionReplication(db.submissions, token, activeWorkspaceId);
       const { replicationState } = ref.current;
 
-      // Log replication errors for debugging
       errorSub = replicationState.error$.subscribe(() => {});
-
       pushSub = replicationState.active$.subscribe(() => {});
 
-      // Periodic sync as a fallback
       intervalId = setInterval(() => {
         if (ref.current) {
           ref.current.replicationState.reSync();

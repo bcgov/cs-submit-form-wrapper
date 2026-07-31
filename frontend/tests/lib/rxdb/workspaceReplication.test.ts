@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+vi.mock('@microsoft/fetch-event-source', () => ({
+  fetchEventSource: vi.fn(),
+}));
+
 vi.mock('rxdb/plugins/replication', () => ({
   replicateRxCollection: vi.fn(() => ({
     cancel: vi.fn(),
@@ -44,6 +48,7 @@ vi.stubGlobal(
 
 import { replicateRxCollection } from 'rxdb/plugins/replication';
 import { fetchWorkspaces, createWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
+import { ApiError } from '@/src/shared/api/sobaHelpers';
 import { setupWorkspaceReplication } from '@/lib/rxdb/schemas/workspaceReplication';
 import type { RxCollection } from 'rxdb';
 import type { WorkspaceItem } from '@/src/types/workspaces';
@@ -89,11 +94,10 @@ describe('setupWorkspaceReplication', () => {
     expect(config.push!.batchSize).toBe(1);
   });
 
-  it('returns replicationState, eventSource, and cancel', () => {
+  it('returns replicationState and cancel', () => {
     const result = setupWorkspaceReplication(mockCollection, TOKEN);
 
     expect(result).toHaveProperty('replicationState');
-    expect(result).toHaveProperty('eventSource');
     expect(result).toHaveProperty('cancel');
     expect(typeof result.cancel).toBe('function');
   });
@@ -108,7 +112,7 @@ describe('pull handler', () => {
 
     expect(fetchWorkspaces).toHaveBeenCalledWith(
       TOKEN,
-      '2025-01-01T00:00:00.000Z',
+      undefined,
       'updatedAt:asc',
     );
   });
@@ -117,6 +121,7 @@ describe('pull handler', () => {
     setupWorkspaceReplication(mockCollection, TOKEN);
     const handler = getPullHandler();
 
+    await handler({ updatedAt: '2024-01-01T00:00:00.000Z' }, 100);
     await handler({ updatedAt: '2025-01-01T00:00:00.000Z' }, 100);
 
     expect(fetchWorkspaces).toHaveBeenCalledWith(
@@ -271,7 +276,7 @@ describe('push handler', () => {
   });
 
   it('returns conflict when updateWorkspace throws', async () => {
-    vi.mocked(updateWorkspace).mockRejectedValueOnce(new Error('conflict'));
+    vi.mocked(updateWorkspace).mockRejectedValueOnce(new ApiError('conflict', 409));
     setupWorkspaceReplication(mockCollection, TOKEN);
     const handler = getPushHandler();
 
@@ -302,7 +307,7 @@ describe('push handler', () => {
   });
 
   it('returns conflict with newDocumentState when no assumedMasterState and create fails', async () => {
-    vi.mocked(createWorkspace).mockRejectedValueOnce(new Error('conflict'));
+    vi.mocked(createWorkspace).mockRejectedValueOnce(new ApiError('conflict', 409));
     setupWorkspaceReplication(mockCollection, TOKEN);
     const handler = getPushHandler();
 
@@ -326,7 +331,7 @@ describe('push handler', () => {
   it('processes multiple docs sequentially and collects all conflicts', async () => {
     vi.mocked(createWorkspace)
       .mockResolvedValueOnce(undefined as unknown as WorkspaceItem)
-      .mockRejectedValueOnce(new Error('fail'));
+      .mockRejectedValueOnce(new ApiError('fail', 409));
     setupWorkspaceReplication(mockCollection, TOKEN);
     const handler = getPushHandler();
 
