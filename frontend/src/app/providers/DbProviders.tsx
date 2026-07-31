@@ -5,7 +5,7 @@ import { RxDatabase, RxCollection } from 'rxdb';
 import { initDatabase } from '@/lib/rxdb/database';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import type { SubmissionListItem } from '@/src/types/submissions';
-import type { SubmissionDataDocument } from '@/lib/rxdb/submissionDataSchema';
+import type { SubmissionDataDocument } from '@/lib/rxdb/schemas/submissionDataSchema';
 
 export type ChefsDatabase = RxDatabase<{
   workspaces: RxCollection<WorkspaceItem>;

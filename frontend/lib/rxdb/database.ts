@@ -3,10 +3,11 @@ import type { ChefsDatabase } from '@/src/app/providers/DbProviders';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'; // or getRxStorageMemory for SSR fallback
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
-import { workspaceSchema } from './workspaceSchema';
-import { submissionSchema } from './submissionSchema';
-import { submissionDataSchema } from './submissionDataSchema';
+import { workspaceSchema } from './schemas/workspaceSchema';
+import { submissionSchema } from './schemas/submissionSchema';
+import { submissionDataSchema } from './schemas/submissionDataSchema';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
+import { submissionMigrations, submissionDataMigrations, workspaceMigrations } from './migrations';
 
 addRxPlugin(RxDBQueryBuilderPlugin);
 addRxPlugin(RxDBUpdatePlugin);
@@ -46,17 +47,31 @@ export async function initDatabase() {
     await db.addCollections({
       workspaces: {
         schema: workspaceSchema,
-        migrationStrategies: {}, // for when the data changes
+        migrationStrategies: workspaceMigrations,
       },
       submissions: {
         schema: submissionSchema,
-        migrationStrategies: {}, //f or when the data changes
+        migrationStrategies: submissionMigrations,
       },
       submissionData: {
         schema: submissionDataSchema,
-        migrationStrategies: {}, // for when the data changes
+        migrationStrategies: submissionDataMigrations,
       },
     });
+
+    const collections = [db.workspaces, db.submissions, db.submissionData];
+    for (const col of collections) {
+      col.preInsert((plainData) => {
+        if (plainData.serverSynced !== true) {
+          plainData.serverSynced = false;
+        }
+      }, false);
+      col.preSave((plainData) => {
+        if (plainData.serverSynced !== true) {
+          plainData.serverSynced = false;
+        }
+      }, false);
+    }
 
     return db as unknown as ChefsDatabase;
   })();

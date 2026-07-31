@@ -13,6 +13,7 @@ export interface AddNotificationPayload {
   text: string;
   type?: NotificationType;
   consoleError?: unknown;
+  title?: string;
 }
 
 export function useNotificationStore() {

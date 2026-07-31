@@ -1,8 +1,10 @@
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { RxJsonSchema } from 'rxdb';
 
-export const workspaceSchema: RxJsonSchema<WorkspaceItem> = {
-  version: 0,
+export type WorkspaceDocument = WorkspaceItem & { serverSynced?: boolean };
+
+export const workspaceSchema: RxJsonSchema<WorkspaceDocument> = {
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -17,6 +19,7 @@ export const workspaceSchema: RxJsonSchema<WorkspaceItem> = {
     status: { type: 'string' },
     disclaimerAccepted: { type: 'boolean' },
     updatedAt: { type: 'string', format: 'date-time', maxLength: 30 },
+    serverSynced: { type: 'boolean' },
   },
   required: ['id', 'name', 'kind', 'role', 'status', 'disclaimerAccepted', 'updatedAt'],
   indexes: ['name', 'updatedAt'],

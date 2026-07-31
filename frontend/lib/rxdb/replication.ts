@@ -1,3 +1,9 @@
-export { setupWorkspaceReplication, useWorkspaceReplication } from './workspaceReplication';
-export { setupSubmissionReplication, useSubmissionReplication } from './submissionReplication';
-export { setupSubmissionDataReplication, useSubmissionDataReplication } from './submissionDataReplication';
+export { setupWorkspaceReplication, useWorkspaceReplication } from './schemas/workspaceReplication';
+export {
+  setupSubmissionReplication,
+  useSubmissionReplication,
+} from './schemas/submissionReplication';
+export {
+  setupSubmissionDataReplication,
+  useSubmissionDataReplication,
+} from './schemas/submissionDataReplication';

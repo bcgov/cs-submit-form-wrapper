@@ -9,6 +9,7 @@ import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
 import { createIsFeatureAllowed, FEATURE_CODES } from '@/src/shared/featureFlags/flags';
 import { getHeaderNavigationItems, getOverlayNavigationItems } from '@/src/app/plugins/registry';
 import { AppAccessGuard } from '@/src/app/routing/AppAccessGuard';
+import { NetworkAndSyncAlerts } from '@/src/components/NetworkAndSyncAlerts';
 import React from 'react';
 
 export default async function RootLayout({
@@ -35,6 +36,7 @@ export default async function RootLayout({
   return (
     <DictionaryProvider dictionary={dictionary} locale={locale}>
       <RxDbProvider>
+        <NetworkAndSyncAlerts />
         <Header headerNavItems={headerNavItems} overlayNavItems={overlayNavItems} />
         <div className="d-flex w-100">
           <aside className={`p-2 d-flex flex-column flex-shrink-0 ${shellStyles.aside}`}>

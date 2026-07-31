@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRxDb } from '@/src/app/providers/DbProviders';
 import { useWorkspaceReplication } from '@/lib/rxdb/replication';
 import { Button as DSButton } from '@bcgov/design-system-react-components';
@@ -63,17 +63,31 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
   const db = useRxDb();
   const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
 
-  useEffect(() => {
-    if (!db) return;
-    const sub = db.workspaces.find().$.subscribe((results) => {
-      setWorkspaces(results.map((doc) => doc.toJSON() as WorkspaceItem));
-    });
-    return () => sub.unsubscribe();
-  }, [db]);
+  const prevWorkspacesRef = useRef<string>('');
   const dictWorkspaces = dict.workspaces;
   const { authenticated, token, initializing } = useKeycloak();
   const dispatch = useAppDispatch();
   const { addNotification } = useNotificationStore();
+
+  useEffect(() => {
+    if (!db) return;
+    const sub = db.workspaces.find().$.subscribe((results) => {
+      setWorkspaces(results.map((doc) => doc.toJSON() as WorkspaceItem));
+      
+      const currentSignature = results.map(r => `${r.id}:${r.updatedAt}`).join(',');
+      // If this isn't the initial load and the workspaces actually changed
+      if (prevWorkspacesRef.current !== '' && prevWorkspacesRef.current !== currentSignature) {
+        // A workspace was added, removed, or updated (possibly via SSE).
+        // Refetch currentUser to ensure defaultWorkspaceId is still valid.
+        if (authenticated && token) {
+          dispatch(loadCurrentUser(token));
+        }
+      }
+      prevWorkspacesRef.current = currentSignature;
+    });
+    return () => sub.unsubscribe();
+  }, [db, authenticated, token, dispatch]);
+
 
   const router = useRouter();
   const pathname = usePathname();

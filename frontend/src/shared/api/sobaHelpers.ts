@@ -1,3 +1,12 @@
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 export async function parseJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     // Surface the backend's `{ error }` message (e.g. name-taken, disclaimer) when present.
@@ -8,7 +17,7 @@ export async function parseJson<T>(response: Response): Promise<T> {
     } catch {
       // Non-JSON error body; keep the status-based message.
     }
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
   return (await response.json()) as T;
 }

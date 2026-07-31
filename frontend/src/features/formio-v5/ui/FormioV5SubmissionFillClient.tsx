@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter, usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Submission } from '@formio/react';
 import type { FormType } from '@formio/react';
 import { Subscription } from 'rxjs';
@@ -79,6 +79,9 @@ function SubmissionFillBody({
   const lastUpsertedDataRef = useRef<Record<string, unknown> | null>(null);
 
   const db = useRxDb();
+  
+  const formChangeRef = useRef<NodeJS.Timeout | null>(null);
+  const isUnmountingRef = useRef(false);
   useSubmissionDataReplication();
 
   useEffect(() => {
@@ -126,10 +129,14 @@ function SubmissionFillBody({
           if (lastUpsertedDataRef.current && deepEqual(lastUpsertedDataRef.current, incoming)) {
             return; // Our own save echoing back via SSE — skip to avoid re-render loop
           }
+          // Realtime sync between browsers is disabled for now.
+          // By skipping setInitialData here, Formio will not update when another browser changes the submission.
+          /*
           setInitialData((prev) => {
             if (deepEqual(prev, incoming)) return prev;
             return incoming;
           });
+          */
         }
       });
     }
@@ -167,14 +174,28 @@ function SubmissionFillBody({
     }
   };
 
-  const formChangeRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    isUnmountingRef.current = false;
+    return () => {
+      isUnmountingRef.current = true;
+      if (formChangeRef.current) clearTimeout(formChangeRef.current);
+    };
+  }, []);
+
   const handleFormChange = (submission: Submission) => {
-    // Before onFormReady fires, every onChange is Form.io's mount-time normalization — ignore it.
-    if (!formReadyRef.current) return;
+    if (!formReadyRef.current || isUnmountingRef.current) return;
     if (formChangeRef.current) clearTimeout(formChangeRef.current);
-    // Capture snapshot NOW — Form.io mutates submission.data after onChange returns, so reading
-    // it inside the timeout would pick up the mutated version and break deepEqual comparisons.
+    
     const snapshot = structuredClone(submission.data as Record<string, unknown>);
+    
+    // Form.io emits an empty data object (or just { submit: false }) when destroying the form instance on unmount.
+    // If the snapshot looks like a destroy event and we previously had real data, ignore it so we don't wipe the DB.
+    const isDestroyEvent = Object.keys(snapshot).length === 0 || (Object.keys(snapshot).length === 1 && snapshot.submit === false);
+    if (isDestroyEvent && lastSeenDataRef.current && Object.keys(lastSeenDataRef.current).length > 1) {
+      return;
+    }
+
     formChangeRef.current = setTimeout(() => {
       if (db) {
         if (lastSeenDataRef.current && deepEqual(lastSeenDataRef.current, snapshot)) {
@@ -193,6 +214,9 @@ function SubmissionFillBody({
       }
     }, 1000); // 1s debounce
   };
+
+  const submissionProp = useMemo(() => ({ data: initialData as Submission['data'] }), [initialData]);
+  const optionsProp = useMemo(() => ({ noAlerts: true, ...bcgovFileOption }), [bcgovFileOption]);
 
   if (loadError) {
     return (
@@ -225,10 +249,10 @@ function SubmissionFillBody({
             className="formio-v5-form-root"
             src=""
             form={schema}
-            submission={{ data: initialData as Submission['data'] }}
+            submission={submissionProp}
             // We own all submit messaging (success toast + redirect, inline error), so suppress
             // Form.io's built-in green "Submission Complete" alert.
-            options={{ noAlerts: true, ...bcgovFileOption }}
+            options={optionsProp}
             onFormReady={(instance) => {
               formInstanceRef.current = instance;
               formReadyRef.current = true;

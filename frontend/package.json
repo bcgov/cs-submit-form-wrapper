@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_OPTIONS=--max-old-space-size=8192 NEXT_DEBUG=1 next dev",
+    "dev": "NEXT_DEBUG=1 next dev",
     "dev:watch": "nodemon --watch . --ext js,jsx,ts,tsx,json --exec \"npm run dev -- --hostname 0.0.0.0\"",
     "dev:pack": "next dev --webpack",
     "build": "NODE_ENV=production next build",
@@ -26,6 +26,7 @@
     "@formatjs/intl-localematcher": "^0.8.1",
     "@formio/js": "5.4.0-api98.1",
     "@formio/react": "6.2.1-api98.0",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@reduxjs/toolkit": "^2.11.2",
     "bootstrap": "^5.3.8",
     "formio-components@0.0.1": "github:bcgov/formio-components#v0.0.1",

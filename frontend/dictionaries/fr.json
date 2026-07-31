@@ -1,5 +1,13 @@
 {
   "locale": "fr",
+  "offline": {
+    "networkOfflineTitle": "Réseau hors ligne",
+    "networkOfflineText": "Vous êtes actuellement hors ligne. Les modifications seront enregistrées localement et synchronisées lorsque vous vous reconnecterez.",
+    "connectionRestoredTitle": "Connexion rétablie",
+    "connectionRestoredText": "Vous êtes de nouveau en ligne. Tentative de synchronisation des modifications...",
+    "syncCompleteTitle": "Synchronisation terminée",
+    "syncCompleteText": "Vos modifications hors ligne ont été enregistrées avec succès sur le serveur."
+  },
   "general": {
     "login": "Connecter",
     "logout": "Déconnexion",

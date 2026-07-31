@@ -44,7 +44,7 @@ vi.stubGlobal(
 
 import { replicateRxCollection } from 'rxdb/plugins/replication';
 import { fetchWorkspaces, createWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
-import { setupWorkspaceReplication } from '@/lib/rxdb/workspaceReplication';
+import { setupWorkspaceReplication } from '@/lib/rxdb/schemas/workspaceReplication';
 import type { RxCollection } from 'rxdb';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 
@@ -275,7 +275,7 @@ describe('push handler', () => {
     setupWorkspaceReplication(mockCollection, TOKEN);
     const handler = getPushHandler();
 
-    const masterState = {
+    const serverState = {
       id: 'ws1',
       name: 'Existing',
       updatedAt: '2025-01-01T00:00:00.000Z',
@@ -283,9 +283,9 @@ describe('push handler', () => {
     };
     const docs = [
       {
-        assumedMasterState: masterState,
+        assumedMasterState: serverState,
         newDocumentState: {
-          ...masterState,
+          ...serverState,
           kind: 'team',
           role: 'owner',
           status: 'active',
@@ -298,7 +298,7 @@ describe('push handler', () => {
     const result = await handler(docs);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual(masterState);
+    expect(result[0]).toEqual(serverState);
   });
 
   it('returns conflict with newDocumentState when no assumedMasterState and create fails', async () => {
@@ -371,6 +371,5 @@ describe('cancel', () => {
     result.cancel();
 
     expect(result.replicationState.cancel).toHaveBeenCalled();
-    expect(result.eventSource.close).toHaveBeenCalled();
   });
 });

@@ -1,8 +1,10 @@
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { RxJsonSchema } from 'rxdb';
 
-export const submissionSchema: RxJsonSchema<SubmissionListItem> = {
-  version: 0,
+export type SubmissionDocument = SubmissionListItem & { serverSynced?: boolean };
+
+export const submissionSchema: RxJsonSchema<SubmissionDocument> = {
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -20,6 +22,7 @@ export const submissionSchema: RxJsonSchema<SubmissionListItem> = {
     submittedAt: { type: ['string', 'null'], format: 'date-time', maxLength: 30 },
     createdAt: { type: 'string', format: 'date-time', maxLength: 30 },
     updatedAt: { type: 'string', format: 'date-time', maxLength: 30 },
+    serverSynced: { type: 'boolean' },
   },
   required: ['id', 'formId', 'formVersionId', 'submittedAt', 'createdAt', 'updatedAt'],
   indexes: ['formId', 'createdAt'],

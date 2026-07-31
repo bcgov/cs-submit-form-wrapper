@@ -1,5 +1,13 @@
 {
   "locale": "en",
+  "offline": {
+    "networkOfflineTitle": "Network Offline",
+    "networkOfflineText": "You are currently offline. Changes will be saved locally and saved when you reconnect.",
+    "connectionRestoredTitle": "Connection Restored",
+    "connectionRestoredText": "You are back online. Attempting to sync changes...",
+    "syncCompleteTitle": "Sync Complete",
+    "syncCompleteText": "Your offline changes have been successfully saved to the server."
+  },
   "general": {
     "login": "Login",
     "logout": "Logout",
