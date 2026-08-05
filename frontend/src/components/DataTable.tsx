@@ -148,7 +148,7 @@ export function DataTable<T>({
                   size="small"
                   selectedKey={currentPage}
                   onSelectionChange={(key) => onPageChange(Number(key))}
-                  items={[...new Array(totalPages)].map((_, i) => ({
+                  items={[new Array(totalPages)].map((_, i) => ({
                     id: i + 1,
                     label: String(i + 1),
                   }))}
