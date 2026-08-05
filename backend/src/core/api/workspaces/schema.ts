@@ -13,6 +13,8 @@ export const WorkspaceItemSchema = z
     kind: z.string(),
     role: z.string(),
     status: z.string(),
+    org: z.string().nullable(),
+    useCase: z.string().nullable(),
     disclaimerAccepted: z.boolean(),
   })
   .openapi('Workspaces_WorkspaceItem');
@@ -57,6 +59,8 @@ export const WorkspaceIdParamsSchema = z
 export const CreateWorkspaceBodySchema = z
   .object({
     name: z.string().trim().min(1),
+    org: z.string().trim().min(1),
+    useCase: z.string().trim().min(1),
     disclaimerAccepted: z.boolean().optional(),
   })
   .openapi('Workspaces_CreateWorkspaceBody');
@@ -64,11 +68,20 @@ export const CreateWorkspaceBodySchema = z
 export const UpdateWorkspaceBodySchema = z
   .object({
     name: z.string().trim().min(1).optional(),
+    org: z.string().trim().min(1).optional(),
+    useCase: z.string().trim().min(1).optional(),
     disclaimerAccepted: z.boolean().optional(),
   })
-  .refine((body) => body.name !== undefined || body.disclaimerAccepted !== undefined, {
-    message: 'Provide a field to update',
-  })
+  .refine(
+    (body) =>
+      body.name !== undefined ||
+      body.org !== undefined ||
+      body.useCase !== undefined ||
+      body.disclaimerAccepted !== undefined,
+    {
+      message: 'Provide a field to update',
+    },
+  )
   .openapi('Workspaces_UpdateWorkspaceBody');
 
 const TAG = 'core.workspaces';

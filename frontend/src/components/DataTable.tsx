@@ -104,7 +104,7 @@ export function DataTable<T>({
       <Table responsive className={`mb-0 align-middle ${styles.table}`}>
         {caption ? <caption className="visually-hidden">{caption}</caption> : null}
         <thead className={styles.thead}>
-          <tr>
+          <tr className="bg-bcgov-light-blue">
             {columns.map((col) => (
               <th key={col.key} scope="col" className={columnHeaderClass(col)}>
                 {col.label}
@@ -116,10 +116,8 @@ export function DataTable<T>({
       </Table>
 
       {!loading && data.length > 0 && totalItems !== undefined && (
-        <div
-          className={`px-4 py-3 d-flex justify-content-between align-items-center ${styles.pagination}`}
-        >
-          <div className="d-flex align-items-center gap-2">
+        <div className={`d-flex align-items-stretch ${styles.pagination}`}>
+          <div className="d-flex align-items-center gap-2 px-4 py-3 border-end">
             <span>Items per page:</span>
             {onPageSizeChange ? (
               <Select
@@ -135,14 +133,14 @@ export function DataTable<T>({
             )}
           </div>
 
-          <div>
+          <div className="d-flex align-items-center px-4 py-3 text-muted">
             {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)} of{' '}
             {totalItems} {itemName}
           </div>
 
-          <div className="d-flex align-items-center gap-3">
-            <div className="d-flex align-items-center gap-1">
-              <span>{currentPage}</span>
+          <div className="d-flex align-items-stretch ms-auto border-start">
+            <div className="d-flex align-items-center gap-2 px-4 py-3 border-end">
+              {totalPages <= 1 && <span>{currentPage}</span>}
               {onPageChange && totalPages > 1 && (
                 <Select
                   aria-label="Page"
@@ -150,35 +148,42 @@ export function DataTable<T>({
                   size="small"
                   selectedKey={currentPage}
                   onSelectionChange={(key) => onPageChange(Number(key))}
-                  items={[...Array(totalPages)].map((_, i) => ({ id: i + 1, label: String(i + 1) }))}
+                  items={[...Array(totalPages)].map((_, i) => ({
+                    id: i + 1,
+                    label: String(i + 1),
+                  }))}
                 />
               )}
               <span>of {totalPages} page(s)</span>
             </div>
 
-            <div className="d-flex gap-2">
-              <Button
-                variant="tertiary"
-                size="small"
-                isIconButton
-                onPress={() => onPageChange && onPageChange(currentPage - 1)}
-                data-testid="datatable-prev-page-button"
-                aria-label="Previous page"
-                isDisabled={currentPage === 1}
-              >
-                <FaChevronLeft />
-              </Button>
-              <Button
-                variant="tertiary"
-                size="small"
-                isIconButton
-                onPress={() => onPageChange && onPageChange(currentPage + 1)}
-                data-testid="datatable-next-page-button"
-                aria-label="Next page"
-                isDisabled={currentPage === totalPages}
-              >
-                <FaChevronRight />
-              </Button>
+            <div className="d-flex align-items-stretch">
+              <div className="d-flex align-items-center px-3 py-3 border-end">
+                <Button
+                  variant="tertiary"
+                  size="small"
+                  isIconButton
+                  onPress={() => onPageChange && onPageChange(currentPage - 1)}
+                  data-testid="datatable-prev-page-button"
+                  aria-label="Previous page"
+                  isDisabled={currentPage === 1}
+                >
+                  <FaChevronLeft />
+                </Button>
+              </div>
+              <div className="d-flex align-items-center px-3 py-3">
+                <Button
+                  variant="tertiary"
+                  size="small"
+                  isIconButton
+                  onPress={() => onPageChange && onPageChange(currentPage + 1)}
+                  data-testid="datatable-next-page-button"
+                  aria-label="Next page"
+                  isDisabled={currentPage === totalPages}
+                >
+                  <FaChevronRight />
+                </Button>
+              </div>
             </div>
           </div>
         </div>

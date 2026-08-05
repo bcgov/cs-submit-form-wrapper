@@ -1,3 +1,4 @@
+import LandingPage from '../ui/LandingPage';
 import { getDictionary, resolveLocale } from './dictionaries';
 
 type PageProps = {
@@ -15,13 +16,5 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export default async function Page({ params }: PageProps) {
-  const param = await params;
-  const locale = resolveLocale(param.lang);
-  const dict = await getDictionary(locale);
-
-  return (
-    <div className="text-center h1 mt-5">
-      {dict.general.welcomeTo} {dict.general.title}!
-    </div>
-  );
+  return <LandingPage />;
 }

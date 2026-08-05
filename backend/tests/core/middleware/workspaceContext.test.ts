@@ -66,6 +66,8 @@ function membershipRow(id: string) {
     kind: 'team',
     name: 'Workspace',
     status: 'active',
+    org: 'IT',
+    useCase: 'Internal',
     membershipId: 'membership-1',
     role: 'owner',
     disclaimerAcceptedAt: null,

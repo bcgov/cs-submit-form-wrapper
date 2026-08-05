@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Dropdown } from 'react-bootstrap';
@@ -22,6 +22,8 @@ import { LoginButton } from './LoginButton';
 import { LanguageSelector, type LanguageOption } from './LanguageSelector';
 import { WorkspaceSelector } from './WorkspaceSelector';
 import type { PluginNavItem } from '@/src/types/plugins';
+import { WorkspaceModal } from '@/src/components/WorkspaceModal';
+
 import styles from './Header.module.css';
 
 type HeaderProps = {
@@ -52,6 +54,8 @@ function Header({ headerNavItems }: HeaderProps) {
   const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const establishingWorkspaceRef = useRef(false);
   const clientMounted = useClientMounted();
+
+  const { data: currentStateUser } = useAppSelector((state) => state.currentUser);
 
   useEffect(() => {
     init();
@@ -129,6 +133,9 @@ function Header({ headerNavItems }: HeaderProps) {
     dict.general.workspaceSwitchError,
   ]);
 
+  const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces.length]);
+  const canCreateWorkspace = currentStateUser?.capabilities?.canCreateWorkspace === true;
+
   const handleLogout = () => {
     dispatch(clearCurrentUser());
     logout();
@@ -167,7 +174,8 @@ function Header({ headerNavItems }: HeaderProps) {
     const isCurrentTokenUser = currentUser.token === token;
     const backendDisplayName = isCurrentTokenUser ? currentUser.displayName : null;
     const keycloakDisplayName =
-      typeof idTokenParsed?.display_name === 'string' && idTokenParsed.display_name.trim().length > 0
+      typeof idTokenParsed?.display_name === 'string' &&
+      idTokenParsed.display_name.trim().length > 0
         ? idTokenParsed.display_name
         : null;
     let displayName: string | null;
@@ -218,7 +226,7 @@ function Header({ headerNavItems }: HeaderProps) {
         {authenticated ? (
           authenticatedUserMenu
         ) : (
-          <LoginButton data-testid="login-button" label={dict.general.login} />
+          <LoginButton variant="secondary" data-testid="login-button" label={dict.general.login} />
         )}
       </div>
     );
@@ -257,6 +265,9 @@ function Header({ headerNavItems }: HeaderProps) {
           </div>
         </div>
       </BCHeader>
+      {workspaceStatus === 'succeeded' && !hasWorkspaces && (
+        <WorkspaceModal canCreateWorkspace={canCreateWorkspace} />
+      )}
     </div>
   );
 }

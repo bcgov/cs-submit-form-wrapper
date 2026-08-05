@@ -6,16 +6,21 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 interface LoginButtonProps {
   label?: string;
   'data-testid'?: string;
+  variant?: 'link' | 'secondary' | 'primary' | 'tertiary' | undefined;
 }
 
-export function LoginButton({ label = 'Log in', 'data-testid': testId = 'login-button' }: LoginButtonProps) {
+export function LoginButton({
+  label = 'Login',
+  'data-testid': testId = 'login-button',
+  variant = 'primary',
+}: LoginButtonProps) {
   const { login } = useKeycloak();
 
   return (
     <Button
       id="login-button"
       type="button"
-      variant="primary"
+      variant={variant}
       data-testid={testId}
       onPress={() => login()}
     >

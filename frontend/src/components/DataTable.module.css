@@ -24,11 +24,6 @@
   border-color: var(--app-surface-muted);
 }
 
-/* Header: darker grey (matches the footer). */
-.thead th {
-  --bs-table-bg: var(--app-surface-muted);
-}
-
 /* A clearer divider directly under the header. */
 .container .thead th {
   border-bottom-color: var(--app-border);
@@ -49,9 +44,18 @@
 
 /* Footer (pagination): darker grey, bordered to match the header. */
 .pagination {
-  background-color: var(--app-surface-muted);
+  background-color: var(--bcgov-light-blue);
   color: var(--app-text);
   border: 1px solid var(--app-border);
+}
+
+.pagination [data-testid='datatable-page-size-select'],
+.pagination [data-testid='datatable-page-select-select'],
+.pagination [data-testid='datatable-page-size-select'] button,
+.pagination [data-testid='datatable-page-select-select'] button {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .colWidth40 {

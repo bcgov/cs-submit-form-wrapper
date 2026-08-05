@@ -121,6 +121,8 @@ const bootstrapWorkspaceOwner = async (
 export const createTeamWorkspace = async (
   userId: string,
   name: string,
+  org: string,
+  useCase: string,
   disclaimerAccepted = false,
 ) => {
   if (await workspaceNameExistsForKind(WorkspaceKind.team, name)) {
@@ -139,6 +141,8 @@ export const createTeamWorkspace = async (
       id: workspaceId,
       kind: WorkspaceKind.team,
       name,
+      org,
+      useCase,
       status: WorkspaceStatus.active,
       createdBy: displayLabel,
       updatedBy: displayLabel,
@@ -209,7 +213,7 @@ const setWorkspaceDisclaimer = async (
 export const updateWorkspace = async (
   workspaceId: string,
   actorId: string,
-  input: { name?: string; disclaimerAccepted?: boolean },
+  input: { name?: string; org?: string; useCase?: string; disclaimerAccepted?: boolean },
 ): Promise<boolean> => {
   const membership = await getWorkspaceForUser(workspaceId, actorId);
   if (!membership || !isWorkspaceManageRole(membership.role)) return false;
@@ -228,11 +232,13 @@ export const updateWorkspace = async (
   }
 
   await db.transaction(async (tx) => {
-    if (input.name !== undefined) {
-      await tx
-        .update(workspaces)
-        .set({ name: input.name, updatedBy: displayLabel, updatedAt: new Date() })
-        .where(eq(workspaces.id, workspaceId));
+    if (input.name !== undefined || input.org !== undefined || input.useCase !== undefined) {
+      const updates: Record<string, unknown> = { updatedBy: displayLabel, updatedAt: new Date() };
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.org !== undefined) updates.org = input.org;
+      if (input.useCase !== undefined) updates.useCase = input.useCase;
+
+      await tx.update(workspaces).set(updates).where(eq(workspaces.id, workspaceId));
     }
     if (input.disclaimerAccepted !== undefined) {
       await setWorkspaceDisclaimer(

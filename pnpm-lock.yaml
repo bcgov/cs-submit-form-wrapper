@@ -177,8 +177,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0
       '@bcgov/design-system-react-components':
-        specifier: ^0.7.0
-        version: 0.7.0(@bcgov/bc-sans@2.1.0)(@react-spectrum/provider@3.11.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: ^0.8.1
+        version: 0.8.1(@bcgov/bc-sans@2.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@bcgov/design-tokens':
         specifier: ^3.2.0
         version: 3.2.0
@@ -516,8 +516,8 @@ packages:
   '@bcgov/bc-sans@2.1.0':
     resolution: {integrity: sha512-1MesF4NAVpM5dywoJ68wNcBylHbPqg1dDV/FNuQm0BbspETGlPmfX8LG8rtrCjCAPhWuL2qRT/lBYDUMvFTUnw==}
 
-  '@bcgov/design-system-react-components@0.7.0':
-    resolution: {integrity: sha512-WiAqos9Tv8WxAzccpN/HnKj7oDF1neX2rOX8hfKFsA8BBitjbYbvDTjv9eCVdVwkqxw9RyJ5bvoUIrHiwkPU5w==}
+  '@bcgov/design-system-react-components@0.8.1':
+    resolution: {integrity: sha512-1zd9aJYg6CLFM3crhcl2rjkwR52fzHEGgjzNfx+j1P84s56A3BrTwbID5+WJamClixtzqpLnhJG8TwAEUyK+LA==}
     peerDependencies:
       '@bcgov/bc-sans': ^2.1.0
       react: ^16.14.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0
@@ -525,6 +525,9 @@ packages:
 
   '@bcgov/design-tokens@3.2.0':
     resolution: {integrity: sha512-2D3mPFKTpNLeIp8ER9y8oDKxXE8+rBfcvuF4yFd7uUvDm0izZNFhambUi6sN3OdkmuZoGQO7AjlMtOQzsHtxzA==}
+
+  '@bcgov/design-tokens@5.0.0':
+    resolution: {integrity: sha512-D4Ub2jZ04Jv7hBUi6gqHTzIYTLtsqdr/FMv+m598IcfMLUy3b6CEVh3UH9ZXZLC/npPC7g05I4j3YMm46IGWjQ==}
 
   '@bcgov/formio-components@https://codeload.github.com/bcgov/formio-components/tar.gz/a9d810778c091ab889a13063ec2d9fc4d3a9ab23':
     resolution: {tarball: https://codeload.github.com/bcgov/formio-components/tar.gz/a9d810778c091ab889a13063ec2d9fc4d3a9ab23}
@@ -1423,6 +1426,12 @@ packages:
 
   '@react-aria/combobox@3.16.1':
     resolution: {integrity: sha512-Ufoos0z66dRx8bxN3OJ25ASqksukPQaxVP5thr7dnu2QqqhxlZb1Va1ebaVxzMAnSrB78oQh3h1d9/hS4uhcPQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+      react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+
+  '@react-aria/datepicker@3.17.1':
+    resolution: {integrity: sha512-+uK1jki+iRMsbaqFBfCnBNFPQHJZLgKl7tniK7CjC2pJeWWS+ZMBo4J/yKZihq+IkKv5UKV2R5gotk6iJuBusw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
       react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
@@ -4952,6 +4961,12 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
       react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
+  react-aria-components@1.17.0:
+    resolution: {integrity: sha512-0EyisMgvsFJ2aML3crDYv2tW5vT2Ryf8PGzY/g63JjDdCbLshlwazhS8JNtPF1vkTkungJJ6sVJbKyX+YKSoFA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+      react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
+
   react-aria-components@1.18.0:
     resolution: {integrity: sha512-FhRQjuDkH4WhgFv+O2sYTzK3JzdZTGpBeaqfRlfTo+DcSZzD8elJEkytHe7SDpcexVKeire8NVd7OruZHfCVoA==}
     peerDependencies:
@@ -6274,19 +6289,21 @@ snapshots:
 
   '@bcgov/bc-sans@2.1.0': {}
 
-  '@bcgov/design-system-react-components@0.7.0(@bcgov/bc-sans@2.1.0)(@react-spectrum/provider@3.11.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@bcgov/design-system-react-components@0.8.1(@bcgov/bc-sans@2.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@bcgov/bc-sans': 2.1.0
-      '@bcgov/design-tokens': 3.2.0
+      '@bcgov/design-tokens': 5.0.0
+      '@react-aria/datepicker': 3.17.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@react-aria/i18n': 3.13.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react: 19.2.3
-      react-aria-components: 1.16.0(@react-spectrum/provider@3.11.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react-aria-components: 1.17.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-dom: 19.2.3(react@19.2.3)
     optionalDependencies:
       '@rollup/rollup-linux-x64-gnu': 4.61.1
-    transitivePeerDependencies:
-      - '@react-spectrum/provider'
 
   '@bcgov/design-tokens@3.2.0': {}
+
+  '@bcgov/design-tokens@5.0.0': {}
 
   '@bcgov/formio-components@https://codeload.github.com/bcgov/formio-components/tar.gz/a9d810778c091ab889a13063ec2d9fc4d3a9ab23(@formio/js@5.4.0-api98.1(@popperjs/core@2.11.8))':
     dependencies:
@@ -7222,6 +7239,14 @@ snapshots:
       react: 19.2.3
       react-aria: 3.48.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-dom: 19.2.3(react@19.2.3)
+
+  '@react-aria/datepicker@3.17.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@swc/helpers': 0.5.23
+      react: 19.2.3
+      react-aria: 3.49.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react-dom: 19.2.3(react@19.2.3)
+      react-stately: 3.47.0(react@19.2.3)
 
   '@react-aria/dnd@3.12.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
@@ -11160,6 +11185,17 @@ snapshots:
       use-sync-external-store: 1.6.0(react@19.2.3)
     transitivePeerDependencies:
       - '@react-spectrum/provider'
+
+  react-aria-components@1.17.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+    dependencies:
+      '@internationalized/date': 3.12.2
+      '@react-types/shared': 3.35.0(react@19.2.3)
+      '@swc/helpers': 0.5.23
+      client-only: 0.0.1
+      react: 19.2.3
+      react-aria: 3.48.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react-dom: 19.2.3(react@19.2.3)
+      react-stately: 3.46.0(react@19.2.3)
 
   react-aria-components@1.18.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:

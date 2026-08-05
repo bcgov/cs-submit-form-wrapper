@@ -14,6 +14,8 @@ type CenteredProgressProps = {
   'data-testid'?: string;
 };
 
+import { useClientMounted } from '@/lib/hooks/useClientMounted';
+
 /**
  * The single loading indicator for the app: a horizontally/vertically centered
  * ProgressCircle with no visible text. Use everywhere a screen, page data area,
@@ -28,6 +30,8 @@ export function CenteredProgress({
   minHeight,
   'data-testid': testId = 'loading-indicator',
 }: CenteredProgressProps) {
+  const isMounted = useClientMounted();
+
   return (
     <div
       role="status"
@@ -35,7 +39,7 @@ export function CenteredProgress({
       style={minHeight ? { minHeight } : undefined}
       data-testid={testId}
     >
-      <ProgressCircle isIndeterminate aria-label={label} />
+      {isMounted && <ProgressCircle isIndeterminate aria-label={label} />}
     </div>
   );
 }
