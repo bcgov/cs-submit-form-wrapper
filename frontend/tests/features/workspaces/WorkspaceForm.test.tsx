@@ -24,6 +24,12 @@ vi.mock('@/app/[lang]/Providers', () => ({
       notAuthenticated: 'Not authed',
       loading: 'Loading…',
     },
+    ministries: {
+      testOrg: 'Test Org',
+    },
+    useCases: {
+      testUseCase: 'Test Use Case',
+    },
     workspaces: {
       createHeading: 'Create Workspace',
       manageHeading: 'Manage Workspace',
@@ -43,6 +49,27 @@ vi.mock('@/app/[lang]/Providers', () => ({
     },
   }),
 }));
+
+vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    Select: ({ 'data-testid': testId, value, onChange, items }: any) => (
+      <select
+        data-testid={testId}
+        value={value || ''}
+        onChange={(e) => onChange && onChange(e.target.value)}
+        aria-label={testId}
+      >
+        <option value="">Select...</option>
+        {items?.map((item: any) => (
+          <option key={item.id} value={item.id}>{item.label}</option>
+        ))}
+      </select>
+    ),
+  };
+});
+
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -97,6 +124,8 @@ describe('WorkspaceForm', () => {
       role: 'owner',
       status: 'active',
       disclaimerAccepted: false,
+      useCase: 'testUseCase',
+      org: 'testOrg',
     });
     mockUpdateWorkspace.mockResolvedValue({
       id: 'ws2',
@@ -105,6 +134,8 @@ describe('WorkspaceForm', () => {
       role: 'owner',
       status: 'active',
       disclaimerAccepted: false,
+      useCase: 'testUseCase',
+      org: 'testOrg',
     });
   });
 
@@ -139,6 +170,8 @@ describe('WorkspaceForm', () => {
       render(<WorkspaceForm />);
     });
     await userEvent.type(screen.getByRole('textbox'), 'New Team');
+    await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
+    await userEvent.selectOptions(screen.getByTestId('workspace-use-case'), 'testUseCase');
     await userEvent.click(screen.getByTestId('workspace-default-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
 
@@ -146,6 +179,8 @@ describe('WorkspaceForm', () => {
       expect(mockCreateWorkspace).toHaveBeenCalledWith('token', {
         name: 'New Team',
         disclaimerAccepted: false,
+        useCase: 'testUseCase',
+        org: 'testOrg',
       });
       expect(mockDispatch).toHaveBeenCalled();
       expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
@@ -157,6 +192,8 @@ describe('WorkspaceForm', () => {
       render(<WorkspaceForm />);
     });
     await userEvent.type(screen.getByRole('textbox'), 'New Team');
+    await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
+    await userEvent.selectOptions(screen.getByTestId('workspace-use-case'), 'testUseCase');
     await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
 
@@ -164,6 +201,8 @@ describe('WorkspaceForm', () => {
       expect(mockCreateWorkspace).toHaveBeenCalledWith('token', {
         name: 'New Team',
         disclaimerAccepted: true,
+        useCase: 'testUseCase',
+        org: 'testOrg',
       });
     });
   });
@@ -175,12 +214,16 @@ describe('WorkspaceForm', () => {
       render(<WorkspaceForm />);
     });
     await userEvent.type(screen.getByRole('textbox'), 'Second Team');
+    await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
+    await userEvent.selectOptions(screen.getByTestId('workspace-use-case'), 'testUseCase');
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => {
       expect(mockCreateWorkspace).toHaveBeenCalledWith('token', {
         name: 'Second Team',
         disclaimerAccepted: false,
+        useCase: 'testUseCase',
+        org: 'testOrg',
       });
       expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
     });
@@ -211,6 +254,8 @@ describe('WorkspaceForm', () => {
       expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', {
         name: 'Renamed',
         disclaimerAccepted: false,
+        useCase: 'testUseCase',
+        org: 'testOrg',
       });
       expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
     });
@@ -228,6 +273,8 @@ describe('WorkspaceForm', () => {
       expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', {
         name: 'Team Workspace',
         disclaimerAccepted: true,
+        useCase: 'testUseCase',
+        org: 'testOrg',
       });
     });
   });
