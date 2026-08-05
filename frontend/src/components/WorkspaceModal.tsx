@@ -4,7 +4,7 @@ import { Modal } from '@bcgov/design-system-react-components';
 import { useDictionary } from '../../app/[lang]/Providers';
 
 type WorkspaceModalProps = {
-  canCreateWorkspace: boolean;
+  readonly canCreateWorkspace: boolean;
 };
 
 export function WorkspaceModal({ canCreateWorkspace }: WorkspaceModalProps) {

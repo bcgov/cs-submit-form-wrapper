@@ -4,9 +4,9 @@ import { Button } from '@bcgov/design-system-react-components';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 
 interface LoginButtonProps {
-  label?: string;
-  'data-testid'?: string;
-  variant?: 'link' | 'secondary' | 'primary' | 'tertiary' | undefined;
+  readonly label?: string;
+  readonly 'data-testid'?: string;
+  readonly variant?: 'link' | 'secondary' | 'primary' | 'tertiary';
 }
 
 export function LoginButton({
