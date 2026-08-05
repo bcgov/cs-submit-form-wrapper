@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, type Key } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
@@ -145,11 +145,11 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   }, []);
 
   const handleUseCaseChange = useCallback((newUseCase: Key | null) => {
-    setUseCase(newUseCase);
+    setUseCase(newUseCase?.toString() ?? '');
   }, []);
 
   const handleOrgChange = useCallback((newOrg: Key | null) => {
-    setOrg(newOrg);
+    setOrg(newOrg?.toString() ?? '');
   }, []);
 
   const handleCancel = useCallback(() => {

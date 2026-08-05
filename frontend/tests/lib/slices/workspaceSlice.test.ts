@@ -16,6 +16,8 @@ const workspace = (id: string) => ({
   role: 'owner',
   status: 'active',
   disclaimerAccepted: false,
+  useCase: 'other',
+  org: 'other',
 });
 
 const baseState: WorkspaceState = {
