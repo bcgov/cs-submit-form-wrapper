@@ -95,7 +95,7 @@ export function SideNav({ showAppLinks, showHome }: SideNavProps) {
 
       <Button
         id="sidebar-toggle-button"
-        className={`position-absolute top-50 start-100 translate-middle-y bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
+        className={`position-relative top-25 start-100 translate-middle-y bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
         aria-label="Toggle Sidebar"
         variant="secondary"
         data-testid="sidebar-toggle"
