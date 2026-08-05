@@ -15,6 +15,6 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({}: PageProps) {
   return <LandingPage />;
 }

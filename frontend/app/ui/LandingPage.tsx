@@ -1,5 +1,4 @@
 'use client';
-import { Button } from '@bcgov/design-system-react-components';
 import { useDictionary } from '../[lang]/Providers';
 import { LoginButton } from './LoginButton';
 

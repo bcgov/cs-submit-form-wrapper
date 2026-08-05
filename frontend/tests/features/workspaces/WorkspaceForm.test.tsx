@@ -51,18 +51,31 @@ vi.mock('@/app/[lang]/Providers', () => ({
 }));
 
 vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
-  const actual = await importOriginal<any>();
+  const actual = await importOriginal<typeof import('@bcgov/design-system-react-components')>();
+  
+  type SelectItem = { id: string | number; label: string };
+  
   return {
     ...actual,
-    Select: ({ 'data-testid': testId, value, onChange, items }: any) => (
+    Select: ({ 
+      'data-testid': testId, 
+      value, 
+      onChange, 
+      items 
+    }: {
+      'data-testid'?: string;
+      value?: string | number | null;
+      onChange?: (val: string) => void;
+      items?: SelectItem[];
+    }) => (
       <select
         data-testid={testId}
-        value={value || ''}
-        onChange={(e) => onChange && onChange(e.target.value)}
+        value={value ?? ''}
+        onChange={(e) => onChange?.(e.target.value)}
         aria-label={testId}
       >
         <option value="">Select...</option>
-        {items?.map((item: any) => (
+        {items?.map((item) => (
           <option key={item.id} value={item.id}>{item.label}</option>
         ))}
       </select>

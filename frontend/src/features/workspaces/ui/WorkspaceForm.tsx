@@ -215,6 +215,8 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     }
   }, [
     name,
+    org,
+    useCase,
     token,
     isCreate,
     workspaceId,
