@@ -65,7 +65,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const dict = useDictionary();
   const t = dict.dataTable;
-  
+
   const finalEmptyMessage = emptyMessage === 'No items found.' ? t.emptyMessage : emptyMessage;
   const finalLoadingMessage = loadingMessage === 'Loading...' ? t.loadingMessage : loadingMessage;
   const finalItemName = itemName === 'items' ? t.itemName : itemName;
@@ -142,8 +142,8 @@ export function DataTable<T>({
           </div>
 
           <div className="d-flex align-items-center px-4 py-3 text-muted">
-            {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)} {t.of}{' '}
-            {totalItems} {finalItemName}
+            {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)}{' '}
+            {t.of} {totalItems} {finalItemName}
           </div>
 
           <div className="d-flex align-items-stretch ms-auto border-start">
@@ -156,7 +156,7 @@ export function DataTable<T>({
                   size="small"
                   selectedKey={currentPage}
                   onSelectionChange={(key) => onPageChange(Number(key))}
-                  items={[...Array(totalPages)].map((_, i) => ({
+                  items={Array.from({ length: totalPages }, (_, i) => ({
                     id: i + 1,
                     label: String(i + 1),
                   }))}

@@ -35,8 +35,7 @@ const CustomActionButtons = ({
 
   const actions = [];
   if (submitModeEnabled) {
-    actions.push({ name: 'submit', icon: <FaLink /> });
-    actions.push({ name: 'submissions', icon: <FaFolder /> });
+    actions.push({ name: 'submit', icon: <FaLink /> }, { name: 'submissions', icon: <FaFolder /> });
   }
 
   return (
