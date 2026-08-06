@@ -10,7 +10,7 @@ import { log } from '../../core/logging';
 
 const CODE = 'cache-redis';
 
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes; mirrors cache-memory
+const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes; same as cache-memory
 const DEFAULT_KEY_PREFIX = 'soba:';
 const DEFAULT_CONNECT_TIMEOUT_MS = 1000;
 const DEFAULT_COMMAND_TIMEOUT_MS = 500;
