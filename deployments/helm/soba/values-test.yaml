@@ -14,6 +14,13 @@ backend:
       memory: 512Mi
   config:
     nodeEnv: production
+    documentGenerationDefaultCode: cdogs-v2
+  documentGeneration:
+    cdogsV2:
+      endpoint: https://cdogs-test.api.gov.bc.ca/api
+      tokenUrl: https://test.loginproxy.gov.bc.ca/auth/realms/comsvcauth/protocol/openid-connect/token
+    cdogsV3:
+      endpoint: http://common-document-generation-service-master.a12c97-prod:3000
 
 frontend:
   replicas: 2

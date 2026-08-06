@@ -71,6 +71,8 @@ backend:
     # (values-<env>.yaml) once that namespace's Valkey chart is deployed and confirmed reachable —
     # cache-redis without a reachable Valkey is worse than cache-memory (no caching, warn per
     # reconnect). See the valkey block below for the shared-cache wiring.
+    # Document generation backend code the consumer defaults to.
+    documentGenerationDefaultCode: docgen-noop
     cacheDefaultCode: cache-memory
     messagebusDefaultCode: messagebus-memory
     # Temp storage plugin. Default tempstorage-os stages temp bytes under
@@ -120,6 +122,14 @@ backend:
     routesAllowed: "true"
     proxyPath: /formio-v5
     # apiBaseUrl is auto-constructed from the formio service/external URL
+
+  # -- configmap-document-generation: PLUGIN_CDOGS_* + default backend code
+  documentGeneration:
+    cdogsV2:
+      endpoint: ""
+      tokenUrl: ""
+    cdogsV3:
+      endpoint: ""
 
   # -- configmap-sso: IDP / SSO config
   sso:
@@ -320,7 +330,7 @@ temporalWorker:
     limits:
       cpu: 100m
       memory: 512Mi
-      
+
 # -- Vault Agent Injector
 vault:
   enabled: false
