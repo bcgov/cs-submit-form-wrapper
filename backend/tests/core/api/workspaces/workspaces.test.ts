@@ -28,6 +28,8 @@ const workspaceRow = {
   kind: 'team',
   role: 'owner',
   status: 'active',
+  org: 'IT',
+  useCase: 'Internal',
   membershipId: 'membership-1',
   disclaimerAcceptedAt: null,
 };
@@ -42,17 +44,29 @@ describe('WorkspacesApiService', () => {
     jest.mocked(workspaceRepo.createTeamWorkspace).mockResolvedValue(workspaceId);
     jest.mocked(membershipRepo.getWorkspaceForUser).mockResolvedValue(workspaceRow);
 
-    const result = await workspacesApiService.create(actorId, 'idir', { name: 'Team Alpha' });
+    const result = await workspacesApiService.create(actorId, 'idir', {
+      name: 'Team Alpha',
+      org: 'IT',
+      useCase: 'Internal',
+    });
 
     expect(idpGroupRepo.canCreateWorkspaceByIdp).toHaveBeenCalledWith('idir');
 
-    expect(workspaceRepo.createTeamWorkspace).toHaveBeenCalledWith(actorId, 'Team Alpha', false);
+    expect(workspaceRepo.createTeamWorkspace).toHaveBeenCalledWith(
+      actorId,
+      'Team Alpha',
+      'IT',
+      'Internal',
+      false,
+    );
     expect(result).toEqual({
       id: workspaceId,
       name: 'Team Alpha',
       kind: 'team',
       role: 'owner',
       status: 'active',
+      org: 'IT',
+      useCase: 'Internal',
       disclaimerAccepted: false,
     });
   });
@@ -61,7 +75,11 @@ describe('WorkspacesApiService', () => {
     jest.mocked(idpGroupRepo.canCreateWorkspaceByIdp).mockResolvedValue(false);
 
     await expect(
-      workspacesApiService.create(actorId, 'bceidbusiness', { name: 'Team Alpha' }),
+      workspacesApiService.create(actorId, 'bceidbusiness', {
+        name: 'Team Alpha',
+        org: 'IT',
+        useCase: 'Internal',
+      }),
     ).rejects.toBeInstanceOf(ForbiddenError);
 
     expect(workspaceRepo.createTeamWorkspace).not.toHaveBeenCalled();

@@ -196,7 +196,7 @@ const FormDesigner: React.FC<DesignerProps> = ({
   }
 
   if (!authenticated) {
-    return <div className="p-5 text-center">Login Required</div>;
+    return <div className="p-5 text-center">{dict.general.loginRequired}</div>;
   }
 
   return (

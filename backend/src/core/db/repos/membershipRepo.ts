@@ -123,6 +123,8 @@ export const getWorkspaceForUser = async (workspaceId: string, userId: string) =
       id: workspaces.id,
       kind: workspaces.kind,
       name: workspaces.name,
+      org: workspaces.org,
+      useCase: workspaces.useCase,
       status: workspaces.status,
       membershipId: workspaceMemberships.id,
       role: workspaceMemberships.role,
@@ -198,6 +200,8 @@ export interface WorkspaceListRow {
   kind: string;
   role: string;
   status: string;
+  org: string | null;
+  useCase: string | null;
   disclaimerAcceptedAt: Date | null;
   updatedAt: Date;
 }
@@ -234,6 +238,8 @@ export const listWorkspacesForUser = async (
       kind: workspaces.kind,
       role: workspaceMemberships.role,
       status: workspaces.status,
+      org: workspaces.org,
+      useCase: workspaces.useCase,
       disclaimerAcceptedAt: workspaceDisclaimerAcceptances.acceptedAt,
       updatedAt: workspaces.updatedAt,
     })

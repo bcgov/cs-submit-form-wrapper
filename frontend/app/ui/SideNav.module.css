@@ -19,3 +19,17 @@
   justify-content: center;
   width: 1.5rem;
 }
+
+.sidebarToggle {
+  width: 24px;
+  height: 48px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.iconOutlineBootstrap {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 30px;
+  stroke-linejoin: round;
+}

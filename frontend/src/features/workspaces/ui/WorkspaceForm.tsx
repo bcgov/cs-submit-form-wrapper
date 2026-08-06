@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo, type Key } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
   Button,
   Form,
-  Switch,
+  Checkbox,
   TextField,
+  Select,
+  InlineAlert,
 } from '@bcgov/design-system-react-components';
 import { FormSubmitterAudience } from '@/src/features/designer/ui/FormSubmitterAudience';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
@@ -17,22 +19,19 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces, setCanceledDefaultModal } from '@/lib/slices/workspaceSlice';
 import { loadCurrentUser, updateDefaultWorkspace } from '@/lib/slices/currentUserSlice';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
-import {
-  createWorkspace,
-  selectWorkspace,
-  updateWorkspace,
-} from '@/src/shared/api/sobaApi';
+import { createWorkspace, selectWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
 import { isWorkspaceManageRole } from '../workspaceRoles';
 import styles from './WorkspaceForm.module.css';
 
 type WorkspaceFormProps = {
   workspaceId?: string;
+  first?: boolean;
 };
 
-function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
+function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormProps>) {
   const isCreate = !workspaceId;
   const dict = useDictionary();
   const dictWorkspaces = dict.workspaces;
@@ -50,10 +49,14 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
 
   const [name, setName] = useState('');
   const [loadedName, setLoadedName] = useState('');
+  const [org, setOrg] = useState('');
+  const [loadedOrg, setLoadedOrg] = useState('');
+  const [useCase, setUseCase] = useState('');
+  const [loadedUseCase, setLoadedUseCase] = useState('');
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [loadedDisclaimer, setLoadedDisclaimer] = useState(false);
-  const [defaultTouched, setDefaultTouched] = useState(false);
-  const [isDefaultChoice, setIsDefaultChoice] = useState(false);
+  const [defaultTouched, setDefaultTouched] = useState(first || false);
+  const [isDefaultChoice, setIsDefaultChoice] = useState(first || false);
   const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('settings');
@@ -62,7 +65,12 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
   if (!isCreate) {
     savedDefaultMatches = savedDefaultId === workspaceId;
   }
+
   const isDefault = defaultTouched ? isDefaultChoice : savedDefaultMatches;
+
+  const valid = useMemo(() => {
+    return name.trim().length > 0 && useCase !== '' && org !== '';
+  }, [name, useCase, org]);
 
   useEffect(() => {
     if (authenticated && token && currentUserStatus === 'idle') {
@@ -110,6 +118,10 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
         }
         setName(workspace.name);
         setLoadedName(workspace.name);
+        setUseCase(workspace.useCase);
+        setLoadedUseCase(workspace.useCase);
+        setOrg(workspace.org);
+        setLoadedOrg(workspace.org);
         setDisclaimerAccepted(workspace.disclaimerAccepted);
         setLoadedDisclaimer(workspace.disclaimerAccepted);
       })
@@ -136,23 +148,50 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
     setIsDefaultChoice(selected);
   }, []);
 
+  const handleUseCaseChange = useCallback((newUseCase: Key | null) => {
+    setUseCase(newUseCase?.toString() ?? '');
+  }, []);
+
+  const handleOrgChange = useCallback((newOrg: Key | null) => {
+    setOrg(newOrg?.toString() ?? '');
+  }, []);
+
   const handleCancel = useCallback(() => {
+    if (first) {
+      dispatch(setCanceledDefaultModal(true));
+      return;
+    }
     router.push(`/${locale}/workspaces`);
-  }, [router, locale]);
+  }, [router, locale, dispatch, first]);
 
   const handleSave = useCallback(async () => {
     const trimmedName = name.trim();
-    if (!token || !trimmedName) return;
+    const needsUpdate =
+      trimmedName !== loadedName ||
+      disclaimerAccepted !== loadedDisclaimer ||
+      useCase !== loadedUseCase ||
+      org !== loadedOrg;
+    if (!token || !needsUpdate) return;
 
     setSaving(true);
     try {
       let savedId = workspaceId ?? null;
 
       if (isCreate) {
-        const created = await createWorkspace(token, { name: trimmedName, disclaimerAccepted });
+        const created = await createWorkspace(token, {
+          name: trimmedName,
+          disclaimerAccepted,
+          useCase,
+          org,
+        });
         savedId = created.id;
-      } else if (trimmedName !== loadedName || disclaimerAccepted !== loadedDisclaimer) {
-        await updateWorkspace(token, workspaceId, { name: trimmedName, disclaimerAccepted });
+      } else if (needsUpdate) {
+        await updateWorkspace(token, workspaceId, {
+          name: trimmedName,
+          disclaimerAccepted,
+          useCase,
+          org,
+        });
       }
 
       // Only change the stored default when the user's intent is explicit. An untouched
@@ -189,6 +228,8 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
     }
   }, [
     name,
+    org,
+    useCase,
     token,
     isCreate,
     workspaceId,
@@ -204,6 +245,8 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
     addNotification,
     dictWorkspaces.createError,
     dictWorkspaces.saveError,
+    loadedOrg,
+    loadedUseCase,
   ]);
 
   if (!authenticated && !initializing) {
@@ -227,23 +270,51 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
       className={styles.fieldStack}
     >
       <TextField
-        label={dictWorkspaces.nameLabel}
+        label={first ? dictWorkspaces.defNameLabel : dictWorkspaces.nameLabel}
         value={name}
         onChange={setName}
         isRequired
         isDisabled={saving}
         data-testid="workspace-name"
       />
-      <Switch
-        isSelected={isDefault}
-        onChange={handleDefaultChange}
-        isDisabled={saving}
-        aria-label={defaultLabel}
-        data-testid="workspace-default-switch"
-      >
-        {defaultLabel}
-      </Switch>
-      <Switch
+      <Select
+        items={Object.entries(dict.ministries).map(([id, label]) => ({ id, label }))}
+        label={dictWorkspaces.yourOrgReq}
+        selectionMode="single"
+        size="medium"
+        data-testid="workspace-your-org"
+        isRequired={true}
+        value={org}
+        onChange={handleOrgChange}
+      />
+      <Select
+        items={Object.entries(dict.useCases).map(([id, label]) => ({ id, label }))}
+        label={dictWorkspaces.useCase}
+        selectionMode="single"
+        size="medium"
+        data-testid="workspace-use-case"
+        isRequired={true}
+        value={useCase}
+        onChange={handleUseCaseChange}
+      />
+      {!first && (
+        <Checkbox
+          isSelected={isDefault}
+          onChange={handleDefaultChange}
+          isDisabled={saving}
+          aria-label={defaultLabel}
+          data-testid="workspace-default-switch"
+        >
+          {defaultLabel}
+        </Checkbox>
+      )}
+      <InlineAlert
+        description={dictWorkspaces.disclaimer}
+        title={dictWorkspaces.disclaimerTitle}
+        variant="info"
+        data-testid="workspace-disclaimer-alert"
+      />
+      <Checkbox
         isSelected={disclaimerAccepted}
         onChange={setDisclaimerAccepted}
         isDisabled={saving}
@@ -251,12 +322,12 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
         data-testid="workspace-disclaimer-switch"
       >
         {dictWorkspaces.disclaimerLabel}
-      </Switch>
+      </Checkbox>
       <div className={styles.actions}>
         <Button
           type="submit"
           variant="primary"
-          isDisabled={saving || !name.trim()}
+          isDisabled={saving || !valid}
           data-testid="workspace-save"
         >
           {saving ? dict.general.loading : saveLabel}
@@ -276,7 +347,8 @@ function WorkspaceForm({ workspaceId }: Readonly<WorkspaceFormProps>) {
 
   return (
     <ListPageLayout>
-      <DsPageHeading id="workspace-form-heading">{heading}</DsPageHeading>
+      {!first && <DsPageHeading id="workspace-form-heading">{heading}</DsPageHeading>}
+      {first && <p>{dictWorkspaces.defaultWorkspaceIntro}</p>}
       {isCreate ? (
         settingsForm
       ) : (

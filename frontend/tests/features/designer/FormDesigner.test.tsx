@@ -13,7 +13,11 @@ vi.mock('@/lib/hooks/useKeycloak', () => ({
 }));
 
 vi.mock('@/app/[lang]/Providers', () => ({
-  useDictionary: () => ({ locale: 'en', form: {} }),
+  useDictionary: () => ({
+    locale: 'en',
+    form: {},
+    general: { loading: 'Loading…', loginRequired: 'Login Required' },
+  }),
 }));
 
 const { mockDispatch } = vi.hoisted(() => ({ mockDispatch: vi.fn() }));

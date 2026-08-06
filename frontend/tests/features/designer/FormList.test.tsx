@@ -20,6 +20,16 @@ vi.mock('@/app/[lang]/Providers', () => ({
       nameLabel: 'Form Name',
       disclaimerRequired: 'Accept the workspace disclaimer before creating a form.',
     },
+    header: {
+      selectWorkspace: 'Select Workspace',
+    },
+    dataTable: {
+      loadingMessage: 'Loading...',
+      pageOf: 'of {totalPages} page(s)',
+    },
+    workspaces: {
+      workspace: 'Workspace',
+    },
     submission: {
       formList: {
         columns: {
@@ -76,10 +86,13 @@ const { mockWorkspaceState } = vi.hoisted(() => ({
   },
 }));
 vi.mock('@/lib/store', async () => ({
-  useAppSelector: (fn: (s: unknown) => unknown) => fn({ workspace: mockWorkspaceState }),
+  useAppDispatch: () => vi.fn(),
+  useAppSelector: (fn: (s: unknown) => unknown) =>
+    fn({ workspace: mockWorkspaceState, notification: { notifications: [] } }),
 }));
 
 import FormList from '@/src/features/designer/ui/FormList';
+import { selectWorkspace } from '@/src/shared/api/sobaApi';
 
 describe('FormList', () => {
   beforeEach(() => {
@@ -95,7 +108,9 @@ describe('FormList', () => {
     expect(screen.getByRole('heading', { name: 'Forms' })).toBeInTheDocument();
     // DS TextField puts data-testid on its wrapper; query the input by its
     // accessible label instead.
-    const input = screen.getByLabelText('Search');
+    const input = screen
+      .getByTestId('search-forms-text')
+      .querySelector('input') as HTMLInputElement;
     expect(input).toBeInTheDocument();
   });
 
@@ -105,21 +120,6 @@ describe('FormList', () => {
     });
     await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
     expect(screen.getByText('Form Two')).toBeInTheDocument();
-  });
-
-  it('navigates to designer on Manage action', async () => {
-    let container: HTMLElement | null = null;
-    await act(async () => {
-      const res = render(<FormList />);
-      container = res.container;
-    });
-    await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
-    const btn = container!.querySelector(
-      '[data-testid="manage-f1-button"]',
-    ) as HTMLButtonElement | null;
-    expect(btn).toBeTruthy();
-    await userEvent.click(btn!);
-    expect(mockPush).toHaveBeenCalledWith('/en/designer/f1');
   });
 
   it('disables the Create button when there is no active workspace', async () => {
@@ -145,7 +145,9 @@ describe('FormList', () => {
       render(<FormList />);
     });
     await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
-    const input = screen.getByLabelText('Search');
+    const input = screen
+      .getByTestId('search-forms-text')
+      .querySelector('input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'two' } });
     expect(screen.queryByText('Form One')).not.toBeInTheDocument();
     expect(screen.getByText('Form Two')).toBeInTheDocument();

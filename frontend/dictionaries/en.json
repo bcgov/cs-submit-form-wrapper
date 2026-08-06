@@ -3,9 +3,10 @@
   "general": {
     "login": "Login",
     "logout": "Logout",
-    "title": "Common Hosted Forms 2.0",
-    "description": "Next Gen Forms",
+    "title": "Common Hosted Forms Service 2",
+    "description": "Create and publish forms, and receive submissions with the Common Hosted Forms Service.",
     "notAuthenticated": "You are not authenticated. Please login to access this section.",
+    "home": "Home",
     "forms": "Forms",
     "formDesigner": "Form Designer",
     "feedback": "Feedback",
@@ -16,7 +17,33 @@
     "tryAgain": "Try again",
     "comingSoon": "This feature is coming soon.",
     "selectWorkspace": "Select a workspace to view forms.",
-    "workspaceSwitchError": "Failed to switch workspace."
+    "workspaceSwitchError": "Failed to switch workspace.",
+    "access": "Access",
+    "needHelp": "Need help?",
+    "teamsChannel": "Teams Channel",
+    "teamsChannelLink": "CHEFS (Exchange Lab Team)",
+    "needWorkspace": "You require a workspace to be enabled and don't have the permissions to create one. Contact your administrator.",
+    "search": "Search",
+    "loginRequired": "Login Required",
+    "reference": "Reference:"
+  },
+  "dataTable": {
+    "emptyMessage": "No items found.",
+    "loadingMessage": "Loading...",
+    "itemName": "items",
+    "itemsPerPage": "Items per page:",
+    "itemsPerPageAria": "Items per page",
+    "pageAria": "Page",
+    "pageOf": "of {totalPages} page(s)",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "of": "of"
+  },
+  "modal": {
+    "dialogActions": "Dialog actions"
+  },
+  "sideNav": {
+    "toggleSidebar": "Toggle Sidebar"
   },
   "onboarding": {
     "heading": "Welcome",
@@ -24,6 +51,7 @@
   },
   "workspaces": {
     "tableHeading": "Workspaces",
+    "workspace": "Workspace",
     "manageHeading": "Manage Workspace",
     "createHeading": "Create Workspace",
     "settingsTab": "Settings",
@@ -53,7 +81,14 @@
       "forms": "Forms"
     },
     "defaultWorkspaceLabel": "Set {name} as default workspace",
-    "defaultWorkspaceError": "Failed to update default workspace."
+    "defaultWorkspaceError": "Failed to update default workspace.",
+    "modalTitle": "Default Workspace Setup",
+    "defaultWorkspaceIntro": "You have logged into Common Hosted Form Service 2 for the first time. Please setup your default workspace options. This only has to be done once. Thank you.",
+    "defNameLabel": "Default Workspace Name",
+    "yourOrgReq": "Your organization",
+    "useCase": "Use Case",
+    "disclaimer": "It is your responsibility to comply with Privacy laws governing the collection, use and disclosure of personally identifiable information. Access to this form designer tool does not inherently grant permission to collect, use or disclose any personally identifiable information. It is your responsibility to obtain consent to collect information as required by law. If you use BCeID or BC Services Card as form access options, you MUST notify the Identity Information Management (IDIM) team by email (IDIM.Consulting@gov.bc.ca) your intent to leverage BCeID or BC Services Card to verify the identities of your form submitters. It is your responsibility to complete theses additional onboarding requirements before collecting data. Before publishing or distributing your form you are required to discuss the intention of the form with your Ministry Privacy Officer  and to complete assessments as required.",
+    "disclaimerTitle": "Disclaimer and Statement of Responsibility"
   },
   "header": {
     "workspaces": "Workspaces",
@@ -63,6 +98,8 @@
     "designer": "Designer",
     "selectLanguage": "Select Language",
     "selectWorkspace": "Select Workspace",
+    "bcgovTitle": "Government of British Columbia",
+    "primaryNavAria": "Primary",
     "languages": {
       "en": "EN",
       "fr": "FR"
@@ -178,7 +215,8 @@
         "path": "Path",
         "actions": "Actions",
         "createdBy": "Created By",
-        "createdAt": "Created Date"
+        "createdAt": "Created Date",
+        "quickLinks": "Quick Links"
       }
     }
   },
@@ -220,5 +258,50 @@
   "Data Grid": "Data Grid",
   "Edit Grid": "Edit Grid",
   "Submit": "Submit",
-  "Drag and Drop a form component": "Drag and Drop a form component"
+  "Drag and Drop a form component": "Drag and Drop a form component",
+  "useCases": {
+    "application": "Applications that will be evaluated followed by a decision",
+    "collection": "Collection of Datasets, data submission",
+    "feedback": "Feedback Form to determine satisfaction, agreement, likelihood, or other qualitative questions",
+    "report": "Reporting usually on a repeating schedule or event driven like follow-ups",
+    "registration": "Registrations or Sign up - no evaluation"
+  },
+  "ministries": {
+    "AF": "Agriculture and Food (AF)",
+    "AG": "Attorney General (AG)",
+    "CABRO": "Crown Agencies and Board Resourcing Office (CABRO)",
+    "CEC": "Compliance & Enforcement Collaborative (CEC)",
+    "CIRMO": "Corporate Information and Records Management Office (CIRMO)",
+    "CITZ": "Citizens' Services (CITZ)",
+    "ECC": "Education and Child Care (ECC)",
+    "ECS": "Energy and Climate Solutions (ECS)",
+    "EMCR": "Emergency Management and Climate Readiness (EMCR)",
+    "ENV": "Environment and Parks (ENV)",
+    "EBC": "Elections BC(EBC)",
+    "FIN": "Finance (FIN)",
+    "FOR": "Forests (FOR)",
+    "GCPE": "Government Communications and Public Engagement (GCPE)",
+    "HMA": "Housing and Municipal Affairs (HMA)",
+    "HLTH": "Health (HLTH)",
+    "IGRS": "Intergovernmental Relations Secretariat (IGRS)",
+    "INFR": "Ministry of Infrastructure (INFR)",
+    "IRR": "Indigenous Relations & Reconciliation (IRR)",
+    "JEDI": "Jobs, Economic Development and Innovation (JEDI)",
+    "LBR": "Labour (LBR)",
+    "MCM": "Mining and Critical Materials (MCM)",
+    "MCF": "Children and Family Development (MCF)",
+    "OCG": "Office of the Comptroller General (OCG)",
+    "OCIO": "Office of the Chief Information Officer (OCIO)",
+    "PREM": "Office of the Premier (PREM)",
+    "PSA": "BC Public Service Agency (PSA)",
+    "PSECS": "Public Sector Employers' Council Secretariat (PSECS)",
+    "PSFS": "Post-Secondary Education and Future Skills (PSFS)",
+    "PSSG": "Public Safety and Solicitor General (PSSG)",
+    "PT": "Provincial Treasury (PT)",
+    "SDPR": "Social Development and Poverty Reduction (SDPR)",
+    "TACS": "Tourism, Arts, Culture and Sport (TACS)",
+    "TB": "Treasury Board Staff (TB)",
+    "TRAN": "Transportation and Transit (TRAN)",
+    "WLRS": "Water, Land and Resource Stewardship (WLRS)"
+  }
 }

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Modal as BCModal, Dialog, Heading, ButtonGroup } from '@bcgov/design-system-react-components';
+import { useDictionary } from '@/app/[lang]/Providers';
 import styles from './Modal.module.css';
 
 export interface ModalProps {
@@ -30,6 +31,7 @@ const WIDTH_BY_SIZE: Record<NonNullable<ModalProps['size']>, string> = {
  * no-op everywhere it was used and has been dropped.
  */
 export function Modal({ show, title, onClose, children, size = 'lg', footer }: ModalProps) {
+  const dict = useDictionary();
   return (
     <BCModal
       isOpen={show}
@@ -49,7 +51,7 @@ export function Modal({ show, title, onClose, children, size = 'lg', footer }: M
         <div className={styles.body}>{children}</div>
         {footer && (
           <div className={styles.footer}>
-            <ButtonGroup ariaLabel="Dialog actions">{footer}</ButtonGroup>
+            <ButtonGroup ariaLabel={dict.modal.dialogActions}>{footer}</ButtonGroup>
           </div>
         )}
       </Dialog>

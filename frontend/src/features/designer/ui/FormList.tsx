@@ -14,27 +14,28 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
-import { useAppSelector } from '@/lib/store';
+import { useAppSelector, useAppDispatch } from '@/lib/store';
+import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
+import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
+import { selectActiveWorkspace } from '@/lib/slices/workspaceSlice';
+import { FaFolder, FaLink } from 'react-icons/fa6';
+import styles from './FormList.module.css';
 
 const CustomActionButtons = ({
   form,
   onAction,
-  designModeEnabled,
   submitModeEnabled,
 }: {
   form: SobaFormSummary;
   onAction: (name: string, id: string) => void;
-  designModeEnabled?: boolean;
   submitModeEnabled?: boolean;
 }) => {
   // All actions (manage/submit/submissions) are keyed on the SOBA formId.
   const sobaFormId = form.id;
 
   const actions = [];
-  if (designModeEnabled) actions.push({ name: 'manage', title: 'Manage' });
   if (submitModeEnabled) {
-    actions.push({ name: 'submit', title: 'Submit' });
-    actions.push({ name: 'submissions', title: 'Submissions' });
+    actions.push({ name: 'submit', icon: <FaLink /> }, { name: 'submissions', icon: <FaFolder /> });
   }
 
   return (
@@ -48,7 +49,7 @@ const CustomActionButtons = ({
             onAction(action.name, sobaFormId);
           }}
         >
-          {action.title}
+          {action.icon}
         </RowActionButton>
       ))}
     </div>
@@ -74,6 +75,8 @@ function FormList({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const dispatch = useAppDispatch();
+  const { addNotification } = useNotificationStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,6 +153,26 @@ function FormList({
     [router, locale],
   );
 
+  // Round-trip through GET /workspaces/:id so the backend verifies membership before we
+  // persist the tab workspace to sessionStorage and Redux, then open the forms list.
+  const handleWorkspaceChange = (key: string | number | null) => {
+    if (!token || key == null) return;
+    const workspaceId = String(key);
+    if (workspaceId === activeWorkspaceId) return;
+    dispatch(selectActiveWorkspace({ token, workspaceId }))
+      .unwrap()
+      .then(() => {
+        router.push(`/${locale}/forms`);
+      })
+      .catch((error) => {
+        addNotification({
+          text: dict.general.workspaceSwitchError || 'Error switching workspace',
+          type: 'error',
+          consoleError: error,
+        });
+      });
+  };
+
   const formatLongDate = useFormatLongDate();
 
   const columns: Column<SobaFormSummary>[] = useMemo(
@@ -174,13 +197,12 @@ function FormList({
       },
       {
         key: 'actions',
-        label: dictFormList?.columns?.actions || 'Actions',
+        label: dictFormList?.columns?.quickLinks || 'Quick Links',
         align: 'start',
         render: (form: SobaFormSummary) => (
           <CustomActionButtons
             form={form}
             onAction={handleAction}
-            designModeEnabled={designModeEnabled}
             submitModeEnabled={submitModeEnabled}
           />
         ),
@@ -201,28 +223,25 @@ function FormList({
         ),
       },
     ],
-    [
-      handleAction,
-      dictFormList,
-      dictForm,
-      designModeEnabled,
-      submitModeEnabled,
-      formatLongDate,
-    ],
+    [handleAction, dictFormList, dictForm, designModeEnabled, submitModeEnabled, formatLongDate],
   );
 
   // Auth gate only — loading (including Keycloak init) is shown inside the table
   // body so the page heading stays visible throughout.
   if (!authenticated && !initializing) {
-    return (
-      <ListPageAuthGate>{dict.general.notAuthenticated}</ListPageAuthGate>
-    );
+    return <ListPageAuthGate>{dict.general.notAuthenticated}</ListPageAuthGate>;
   }
 
   return (
     <ListPageLayout>
       <DsPageHeading id="forms-heading">{dict.general.forms}</DsPageHeading>
       <ListPageToolbar align={designModeEnabled ? 'between' : 'end'}>
+        <ListPageSearchField
+          value={searchQuery}
+          onChange={handleSearchChange}
+          testIdPrefix="forms"
+          showSearchButton={true}
+        />
         {designModeEnabled ? (
           <DSButton
             variant="primary"
@@ -233,13 +252,19 @@ function FormList({
             Create
           </DSButton>
         ) : null}
-
-        <ListPageSearchField
-          value={searchQuery}
-          onChange={handleSearchChange}
-          testIdPrefix="forms"
-        />
       </ListPageToolbar>
+      <div className={`mb-2 ${styles.workspaceField}`}>
+        <div className="mb-2">{dict.workspaces.workspace}</div>
+        <div>
+          <WorkspaceSelector
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            label={dict.header.selectWorkspace}
+            onChange={handleWorkspaceChange}
+            size="medium"
+          />
+        </div>
+      </div>
 
       {needsDisclaimer ? (
         <InlineAlert

@@ -127,6 +127,8 @@ export const workspaces = sobaSchema.table(
     id: idColumn(),
     kind: text('kind').notNull(),
     name: text('name').notNull(),
+    org: text('org').notNull(),
+    useCase: text('use_case').notNull(),
     status: text('status').notNull(),
     parentWorkspaceId: uuid('parent_workspace_id').references(() => workspaces.id),
     ...auditColumns(),
