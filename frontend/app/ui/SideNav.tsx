@@ -95,12 +95,11 @@ export function SideNav({ showAppLinks, showHome }: SideNavProps) {
 
       <Button
         id="sidebar-toggle-button"
-        className={`position-relative top-25 start-100 translate-middle-y bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
-        aria-label="Toggle Sidebar"
+        className={`position-relative top-25gt start-100 translate-middle-y bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
+        aria-label={dict.sideNav.toggleSidebar}
         variant="secondary"
         data-testid="sidebar-toggle"
         onClick={() => {
-          // Add your state toggle logic here
           setIsCollapsed(!isCollapsed);
         }}
       >

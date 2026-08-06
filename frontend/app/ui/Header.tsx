@@ -48,6 +48,7 @@ function Header({ headerNavItems }: HeaderProps) {
     workspaces,
     activeWorkspaceId,
     status: workspaceStatus,
+    canceledDefaultModal,
   } = useAppSelector((state) => state.workspace);
 
   const headerChromeRef = useRef<HTMLDivElement>(null);
@@ -236,7 +237,7 @@ function Header({ headerNavItems }: HeaderProps) {
     <div ref={headerChromeRef} data-testid="app-header">
       <BCHeader
         logoLinkElement={
-          <Link href="/" data-testid="bcgov-header-logo" title="Government of British Columbia" />
+          <Link href="/" data-testid="bcgov-header-logo" title={dict.header.bcgovTitle} />
         }
         title={dict.general.title}
         titleElement="h1"
@@ -248,7 +249,11 @@ function Header({ headerNavItems }: HeaderProps) {
       >
         <div className="d-flex align-items-center gap-3">
           {headerNavItems.length > 0 ? (
-            <nav aria-label="Primary" data-testid="primary-nav" className="d-none d-md-block">
+            <nav
+              aria-label={dict.header.primaryNavAria}
+              data-testid="primary-nav"
+              className="d-none d-md-block"
+            >
               <ul className="list-unstyled d-flex align-items-center gap-3 mb-0">
                 {headerNavItems.map((item) => (
                   <li key={item.id}>
@@ -265,7 +270,7 @@ function Header({ headerNavItems }: HeaderProps) {
           </div>
         </div>
       </BCHeader>
-      {workspaceStatus === 'succeeded' && !hasWorkspaces && (
+      {workspaceStatus === 'succeeded' && !hasWorkspaces && !canceledDefaultModal && (
         <WorkspaceModal canCreateWorkspace={canCreateWorkspace} />
       )}
     </div>

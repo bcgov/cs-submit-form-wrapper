@@ -19,7 +19,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces, setCanceledDefaultModal } from '@/lib/slices/workspaceSlice';
 import { loadCurrentUser, updateDefaultWorkspace } from '@/lib/slices/currentUserSlice';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { createWorkspace, selectWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
@@ -50,7 +50,9 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   const [name, setName] = useState('');
   const [loadedName, setLoadedName] = useState('');
   const [org, setOrg] = useState('');
+  const [loadedOrg, setLoadedOrg] = useState('');
   const [useCase, setUseCase] = useState('');
+  const [loadedUseCase, setLoadedUseCase] = useState('');
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [loadedDisclaimer, setLoadedDisclaimer] = useState(false);
   const [defaultTouched, setDefaultTouched] = useState(first || false);
@@ -117,7 +119,9 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         setName(workspace.name);
         setLoadedName(workspace.name);
         setUseCase(workspace.useCase);
+        setLoadedUseCase(workspace.useCase);
         setOrg(workspace.org);
+        setLoadedOrg(workspace.org);
         setDisclaimerAccepted(workspace.disclaimerAccepted);
         setLoadedDisclaimer(workspace.disclaimerAccepted);
       })
@@ -153,12 +157,21 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   }, []);
 
   const handleCancel = useCallback(() => {
+    if (first) {
+      dispatch(setCanceledDefaultModal(true));
+      return;
+    }
     router.push(`/${locale}/workspaces`);
-  }, [router, locale]);
+  }, [router, locale, dispatch, first]);
 
   const handleSave = useCallback(async () => {
     const trimmedName = name.trim();
-    if (!token || !trimmedName) return;
+    const needsUpdate =
+      trimmedName !== loadedName ||
+      disclaimerAccepted !== loadedDisclaimer ||
+      useCase !== loadedUseCase ||
+      org !== loadedOrg;
+    if (!token || !needsUpdate) return;
 
     setSaving(true);
     try {
@@ -232,6 +245,8 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     addNotification,
     dictWorkspaces.createError,
     dictWorkspaces.saveError,
+    loadedOrg,
+    loadedUseCase,
   ]);
 
   if (!authenticated && !initializing) {
@@ -295,7 +310,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
       )}
       <InlineAlert
         description={dictWorkspaces.disclaimer}
-        onClose={function BU() {}}
         title={dictWorkspaces.disclaimerTitle}
         variant="info"
         data-testid="workspace-disclaimer-alert"

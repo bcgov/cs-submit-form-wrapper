@@ -15,6 +15,7 @@ type CenteredProgressProps = {
 };
 
 import { useClientMounted } from '@/lib/hooks/useClientMounted';
+import { useDictionary } from '@/app/[lang]/Providers';
 
 /**
  * The single loading indicator for the app: a horizontally/vertically centered
@@ -31,6 +32,8 @@ export function CenteredProgress({
   'data-testid': testId = 'loading-indicator',
 }: CenteredProgressProps) {
   const isMounted = useClientMounted();
+  const dict = useDictionary();
+  const finalLabel = label === 'Loading' ? dict.general.loading : label;
 
   return (
     <div
@@ -39,7 +42,7 @@ export function CenteredProgress({
       style={minHeight ? { minHeight } : undefined}
       data-testid={testId}
     >
-      {isMounted && <ProgressCircle isIndeterminate aria-label={label} />}
+      {isMounted && <ProgressCircle isIndeterminate aria-label={finalLabel} />}
     </div>
   );
 }

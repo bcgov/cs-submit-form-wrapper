@@ -2,6 +2,7 @@
 
 import { Button } from '@bcgov/design-system-react-components';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
+import { useDictionary } from '@/app/[lang]/Providers';
 
 interface LoginButtonProps {
   readonly label?: string;
@@ -15,6 +16,7 @@ export function LoginButton({
   variant = 'primary',
 }: LoginButtonProps) {
   const { login } = useKeycloak();
+  const dict = useDictionary();
 
   return (
     <Button
@@ -24,7 +26,7 @@ export function LoginButton({
       data-testid={testId}
       onPress={() => login()}
     >
-      {label}
+      {label === 'Login' ? dict.general.login : label}
     </Button>
   );
 }

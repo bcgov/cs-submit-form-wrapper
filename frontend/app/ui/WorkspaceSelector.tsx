@@ -9,15 +9,17 @@ export function WorkspaceSelector({
   activeWorkspaceId,
   label,
   onChange,
+  size = 'small',
 }: Readonly<{
   workspaces: WorkspaceSelectorItem[];
   activeWorkspaceId: string | null;
   label: string;
+  size?: 'small' | 'medium';
   onChange: (key: string | number | null) => void;
 }>) {
   return (
     <Select
-      size="small"
+      size={size}
       id="workspace-select"
       data-testid="workspace-select"
       aria-label={label}

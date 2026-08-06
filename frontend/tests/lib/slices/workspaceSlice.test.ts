@@ -25,6 +25,7 @@ const baseState: WorkspaceState = {
   activeWorkspaceId: null,
   status: 'idle',
   error: null,
+  canceledDefaultModal: false,
 };
 
 describe('workspaceSlice', () => {

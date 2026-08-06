@@ -5,6 +5,7 @@ import { Table } from 'react-bootstrap';
 import { Select, Button } from '@bcgov/design-system-react-components';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa6';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
+import { useDictionary } from '@/app/[lang]/Providers';
 import styles from './DataTable.module.css';
 
 export interface Column<T> {
@@ -62,6 +63,13 @@ export function DataTable<T>({
   pageSizeOptions = [5, 10, 25, 50],
   keyExtractor,
 }: DataTableProps<T>) {
+  const dict = useDictionary();
+  const t = dict.dataTable;
+  
+  const finalEmptyMessage = emptyMessage === 'No items found.' ? t.emptyMessage : emptyMessage;
+  const finalLoadingMessage = loadingMessage === 'Loading...' ? t.loadingMessage : loadingMessage;
+  const finalItemName = itemName === 'items' ? t.itemName : itemName;
+
   const totalPages = totalItems ? Math.ceil(totalItems / pageSize) : 1;
 
   const renderBody = () => {
@@ -69,7 +77,7 @@ export function DataTable<T>({
       return (
         <tr>
           <td colSpan={columns.length} className="p-0">
-            <CenteredProgress label={loadingMessage} data-testid="datatable-loading" />
+            <CenteredProgress label={finalLoadingMessage} data-testid="datatable-loading" />
           </td>
         </tr>
       );
@@ -78,7 +86,7 @@ export function DataTable<T>({
       return (
         <tr>
           <td colSpan={columns.length} className="text-center py-5 text-muted">
-            {error ? `Error: ${error}` : emptyMessage}
+            {error ? `Error: ${error}` : finalEmptyMessage}
           </td>
         </tr>
       );
@@ -118,10 +126,10 @@ export function DataTable<T>({
       {!loading && data.length > 0 && totalItems !== undefined && (
         <div className={`d-flex align-items-stretch ${styles.pagination}`}>
           <div className="d-flex align-items-center gap-2 px-4 py-3 border-end">
-            <span>Items per page:</span>
+            <span>{t.itemsPerPage}</span>
             {onPageSizeChange ? (
               <Select
-                aria-label="Items per page"
+                aria-label={t.itemsPerPageAria}
                 data-testid="datatable-page-size-select"
                 size="small"
                 selectedKey={pageSize}
@@ -134,8 +142,8 @@ export function DataTable<T>({
           </div>
 
           <div className="d-flex align-items-center px-4 py-3 text-muted">
-            {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)} of{' '}
-            {totalItems} {itemName}
+            {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)} {t.of}{' '}
+            {totalItems} {finalItemName}
           </div>
 
           <div className="d-flex align-items-stretch ms-auto border-start">
@@ -143,18 +151,18 @@ export function DataTable<T>({
               {totalPages <= 1 && <span>{currentPage}</span>}
               {onPageChange && totalPages > 1 && (
                 <Select
-                  aria-label="Page"
+                  aria-label={t.pageAria}
                   data-testid="datatable-page-select-select"
                   size="small"
                   selectedKey={currentPage}
                   onSelectionChange={(key) => onPageChange(Number(key))}
-                  items={[new Array(totalPages)].map((_, i) => ({
+                  items={[...Array(totalPages)].map((_, i) => ({
                     id: i + 1,
                     label: String(i + 1),
                   }))}
                 />
               )}
-              <span>of {totalPages} page(s)</span>
+              <span>{t.pageOf.replace('{totalPages}', String(totalPages))}</span>
             </div>
 
             <div className="d-flex align-items-stretch">
@@ -165,7 +173,7 @@ export function DataTable<T>({
                   isIconButton
                   onPress={() => onPageChange && onPageChange(currentPage - 1)}
                   data-testid="datatable-prev-page-button"
-                  aria-label="Previous page"
+                  aria-label={t.previousPage}
                   isDisabled={currentPage === 1}
                 >
                   <FaChevronLeft />
@@ -178,7 +186,7 @@ export function DataTable<T>({
                   isIconButton
                   onPress={() => onPageChange && onPageChange(currentPage + 1)}
                   data-testid="datatable-next-page-button"
-                  aria-label="Next page"
+                  aria-label={t.nextPage}
                   isDisabled={currentPage === totalPages}
                 >
                   <FaChevronRight />

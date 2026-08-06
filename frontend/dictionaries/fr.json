@@ -1,6 +1,6 @@
 {
   "locale": "fr",
-  "name": "CHEFS2",
+  "name": "Common Hosted Forms 2",
   "general": {
     "login": "Connecter",
     "logout": "Déconnexion",
@@ -23,7 +23,28 @@
     "needHelp": "Besoin d'aide?",
     "teamsChannel": "Canal Teams",
     "teamsChannelLink": "CHEFS (Exchange Lab Team)",
-    "needWorkspace": "Vous avez besoin d'un espace de travail activé et vous n'avez pas les autorisations pour en créer un. Contactez votre administrateur."
+    "needWorkspace": "Vous avez besoin d'un espace de travail activé et vous n'avez pas les autorisations pour en créer un. Contactez votre administrateur.",
+    "search": "Recherche",
+    "loginRequired": "Connexion requise",
+    "reference": "Référence:"
+  },
+  "dataTable": {
+    "emptyMessage": "Aucun élément trouvé.",
+    "loadingMessage": "Chargement...",
+    "itemName": "éléments",
+    "itemsPerPage": "Éléments par page :",
+    "itemsPerPageAria": "Éléments par page",
+    "pageAria": "Page",
+    "pageOf": "sur {totalPages} page(s)",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "of": "de"
+  },
+  "modal": {
+    "dialogActions": "Actions de la boîte de dialogue"
+  },
+  "sideNav": {
+    "toggleSidebar": "Basculer la barre latérale"
   },
   "onboarding": {
     "heading": "Bienvenue",
@@ -31,6 +52,7 @@
   },
   "workspaces": {
     "tableHeading": "Espaces de travail",
+    "workspace": "Espace de travail",
     "manageHeading": "Gérer l'espace de travail",
     "createHeading": "Créer un espace de travail",
     "settingsTab": "Paramètres",
@@ -62,7 +84,7 @@
     "defaultWorkspaceLabel": "Définir {name} comme espace de travail par défaut",
     "defaultWorkspaceError": "Échec de la mise à jour de l'espace de travail par défaut.",
     "modalTitle": "Configuration de l'espace de travail par défaut",
-    "defaultWorkspaceIntro": "Vous vous êtes connecté à CHEFS 2 pour la première fois. Veuillez configurer vos options d'espace de travail par défaut. Cette opération ne doit être effectuée qu'une seule fois. Merci.",
+    "defaultWorkspaceIntro": "Vous vous êtes connecté à Common Hosted Forms Service 2 pour la première fois. Veuillez configurer vos options d'espace de travail par défaut. Cette opération ne doit être effectuée qu'une seule fois. Merci.",
     "defNameLabel": "Nom de l'espace de travail par défaut",
     "yourOrgReq": "Votre organisation",
     "useCase": "Cas d'utilisation",
@@ -76,7 +98,9 @@
     "skipToMain": "Aller au contenu principal",
     "designer": "Générateur de Formulaire",
     "selectLanguage": "Choisir la langue",
-    "selectWorkspace": "Choisir l'espace de travail",
+    "selectWorkspace": "Sélectionner un espace de travail",
+    "bcgovTitle": "Gouvernement de la Colombie-Britannique",
+    "primaryNavAria": "Principal",
     "languages": {
       "en": "EN",
       "fr": "FR"
@@ -192,7 +216,8 @@
         "path": "Chemin",
         "actions": "Actions",
         "createdBy": "Créé par",
-        "createdAt": "Date de création"
+        "createdAt": "Date de création",
+        "quickLinks": "Liens rapides"
       }
     }
   },
@@ -240,7 +265,7 @@
     "collection": "Collecte d'ensembles de données, soumission de données",
     "feedback": "Formulaire de rétroaction pour déterminer la satisfaction, l'accord, la probabilité ou d'autres questions qualitatives",
     "report": "Rapports généralement sur un calendrier répétitif ou événementiel comme des suivis",
-    "registration": "Inscriptions ou inscription - sans évaluation"
+    "registration": "Registrations or Sign up - no evaluation"
   },
   "ministries": {
     "AF": "Agriculture et Alimentation (AF)",

@@ -3,7 +3,7 @@
   "general": {
     "login": "Login",
     "logout": "Logout",
-    "title": "CHEFS2",
+    "title": "Common Hosted Forms Service 2",
     "description": "Create and publish forms, and receive submissions with the Common Hosted Forms Service.",
     "notAuthenticated": "You are not authenticated. Please login to access this section.",
     "home": "Home",
@@ -22,7 +22,28 @@
     "needHelp": "Need help?",
     "teamsChannel": "Teams Channel",
     "teamsChannelLink": "CHEFS (Exchange Lab Team)",
-    "needWorkspace": "You require a workspace to be enabled and don't have the permissions to create one. Contact your administrator."
+    "needWorkspace": "You require a workspace to be enabled and don't have the permissions to create one. Contact your administrator.",
+    "search": "Search",
+    "loginRequired": "Login Required",
+    "reference": "Reference:"
+  },
+  "dataTable": {
+    "emptyMessage": "No items found.",
+    "loadingMessage": "Loading...",
+    "itemName": "items",
+    "itemsPerPage": "Items per page:",
+    "itemsPerPageAria": "Items per page",
+    "pageAria": "Page",
+    "pageOf": "of {totalPages} page(s)",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "of": "of"
+  },
+  "modal": {
+    "dialogActions": "Dialog actions"
+  },
+  "sideNav": {
+    "toggleSidebar": "Toggle Sidebar"
   },
   "onboarding": {
     "heading": "Welcome",
@@ -30,6 +51,7 @@
   },
   "workspaces": {
     "tableHeading": "Workspaces",
+    "workspace": "Workspace",
     "manageHeading": "Manage Workspace",
     "createHeading": "Create Workspace",
     "settingsTab": "Settings",
@@ -61,7 +83,7 @@
     "defaultWorkspaceLabel": "Set {name} as default workspace",
     "defaultWorkspaceError": "Failed to update default workspace.",
     "modalTitle": "Default Workspace Setup",
-    "defaultWorkspaceIntro": "You have logged into CHEFS 2 for the first time. Please setup your default workspace options. This only has to be done once. Thank you.",
+    "defaultWorkspaceIntro": "You have logged into Common Hosted Form Service 2 for the first time. Please setup your default workspace options. This only has to be done once. Thank you.",
     "defNameLabel": "Default Workspace Name",
     "yourOrgReq": "Your organization",
     "useCase": "Use Case",
@@ -76,6 +98,8 @@
     "designer": "Designer",
     "selectLanguage": "Select Language",
     "selectWorkspace": "Select Workspace",
+    "bcgovTitle": "Government of British Columbia",
+    "primaryNavAria": "Primary",
     "languages": {
       "en": "EN",
       "fr": "FR"
@@ -191,7 +215,8 @@
         "path": "Path",
         "actions": "Actions",
         "createdBy": "Created By",
-        "createdAt": "Created Date"
+        "createdAt": "Created Date",
+        "quickLinks": "Quick Links"
       }
     }
   },
@@ -238,7 +263,8 @@
     "application": "Applications that will be evaluated followed by a decision",
     "collection": "Collection of Datasets, data submission",
     "feedback": "Feedback Form to determine satisfaction, agreement, likelihood, or other qualitative questions",
-    "report": "Reporting usually on a repeating schedule or event driven like follow-ups"
+    "report": "Reporting usually on a repeating schedule or event driven like follow-ups",
+    "registration": "Registrations or Sign up - no evaluation"
   },
   "ministries": {
     "AF": "Agriculture and Food (AF)",
