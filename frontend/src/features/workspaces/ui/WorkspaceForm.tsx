@@ -185,7 +185,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
           org,
         });
         savedId = created.id;
-      } else if (trimmedName !== loadedName || disclaimerAccepted !== loadedDisclaimer) {
+      } else if (needsUpdate) {
         await updateWorkspace(token, workspaceId, {
           name: trimmedName,
           disclaimerAccepted,
