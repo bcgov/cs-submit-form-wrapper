@@ -290,23 +290,42 @@ temporal:
   namespace: "default"
   taskQueue: "soba"
 
-# -- Temporal worker (dedicated image with glibc for @temporalio/core-bridge) --
-temporalWorker:
-  enabled: false
-  image:
-    repository: ghcr.io/bcgov/soba/temporal-worker
-    tag: latest
-    pullPolicy: IfNotPresent
-  replicas: 1
-  # Port for the worker's HTTP health endpoints (/readyz, /healthz)
-  healthPort: 9090
-  resources:
-    requests:
-      cpu: 25m
-      memory: 128Mi
-    limits:
-      cpu: 100m
-      memory: 512Mi
+# -- Temporal workers (dedicated image with glibc for @temporalio/core-bridge) --
+temporalWorkersImage:
+  repository: ghcr.io/bcgov/soba/temporal-worker
+  tag: latest
+  pullPolicy: IfNotPresent
+
+temporalWorkers:
+  - name: temporal-worker
+    component: temporal-worker
+    enabled: false
+    taskQueue: "soba"
+    replicas: 1
+    # Port for the worker's HTTP health endpoints (/readyz, /healthz)
+    healthPort: 9090
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 512Mi
+
+  - name: temporal-worker-document-generation
+    component: temporal-worker-document-generation
+    enabled: false
+    taskQueue: "document-generation"
+    replicas: 1
+    # Keep a different health port from the main worker in the same namespace.
+    healthPort: 9091
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 512Mi
 
 # -- Vault Agent Injector
 vault:

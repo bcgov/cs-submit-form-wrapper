@@ -107,7 +107,7 @@ client.workflow.start(sendEmail, { taskQueue: "email-tasks" });
 client.workflow.start(generatePdf, { taskQueue: "pdf-tasks" });
 ```
 
-This codebase currently has **one worker** polling **one task queue** (`TEMPORAL_TASK_QUEUE` from `.env`). Multiple workers would only be needed when jobs have very different resource requirements or scaling needs.
+This codebase supports **multiple workers** and **multiple task queues**. The shared default queue is `soba` (`TEMPORAL_TASK_QUEUE`), and individual worker deployments can override `TEMPORAL_TASK_QUEUE` (for example `document-generation`) to isolate workload types.
 
 ---
 
@@ -245,12 +245,14 @@ Browser ---------> temporal-ui (Docker :8088)
 | Term | Explanation
 | **Workflow** | The overall job — defines the steps and their order. Must be deterministic (no I/O, no randomness). |
 | **Activity** | A single step inside a workflow — this is where real work happens (DB queries, API calls, emails, etc.). |
-| **Task queue** | The named channel the worker listens on. The API server and worker must use the same queue name. |
+| **Task queue** | The named channel a worker process listens on. For a given workflow start call, its taskQueue value must match at least one running worker. |
 | **Worker** | The process that listens to a task queue and executes workflows and activities. |
 
 ---
 
 ## Files added for Temporal
+
+The repo has one worker entry point (`temporal-worker.ts`), but you can run that same entry point as many times as needed with different environment values. Each process instance can poll a different queue.
 
 ```
 backend/
@@ -306,12 +308,13 @@ This means changes to `.devcontainer/config/temporal-dynamicconfig.yaml` take ef
 
 Set in `backend/.env` (and `.env.example`). Read via `env.getTemporal*()` helpers in `src/core/config/env.ts`.
 
-| Variable              | Default          | What it does                                      |
-| --------------------- | ---------------- | ------------------------------------------------- |
-| `TEMPORAL_ALLOWED`    | `false`          | When `true`, worker connects and `getClient()` works; when `false`, worker exits without connecting and `getClient()` rejects |
-| `TEMPORAL_ADDRESS`    | `localhost:7233` | Where the Temporal server is listening            |
-| `TEMPORAL_NAMESPACE`  | `default`        | Logical namespace for isolating workflows         |
-| `TEMPORAL_TASK_QUEUE` | `soba`           | Queue name — must match between worker and client |
+| Variable                      | Default          | What it does                                                                                                                  |
+| ----------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `TEMPORAL_ALLOWED`            | `false`          | When `true`, worker connects and `getClient()` works; when `false`, worker exits without connecting and `getClient()` rejects |
+| `TEMPORAL_ADDRESS`            | `localhost:7233` | Where the Temporal server is listening                                                                                        |
+| `TEMPORAL_NAMESPACE`          | `default`        | Logical namespace for isolating workflows                                                                                     |
+| `TEMPORAL_TASK_QUEUE`         | `soba`           | Default queue name — each worker can override this via env                                                                    |
+| `TEMPORAL_WORKER_HEALTH_PORT` | `9090`           | Worker HTTP health port (`/readyz`, `/healthz`); each worker process must use a unique port                                   |
 
 ---
 
@@ -339,13 +342,32 @@ Local dev uses the **same `postgres` service** as the rest of the stack (there i
 docker compose -f .devcontainer/docker-compose.yml up -d postgres temporal temporal-ui
 ```
 
-**Step 2 — Start the worker** (from `backend/`):
+**Step 2 — Start workers**
+
+Recommended (VS Code): run the compound debug config `SOBA (Backend + Temporal + Frontend)` or `SOBA (Backend + Temporal)`. These compounds start both known worker queues automatically using `.vscode/launch.json`:
+
+- `SOBA Temporal Worker (soba)`
+- `SOBA Temporal Worker (document-generation)`
+
+Manual fallback (from `backend/`):
 
 ```bash
-pnpm temporal-worker:dev   # watches for TypeScript changes and restarts automatically
+# terminal A
+TEMPORAL_TASK_QUEUE=soba TEMPORAL_WORKER_HEALTH_PORT=9090 pnpm temporal-worker:dev
+
+# terminal B
+TEMPORAL_TASK_QUEUE=document-generation TEMPORAL_WORKER_HEALTH_PORT=9091 pnpm temporal-worker:dev
 ```
 
 One-shot (no watch): `pnpm temporal-worker`. After `pnpm run build`: `pnpm temporal-worker:start` runs `node dist/temporal-worker.js` (same as OpenShift worker command).
+
+Important:
+
+- `.env` sets defaults; it does not create worker processes.
+- One process polls one queue value.
+- A second queue needs a second worker process.
+- The VS Code compounds automate this by launching multiple worker processes with queue-specific env overrides.
+- Health ports must be unique per process (for example 9090 and 9091).
 
 **Step 3 — Open the UI** to see running/completed/failed workflows:
 http://localhost:8088 (auto-forwarded by devcontainer)
@@ -356,7 +378,7 @@ http://localhost:8088 (auto-forwarded by devcontainer)
 pnpm dev
 ```
 
-> Both the API server and the worker must be running at the same time for workflows to execute end-to-end.
+> The API server and at least one matching worker must be running at the same time for workflows to execute end-to-end.
 
 ---
 
@@ -374,7 +396,7 @@ import { log } from "@temporalio/activity";
 
 export async function sendNotification(
   userId: string,
-  message: string
+  message: string,
 ): Promise<void> {
   log.info("Sending notification", { userId });
   // do the real work here — DB, email, HTTP, etc.
@@ -406,7 +428,7 @@ const { sendNotification } = proxyActivities<typeof activities>({
 
 export async function notifyUserWorkflow(
   userId: string,
-  message: string
+  message: string,
 ): Promise<void> {
   await sendNotification(userId, message);
 }
@@ -495,7 +517,7 @@ it("sends a notification", async () => {
       taskQueue: "test",
       workflowId: "test-notify-1",
       args: ["user-1", "hello"],
-    })
+    }),
   );
 });
 ```

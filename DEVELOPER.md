@@ -109,21 +109,21 @@ VS Code config lives in `.vscode/launch.json` and `.vscode/tasks.json`.
 
 **Launch (`launch.json`):** Run and debug from the Run and Debug view.
 
-| Configuration                          | Purpose                                                          |
-| -------------------------------------- | ---------------------------------------------------------------- |
-| **SOBA Backend**                       | Start backend dev server (`pnpm dev` in `backend/`)              |
-| **SOBA Temporal Worker**               | Start Temporal worker (`tsx watch temporal-worker.ts`)           |
-| **SOBA Frontend**                      | Start frontend dev server (`pnpm dev:watch` in `frontend/`)      |
-| **SOBA (Backend + Temporal + Frontend)** | Compound: backend, Temporal worker, and frontend               |
-| **SOBA (Backend + Temporal)**          | Compound: backend and Temporal worker                            |
-| **SOBA Frontend (Chrome)**             | Attach Chrome to frontend (URL `http://localhost:3000`)          |
+| Configuration                            | Purpose                                                     |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| **SOBA Backend**                         | Start backend dev server (`pnpm dev` in `backend/`)         |
+| **SOBA Temporal Worker**                 | Start Temporal worker (`tsx watch temporal-worker.ts`)      |
+| **SOBA Frontend**                        | Start frontend dev server (`pnpm dev:watch` in `frontend/`) |
+| **SOBA (Backend + Temporal + Frontend)** | Compound: backend, Temporal worker, and frontend            |
+| **SOBA (Backend + Temporal)**            | Compound: backend and Temporal worker                       |
+| **SOBA Frontend (Chrome)**               | Attach Chrome to frontend (URL `http://localhost:3000`)     |
 
 **Tasks (`tasks.json`):** Run from Command Palette → “Tasks: Run Task”.
 
-| Task                   | Purpose                                                         |
-| ---------------------- | --------------------------------------------------------------- |
-| **Dev Services: Up**   | Start sidecars (`docker compose ... up -d --build`)             |
-| **Dev Services: Down** | Stop and remove the dev service containers                    |
+| Task                   | Purpose                                             |
+| ---------------------- | --------------------------------------------------- |
+| **Dev Services: Up**   | Start sidecars (`docker compose ... up -d --build`) |
+| **Dev Services: Down** | Stop and remove the dev service containers          |
 
 You can also run `docker compose -f .devcontainer/docker-compose.yml up -d` in a terminal, or right-click `docker-compose.yml` and use **Compose Up**.
 
@@ -164,28 +164,28 @@ The devcontainer **initialize** and **post-create** steps copy from example file
 
 ### Scripts
 
-| Command                  | Purpose                                                    |
-| ------------------------ | ---------------------------------------------------------- |
-| `pnpm dev`               | nodemon: `tsc && node dist/src/app.js` on change (port 4000) |
-| `pnpm build`             | Compile TypeScript to `dist/`                              |
-| `pnpm serve`             | Build then run `node dist/src/app.js`                      |
-| `pnpm start`             | Run `node dist/src/app.js` (assumes already built)         |
-| `pnpm test`              | Run Jest unit tests                                        |
-| `pnpm test:watch`        | Jest in watch mode                                         |
-| `pnpm test:coverage`     | Jest with coverage report                                  |
-| `pnpm test:parallel`     | Jest with `--maxWorkers=2`                                 |
-| `pnpm lint` / `lint:fix` | ESLint; fix applies auto-fix                               |
-| `pnpm format` / `format:check` | Prettier write / check                             |
-| `pnpm type-check`        | `tsc --noEmit`                                             |
-| `pnpm check`             | Type-check + lint (run before PR)                          |
-| `pnpm temporal-worker`   | Run Temporal worker once (`tsx temporal-worker.ts`)        |
-| `pnpm temporal-worker:dev` | Run Temporal worker with watch                           |
+| Command                        | Purpose                                                      |
+| ------------------------------ | ------------------------------------------------------------ |
+| `pnpm dev`                     | nodemon: `tsc && node dist/src/app.js` on change (port 4000) |
+| `pnpm build`                   | Compile TypeScript to `dist/`                                |
+| `pnpm serve`                   | Build then run `node dist/src/app.js`                        |
+| `pnpm start`                   | Run `node dist/src/app.js` (assumes already built)           |
+| `pnpm test`                    | Run Jest unit tests                                          |
+| `pnpm test:watch`              | Jest in watch mode                                           |
+| `pnpm test:coverage`           | Jest with coverage report                                    |
+| `pnpm test:parallel`           | Jest with `--maxWorkers=2`                                   |
+| `pnpm lint` / `lint:fix`       | ESLint; fix applies auto-fix                                 |
+| `pnpm format` / `format:check` | Prettier write / check                                       |
+| `pnpm type-check`              | `tsc --noEmit`                                               |
+| `pnpm check`                   | Type-check + lint (run before PR)                            |
+| `pnpm temporal-worker`         | Run Temporal worker once (`tsx temporal-worker.ts`)          |
+| `pnpm temporal-worker:dev`     | Run Temporal worker with watch                               |
 
 Tests live under `backend/tests/`. See [In Detail — Testing](#testing) for approach and supertest usage.
 
 ### Temporal
 
-[Temporal](https://temporal.io) sidecar runs in compose (port 7233; UI on 8088). Worker scripts above poll `TEMPORAL_TASK_QUEUE` (default `soba`). **`TEMPORAL_ALLOWED=false`** by default — worker exits without connecting; set `true` for local workflow dev. See `docs/temporal.md` for workflow details.
+[Temporal](https://temporal.io) sidecar runs in compose (port 7233; UI on 8088). Worker scripts above poll `TEMPORAL_TASK_QUEUE` (default `soba`). Queue can be overridden per worker deployment (for example a dedicated `document-generation` queue). **`TEMPORAL_ALLOWED=false`** by default — worker exits without connecting; set `true` for local workflow dev. See `docs/temporal.md` for workflow details.
 
 ### API layout
 
@@ -197,16 +197,16 @@ Tests live under `backend/tests/`. See [In Detail — Testing](#testing) for app
 
 ### Core domains
 
-| API path                                           | Purpose                                                               | Access    |
-| -------------------------------------------------- | --------------------------------------------------------------------- | --------- |
-| `/api/v1/meta`                                     | Plugins, features, form-engines, build, frontend-config, codes, roles | Public    |
-| `/api/v1/health`, `/api/v1/health/ready`           | Liveness and readiness                                                | Public    |
-| `/api/v1/workspaces`, `/api/v1/workspaces/current` | List workspaces, current workspace                                    | Protected |
-| `/api/v1/me`                                       | Current actor                                                         | Protected |
-| `/api/v1/members`                                  | Workspace members                                                     | Protected |
-| `/api/v1/forms`, `/api/v1/form-versions`, …        | Forms and form versions CRUD, save, publish/unpublish/restore, schema | Protected |
+| API path                                           | Purpose                                                               | Access                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------- |
+| `/api/v1/meta`                                     | Plugins, features, form-engines, build, frontend-config, codes, roles | Public                                 |
+| `/api/v1/health`, `/api/v1/health/ready`           | Liveness and readiness                                                | Public                                 |
+| `/api/v1/workspaces`, `/api/v1/workspaces/current` | List workspaces, current workspace                                    | Protected                              |
+| `/api/v1/me`                                       | Current actor                                                         | Protected                              |
+| `/api/v1/members`                                  | Workspace members                                                     | Protected                              |
+| `/api/v1/forms`, `/api/v1/form-versions`, …        | Forms and form versions CRUD, save, publish/unpublish/restore, schema | Protected                              |
 | `/api/v1/submissions`, …                           | Submissions CRUD, save, read data (`GET /:id/data`)                   | Protected (+ public create/save above) |
-| `/api/v1/admin`                                    | SOBA platform admins (list, add, remove)                              | Admin     |
+| `/api/v1/admin`                                    | SOBA platform admins (list, add, remove)                              | Admin                                  |
 
 Key form-version routes: `POST /:id/publish`, `POST /:id/unpublish`, `POST /:id/restore`, `GET|POST /:id/schema` (read/provision schema in the form engine).
 
@@ -216,13 +216,13 @@ The backend uses a **plugin architecture** so that form engines, auth (IdP), cac
 
 **Plugin types and current implementations:**
 
-| Type                   | Purpose                                | Implementations                                                     |
-| ---------------------- | -------------------------------------- | ------------------------------------------------------------------- |
-| **Form engine**        | Render/store forms and submissions     | `formio-v5` (Form.io v5)                                            |
-| **IdP (auth)**         | JWT validation, claim mapping          | `idp-bcgov-sso` (BC Gov Keycloak), `idp-github`                     |
-| **Cache**              | Key-value cache                        | `cache-memory`; future: Redis                                       |
-| **Message bus**        | Async messaging                        | `messagebus-memory`; future: Redis, NATS                            |
-| **Feature API**        | Optional REST API per plugin           | none; `pluginApiDefinition` extension point stays for plugins with REST endpoints |
+| Type            | Purpose                            | Implementations                                                                   |
+| --------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
+| **Form engine** | Render/store forms and submissions | `formio-v5` (Form.io v5)                                                          |
+| **IdP (auth)**  | JWT validation, claim mapping      | `idp-bcgov-sso` (BC Gov Keycloak), `idp-github`                                   |
+| **Cache**       | Key-value cache                    | `cache-memory`; future: Redis                                                     |
+| **Message bus** | Async messaging                    | `messagebus-memory`; future: Redis, NATS                                          |
+| **Feature API** | Optional REST API per plugin       | none; `pluginApiDefinition` extension point stays for plugins with REST endpoints |
 
 IdP plugins are ordered via env (`IDP_PLUGINS`); the first successful IdP wins. Passport orchestrates the ordered plugin attempts and the winning plugin supplies the mapped identity used by core. IdP env prefixes follow plugin codes (e.g. `bcgov-sso` → `PLUGIN_BCGOV_SSO_*`, `idp-github` → `PLUGIN_IDP_GITHUB_*`).
 
@@ -336,7 +336,7 @@ Tests live under `frontend/tests/`. See [In Detail — Testing](#testing).
 
 ### UI and styling
 
- `@bcgov/bc-sans`. **Bootstrap** is used.
+`@bcgov/bc-sans`. **Bootstrap** is used.
 
 ### Forms
 
