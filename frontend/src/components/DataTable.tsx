@@ -154,8 +154,8 @@ export function DataTable<T>({
                   aria-label={t.pageAria}
                   data-testid="datatable-page-select-select"
                   size="small"
-                  selectedKey={currentPage}
-                  onSelectionChange={(key) => onPageChange(Number(key))}
+                  value={currentPage}
+                  onChange={(key) => onPageChange(Number(key))}
                   items={Array.from({ length: totalPages }, (_, i) => ({
                     id: i + 1,
                     label: String(i + 1),

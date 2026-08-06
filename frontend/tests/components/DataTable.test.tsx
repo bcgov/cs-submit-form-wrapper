@@ -12,6 +12,17 @@ const columns = [
   { key: 'value', label: 'Value', render: (it: Item) => <strong>{it.value ?? '-'}</strong> },
 ];
 
+vi.mock('@/app/[lang]/Providers', () => ({
+  useDictionary: () => ({
+    locale: 'en',
+    dataTable: {
+      emptyMessage: 'No items found.',
+      loadingMessage: 'Loading...',
+      pageOf: 'of {totalPages} page(s)',
+    },
+  }),
+}));
+
 describe('DataTable', () => {
   it('renders empty message when no data', () => {
     render(<DataTable<Item> data={[]} columns={columns} keyExtractor={(i) => i.id} />);

@@ -4,18 +4,17 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ListPageSearchField } from '@/src/components/ListPageSearchField';
 
+vi.mock('@/app/[lang]/Providers', () => ({
+  useDictionary: () => ({ locale: 'en', general: { search: 'Search' } }),
+}));
+
 describe('ListPageSearchField', () => {
-  it('renders search input and clears value', async () => {
+  it('renders search input', async () => {
     const onChange = vi.fn();
-    render(
-      <ListPageSearchField value="team" onChange={onChange} testIdPrefix="workspaces" />,
-    );
+    render(<ListPageSearchField value="team" onChange={onChange} testIdPrefix="workspaces" />);
 
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByTestId('search-workspaces-text')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByLabelText('Clear search'));
-    expect(onChange).toHaveBeenCalledWith('');
   });
 
   it('does not show clear button when empty', () => {

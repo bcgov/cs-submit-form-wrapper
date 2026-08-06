@@ -14,6 +14,7 @@ vi.mock('@/app/[lang]/Providers', () => ({
       notAuthenticated: 'Not authed',
       loading: 'Loading…',
       workspaceSwitchError: 'Failed to switch workspace.',
+      search: 'Search',
     },
     workspaces: {
       tableHeading: 'Workspaces',
@@ -24,6 +25,10 @@ vi.mock('@/app/[lang]/Providers', () => ({
       createAction: 'Create',
       defaultWorkspaceLabel: 'Set {name} as default workspace',
       defaultWorkspaceError: 'Failed to update default workspace.',
+    },
+    dataTable: {
+      itemName: 'items',
+      pageOf: 'of {totalPages} page(s)',
     },
   }),
 }));
@@ -151,7 +156,9 @@ describe('WorkspaceList', () => {
     await act(async () => {
       render(<WorkspaceList />);
     });
-    const input = screen.getByLabelText('Search');
+    const input = screen
+      .getByTestId('search-workspaces-text')
+      .querySelector('input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'team' } });
     expect(screen.queryByText('Personal Workspace')).not.toBeInTheDocument();
     expect(screen.getByText('Team Workspace')).toBeInTheDocument();
