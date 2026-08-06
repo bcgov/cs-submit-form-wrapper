@@ -11,6 +11,7 @@ backend:
   config:
     logLevel: debug
     nodeEnv: development
+    cacheDefaultCode: cache-redis
 
 frontend:
   replicas: 1
@@ -54,7 +55,7 @@ temporalWorker:
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
-  
+
 vault:
   enabled: true
   role: acf456-nonprod
