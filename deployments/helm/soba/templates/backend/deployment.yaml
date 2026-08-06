@@ -16,6 +16,7 @@ spec:
       annotations:
         checksum/config-app: {{ include (print $.Template.BasePath "/backend/configmap-app.yaml") . | sha256sum }}
         checksum/config-formio: {{ include (print $.Template.BasePath "/backend/configmap-formio.yaml") . | sha256sum }}
+        checksum/config-document-generation: {{ include (print $.Template.BasePath "/backend/configmap-document-generation.yaml") . | sha256sum }}
         checksum/config-sso: {{ include (print $.Template.BasePath "/backend/configmap-sso.yaml") . | sha256sum }}
         checksum/config-ratelimit: {{ include (print $.Template.BasePath "/backend/configmap-ratelimit.yaml") . | sha256sum }}
         checksum/secret-db: {{ include (print $.Template.BasePath "/secrets/db-secret.yaml") . | sha256sum }}
@@ -75,6 +76,8 @@ spec:
                 name: {{ include "soba.fullname" . }}-backend-app
             - configMapRef:
                 name: {{ include "soba.fullname" . }}-backend-formio
+            - configMapRef:
+                name: {{ include "soba.fullname" . }}-backend-document-generation
             - configMapRef:
                 name: {{ include "soba.fullname" . }}-backend-sso
             - configMapRef:
