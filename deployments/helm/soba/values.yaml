@@ -214,7 +214,9 @@ formio:
   external:
     url: ""
   image:
-    repository: docker.io/formio/formio
+    # Pull official images through Google's Docker Hub mirror to avoid the anonymous pull-rate
+    # limit on the cluster (same image, matching digest).
+    repository: mirror.gcr.io/formio/formio
     tag: 4.6.0
     pullPolicy: IfNotPresent
   replicas: 1
@@ -246,7 +248,9 @@ mongodb:
   external:
     uri: ""
   image:
-    repository: docker.io/mongo
+    # Google's Docker Hub mirror — avoids the anonymous pull-rate limit on the cluster (same
+    # image, matching digest).
+    repository: mirror.gcr.io/library/mongo
     tag: "7"
     pullPolicy: IfNotPresent
   replicas: 1

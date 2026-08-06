@@ -14,7 +14,8 @@ service:
 
 valkey:
   # valkey.image -- The Valkey image (Redis-compatible, OSI-licensed)
-  image: valkey/valkey
+  # Google's Docker Hub mirror — avoids the anonymous pull-rate limit on the cluster (same image).
+  image: mirror.gcr.io/valkey/valkey
   # valkey.tag -- The Valkey image tag
   tag: 8-alpine
   # valkey.imagePullPolicy -- IfNotPresent
