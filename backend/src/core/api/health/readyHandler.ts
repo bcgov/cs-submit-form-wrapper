@@ -4,6 +4,7 @@ import { checkFormEngineReadiness } from '../../integrations/form-engine/FormEng
 import { checkDocumentGenerationReadiness } from '../../integrations/document-generation/DocumentGenerationRegistry';
 import {
   checkStorageReadiness,
+  getCacheAdapter,
   getTempStorageAdapter,
   getVirusScanAdapter,
 } from '../../integrations/plugins/PluginRegistry';
@@ -45,6 +46,15 @@ export async function readinessHandler(_req: Request, res: Response): Promise<vo
   // pull the pod from rotation.
   const documentGeneration = await checkDocumentGenerationReadiness();
 
+  // Cache is reported but non-gating — a cache outage falls through to Postgres (slower, not an
+  // outage). An adapter without a readinessCheck (e.g. cache-memory) is reported ok.
+  let cache: { ok: boolean; message?: string };
+  try {
+    cache = (await getCacheAdapter().readinessCheck?.()) ?? { ok: true };
+  } catch (err) {
+    cache = { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+
   const body = {
     status: dbOk && allEnginesOk ? 'ready' : 'unhealthy',
     db: dbOk ? 'ok' : 'unreachable',
@@ -53,6 +63,7 @@ export async function readinessHandler(_req: Request, res: Response): Promise<vo
     tempStorage,
     virusScanner,
     documentGeneration,
+    cache,
   };
 
   if (!dbOk || !allEnginesOk) {

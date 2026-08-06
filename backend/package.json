@@ -71,6 +71,7 @@
     "express-jwt": "^8.5.1",
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.2",
     "minio": "^8.0.7",

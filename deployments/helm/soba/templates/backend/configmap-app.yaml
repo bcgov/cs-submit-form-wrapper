@@ -22,6 +22,12 @@ data:
   {{- end }}
   FORM_ENGINE_DEFAULT_CODE: {{ .Values.backend.config.formEngineDefaultCode | quote }}
   CACHE_DEFAULT_CODE: {{ .Values.backend.config.cacheDefaultCode | quote }}
+  {{- if include "soba.cacheUsesRedis" . }}
+  PLUGIN_CACHE_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release key namespace so releases sharing one Valkey (e.g. PRs in the dev namespace) never
+  # read each other's cached rows. Defaults to <release>:; override with valkey.keyPrefix.
+  PLUGIN_CACHE_REDIS_KEY_PREFIX: {{ .Values.valkey.keyPrefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
   MESSAGEBUS_DEFAULT_CODE: {{ .Values.backend.config.messagebusDefaultCode | quote }}
   TEMPSTORAGE_DEFAULT_CODE: {{ .Values.backend.config.tempStorageDefaultCode | quote }}
   {{- if include "soba.tempStorageUsesMount" . }}

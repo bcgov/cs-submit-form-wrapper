@@ -121,10 +121,21 @@ export const resolveListWorkspaceScope = async (
   }
 };
 
-/** Membership lookup for `workspaceId`/`actorId`, cached when the adapter supports getOrSet. */
+/** The cache getOrSet, or undefined if no working cache adapter is available. Acquisition is guarded
+ *  so a missing/misconfigured cache (e.g. cache-redis selected with no URL) falls through to the
+ *  source of truth rather than throwing on every request. */
+const cachedGetOrSet = () => {
+  try {
+    const cache = getCacheAdapter();
+    return cache.getOrSet?.bind(cache);
+  } catch {
+    return undefined;
+  }
+};
+
+/** Membership lookup for `workspaceId`/`actorId`, cached when a cache adapter supports getOrSet. */
 const loadMembership = (workspaceId: string, actorId: string) => {
-  const cache = getCacheAdapter();
-  const getOrSet = cache.getOrSet?.bind(cache);
+  const getOrSet = cachedGetOrSet();
   return getOrSet
     ? getOrSet(membershipKey(workspaceId, actorId), () => getWorkspaceForUser(workspaceId, actorId))
     : getWorkspaceForUser(workspaceId, actorId);

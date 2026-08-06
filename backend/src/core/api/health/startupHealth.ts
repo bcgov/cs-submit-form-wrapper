@@ -1,6 +1,7 @@
 import { pool } from '../../db/client';
 import { log } from '../../logging';
 import {
+  getCacheAdapter,
   getTempStorageAdapter,
   getVirusScanAdapter,
   resolveActivePluginCode,
@@ -13,6 +14,7 @@ import {
   virusScanSelfTest,
   type VirusScanSelfTestResult,
 } from '../../integrations/virus-scan/virusScanSelfTest';
+import { cacheSelfTest, type CacheSelfTestResult } from '../../integrations/cache/cacheSelfTest';
 import { checkDocumentGenerationReadiness } from '../../integrations/document-generation/DocumentGenerationRegistry';
 
 /** Run a check; swallow sync throws and rejections. */
@@ -24,16 +26,23 @@ async function probe(check: () => Promise<boolean>): Promise<boolean> {
   }
 }
 
-/** Log a one-shot up/down ping of db and temp storage at startup. Log-only;
+/** Log a one-shot up/down ping of db, temp storage, virus scanner and cache at startup. Log-only;
  *  never throws. Deeper per-service checks run separately below. */
 export async function logStartupHealth(): Promise<void> {
-  const [db, tempStorage, virusScanner] = await Promise.all([
+  const [db, tempStorage, virusScanner, cache] = await Promise.all([
     probe(() => pool.query('SELECT 1').then(() => true)),
     probe(() => getTempStorageAdapter().ping()),
     probe(() => getVirusScanAdapter().ping()),
+    // No readinessCheck (e.g. cache-memory) means nothing to reach — reported reachable.
+    probe(
+      () =>
+        getCacheAdapter()
+          .readinessCheck?.()
+          .then((r) => r.ok) ?? Promise.resolve(true),
+    ),
   ]);
 
-  const health = { db, tempStorage, virusScanner };
+  const health = { db, tempStorage, virusScanner, cache };
   const unreachable = Object.entries(health)
     .filter(([, ok]) => !ok)
     .map(([name]) => name);
@@ -97,6 +106,29 @@ export async function logVirusScanSelfTest(): Promise<void> {
       { virusScan, message: result.message },
       'Virus scan self-test: configured scanner not detecting (unreachable or definitions missing)',
     );
+  }
+}
+
+/** Log the cache self-test (write + read back + remove), including the active backend. A failed
+ *  round-trip logs WARN; the app still runs (lookups fall through to the source). Never throws. */
+export async function logCacheSelfTest(): Promise<void> {
+  let result: CacheSelfTestResult;
+  try {
+    result = await cacheSelfTest(getCacheAdapter());
+  } catch (err) {
+    log.warn({ err }, 'Cache self-test could not run');
+    return;
+  }
+
+  const cache = {
+    code: resolveActivePluginCode('cache'),
+    roundTrip: result.roundTrip,
+  };
+
+  if (result.roundTrip) {
+    log.info({ cache }, 'Cache self-test: read/write OK');
+  } else {
+    log.warn({ cache, message: result.message }, 'Cache self-test: read/write failed');
   }
 }
 

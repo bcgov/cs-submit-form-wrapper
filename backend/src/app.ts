@@ -12,6 +12,7 @@ import {
   logStartupHealth,
   logTempStorageSelfTest,
   logVirusScanSelfTest,
+  logCacheSelfTest,
   logDocumentGenerationReadiness,
 } from './core/api/health';
 import { metaRouter } from './core/api/meta';
@@ -146,5 +147,6 @@ app.listen(port, () => {
   void logStartupHealth()
     .then(logTempStorageSelfTest)
     .then(logVirusScanSelfTest)
+    .then(logCacheSelfTest)
     .then(logDocumentGenerationReadiness);
 });
