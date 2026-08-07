@@ -1,6 +1,8 @@
 # PR pipeline: QA (type-check, lint, unit tests), then build/deploy when app paths change.
+# Also runnable manually (workflow_dispatch) with just a PR number (like CHEFS); a manual
+# run force-deploys, bypassing the changed-paths gate.
 name: PR Open
-run-name: PR-${{ github.event.number }}
+run-name: PR-${{ github.event.number || github.event.inputs.pr-number }}
 
 env:
   ACRONYM: soba
@@ -15,11 +17,19 @@ on:
     types: [opened, reopened, synchronize]
     branches:
       - develop
+  # Manual trigger: build & deploy a specific PR on demand. Provide just the PR number
+  # (e.g. 42). A manual run force-deploys, bypassing the changed-paths gate below.
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: Pull request number
+        required: true
+        type: string
 
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number }}
+  group: ${{ github.workflow }}-${{ github.event.number || github.event.inputs.pr-number }}
   cancel-in-progress: true
 
 jobs:
@@ -27,12 +37,13 @@ jobs:
     name: Detect deployable changes
     runs-on: ubuntu-latest
     outputs:
-      deploy: ${{ steps.filter.outputs.deploy }}
+      deploy: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.deploy == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Filter changed paths
+        if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590
         id: filter
         with:
@@ -70,7 +81,8 @@ jobs:
       - name: Setting variables
         id: vars
         run: |
-          PR_NUMBER="${{ github.event.number }}"
+          PR_NUMBER="${{ github.event.number || github.event.inputs.pr-number }}"
+          PR_NUMBER="${PR_NUMBER//[^0-9]/}"
           SLOT=$(( PR_NUMBER % SLOT_COUNT ))
           echo "PR_NUM=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "SLOT=$SLOT" >> "$GITHUB_OUTPUT"
@@ -270,7 +282,7 @@ jobs:
     needs: [deploy, set-vars]
     uses: ./.github/workflows/playwright.yaml
     with:
-      DEP_ENV: ${{ github.event.number }} #Passes PR number
+      DEP_ENV: ${{ github.event.number || github.event.inputs.pr-number }} #Passes PR number
       pr_branch: ${{ needs.set-vars.outputs.ref }} # Passes the PR branch
       BASE_URL: ${{ needs.set-vars.outputs.URL }}
     secrets:
