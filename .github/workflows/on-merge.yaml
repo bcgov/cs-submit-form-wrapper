@@ -20,6 +20,8 @@ on:
       - "deployments/**"
       - "sonar-project.properties"
 
+  workflow_dispatch:
+
 permissions: {}
 
 concurrency:
