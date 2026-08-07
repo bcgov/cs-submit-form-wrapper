@@ -41,7 +41,7 @@ concurrency:
 jobs:
   set-vars:
     name: Set variables
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       PR_NUM: ${{ steps.vars.outputs.PR_NUM }}
       SLOT: ${{ steps.vars.outputs.SLOT }}
@@ -65,19 +65,19 @@ jobs:
   soba-cleanup:
     name: Uninstall SOBA and remove secrets/PVCs
     needs: [set-vars]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install OpenShift CLI
-        uses: redhat-actions/openshift-tools-installer@v1
+        uses: redhat-actions/openshift-tools-installer@e3b32c2ab7b064b2ce189121c4a49f509a99a7b4 # v3.0
         with:
           oc: "4.14"
           skip_cache: "true"
 
       - name: Login to OpenShift Cluster
-        uses: redhat-actions/oc-login@v1
+        uses: redhat-actions/oc-login@2a1614bc977c054c8786c8e35fc9534bd0ddc156 # v2.0.1
         with:
           openshift_server_url: ${{ vars.OC_SERVER }}
           openshift_token: ${{ secrets.OC_TOKEN }}
@@ -129,22 +129,22 @@ jobs:
   crunch-cleanup:
     name: Remove Crunchy PR user and database
     needs: [set-vars, soba-cleanup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout action-crunchy
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: bcgov/action-crunchy
           ref: v2.0.0
 
       - name: Install OpenShift CLI
-        uses: redhat-actions/openshift-tools-installer@v1
+        uses: redhat-actions/openshift-tools-installer@e3b32c2ab7b064b2ce189121c4a49f509a99a7b4 # v3.0
         with:
           oc: "4.14"
           skip_cache: "true"
 
       - name: Login to OpenShift Cluster
-        uses: redhat-actions/oc-login@v1
+        uses: redhat-actions/oc-login@2a1614bc977c054c8786c8e35fc9534bd0ddc156 # v2.0.1
         with:
           openshift_server_url: ${{ vars.OC_SERVER }}
           openshift_token: ${{ secrets.OC_TOKEN }}

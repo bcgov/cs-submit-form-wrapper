@@ -51,21 +51,21 @@ runs:
   using: composite
   steps:
     - name: Install OpenShift CLI
-      uses: redhat-actions/openshift-tools-installer@v1
+      uses: redhat-actions/openshift-tools-installer@e3b32c2ab7b064b2ce189121c4a49f509a99a7b4 # v3.0
       with:
         oc: "4.14"
 
     - name: Checkout repository from pull request
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ inputs.ref }}
       if: ${{ inputs.ref != '' }}
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       if: ${{ inputs.ref == '' }}
 
     - name: Login to OpenShift Cluster
-      uses: redhat-actions/oc-login@v1
+      uses: redhat-actions/oc-login@2a1614bc977c054c8786c8e35fc9534bd0ddc156 # v2.0.1
       with:
         openshift_server_url: ${{ inputs.oc_server }}
         openshift_token: ${{ inputs.oc_token }}

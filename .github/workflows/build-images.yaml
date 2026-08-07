@@ -106,7 +106,7 @@ permissions:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       ref: ${{ steps.vars.outputs.ref }}
       platforms: ${{ steps.vars.outputs.platforms }}
@@ -145,9 +145,9 @@ jobs:
           MATRIX='{"include":[]}'
           if echo "$PLATFORMS" | grep -q 'amd64'; then
             MATRIX=$(echo "$MATRIX" | jq -c '.include += [
-              {"component":"backend","dockerfile_dir":"./backend","platform":"linux/amd64","platform_pair":"linux-amd64","runner":"ubuntu-latest"},
-              {"component":"frontend","dockerfile_dir":"./frontend","platform":"linux/amd64","platform_pair":"linux-amd64","runner":"ubuntu-latest"},
-              {"component":"temporal-worker","dockerfile_dir":"./backend","dockerfile":"Dockerfile.temporal-worker","platform":"linux/amd64","platform_pair":"linux-amd64","runner":"ubuntu-latest"}
+              {"component":"backend","dockerfile_dir":"./backend","platform":"linux/amd64","platform_pair":"linux-amd64","runner":"ubuntu-24.04"},
+              {"component":"frontend","dockerfile_dir":"./frontend","platform":"linux/amd64","platform_pair":"linux-amd64","runner":"ubuntu-24.04"},
+              {"component":"temporal-worker","dockerfile_dir":"./backend","dockerfile":"Dockerfile.temporal-worker","platform":"linux/amd64","platform_pair":"linux-amd64","runner":"ubuntu-24.04"}
             ]')
           fi
           if echo "$PLATFORMS" | grep -q 'arm64'; then
@@ -183,15 +183,15 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.ref }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -200,7 +200,7 @@ jobs:
       # Context = repo root (same as Makefile: docker build -f backend/Dockerfile .)
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: ${{ matrix.dockerfile_dir }}/${{ matrix.dockerfile || 'Dockerfile' }}
@@ -220,7 +220,7 @@ jobs:
           echo "$digest" > "${{ runner.temp }}/digests/${{ matrix.component }}-${{ matrix.platform_pair }}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: digests-${{ matrix.component }}-${{ matrix.platform_pair }}
           path: ${{ runner.temp }}/digests/*
@@ -228,13 +228,13 @@ jobs:
 
   merge:
     needs: [prepare, build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       short_sha: ${{ steps.vars.outputs.short_sha }}
       image_version: ${{ needs.prepare.outputs.image_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.ref }}
 
@@ -245,21 +245,21 @@ jobs:
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: digests
           pattern: digests-*
           merge-multiple: true
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
       - name: Merge backend
         run: |
