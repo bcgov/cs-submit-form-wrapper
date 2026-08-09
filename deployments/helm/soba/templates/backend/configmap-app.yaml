@@ -35,6 +35,13 @@ data:
   # never receive each other's events. Defaults to <release>:; override with valkey.channelPrefix.
   PLUGIN_MESSAGEBUS_REDIS_CHANNEL_PREFIX: {{ .Values.valkey.channelPrefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
   {{- end }}
+  EVENTSTREAM_DEFAULT_CODE: {{ .Values.backend.config.eventStreamDefaultCode | quote }}
+  {{- if include "soba.eventstreamUsesRedis" . }}
+  PLUGIN_EVENTSTREAM_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release stream namespace so releases sharing one Valkey never read each other's streams or
+  # share consumer groups. Defaults to <release>:; override with valkey.streamPrefix.
+  PLUGIN_EVENTSTREAM_REDIS_STREAM_PREFIX: {{ .Values.valkey.streamPrefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
   TEMPSTORAGE_DEFAULT_CODE: {{ .Values.backend.config.tempStorageDefaultCode | quote }}
   {{- if include "soba.tempStorageUsesMount" . }}
   PLUGIN_TEMPSTORAGE_MOUNT_DIR: {{ .Values.backend.tempStorage.mountPath | quote }}

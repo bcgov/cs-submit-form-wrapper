@@ -13,6 +13,7 @@ import { log } from '../../core/logging';
 
 const CODE = 'eventstream-redis';
 const DATA_FIELD = 'data';
+const DEFAULT_STREAM_PREFIX = 'soba:';
 const BATCH = 10;
 const DEFAULT_MAX_DELIVERIES = 5;
 const DEFAULT_MIN_IDLE_MS = 30_000; // a pending message must be idle this long before it is reclaimed
@@ -89,6 +90,12 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
   // Age-based trimming and durability are handled at the deployment/persistence layer, not here.
   const configs = new Map<string, EventStreamConfig>();
 
+  // Every stream key is namespaced so releases sharing one Valkey (e.g. PRs in the dev namespace)
+  // never read each other's events or share consumer groups. keyPrefix does not apply to the .call()
+  // command args, so the prefix is applied explicitly. Callers use logical names; Redis sees keyed.
+  const streamPrefix = config.getOptional('STREAM_PREFIX') ?? DEFAULT_STREAM_PREFIX;
+  const streamKey = (name: string): string => `${streamPrefix}${name}`;
+
   // Each consumer gets its own reader: a blocking XREADGROUP ties up the connection. It must ride
   // out reconnects (queue + no per-request cap) and not be killed by the command timeout while it
   // blocks, so those are relaxed here via the shared client's escape hatch.
@@ -145,12 +152,13 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
       await whenReady();
       const data = JSON.stringify({ ...event, time: event.time ?? new Date().toISOString() });
       const maxLen = configs.get(stream)?.maxLen;
+      const key = streamKey(stream);
       // Approximate trim (MAXLEN ~) only when the stream was provisioned with a cap — no default, so
       // an unconfigured stream never silently drops un-acked entries (at-least-once).
       const id = (
         maxLen
-          ? await client.call('XADD', stream, 'MAXLEN', '~', maxLen, '*', DATA_FIELD, data)
-          : await client.call('XADD', stream, '*', DATA_FIELD, data)
+          ? await client.call('XADD', key, 'MAXLEN', '~', maxLen, '*', DATA_FIELD, data)
+          : await client.call('XADD', key, '*', DATA_FIELD, data)
       ) as string | null;
       if (!id) throw new Error(`[${CODE}] XADD returned no id for stream '${stream}'`);
       return { id };
@@ -158,12 +166,13 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
 
     async consume(stream, group, consumer, handler, options): Promise<EventStreamSubscription> {
       const maxDeliveries = options?.maxDeliveries ?? defaultMaxDeliveries;
+      const key = streamKey(stream);
       // Wait for the connection before creating the group so a consumer wired at startup rides out
       // the cold-start window; whenReady is bounded, so a real outage still fails loud below.
       await whenReady();
       // Fail loud if the group can't be created (e.g. backend down) — the caller learns the
       // consumer didn't start, rather than a loop silently spinning.
-      await ensureGroup(stream, group, options?.from ?? 'new');
+      await ensureGroup(key, group, options?.from ?? 'new');
       const reader = makeReader();
       let stopped = false;
 
@@ -176,7 +185,7 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
           return;
         }
         try {
-          await client.call('XACK', stream, group, id);
+          await client.call('XACK', key, group, id);
         } catch (err) {
           // Handler succeeded but the ack didn't land — the message stays pending and may be
           // redelivered (at-least-once tolerates the duplicate); log it as an ack failure, not a
@@ -188,7 +197,7 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
       const reclaimPending = async (): Promise<void> => {
         const pend = (await client.call(
           'XPENDING',
-          stream,
+          key,
           group,
           'IDLE',
           minIdleMs,
@@ -200,10 +209,10 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
         for (const [id, , , deliveryCount] of pend) {
           if (stopped) return;
           if (Number(deliveryCount) >= maxDeliveries) {
-            await deadLetter(stream, group, id);
+            await deadLetter(key, group, id);
             continue;
           }
-          const claimed = (await client.call('XCLAIM', stream, group, consumer, minIdleMs, id)) as
+          const claimed = (await client.call('XCLAIM', key, group, consumer, minIdleMs, id)) as
             | StreamEntry[]
             | null;
           if (claimed?.[0]) await process(id, claimed[0][1], Number(deliveryCount) + 1);
@@ -222,7 +231,7 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
           'BLOCK',
           blockMs,
           'STREAMS',
-          stream,
+          key,
           '>',
         );
         for (const [id, fields] of extractEntries(reply)) {
@@ -242,7 +251,7 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
             // explicit delete). Recreate it and carry on rather than spinning on NOGROUP forever.
             if (err instanceof Error && err.message.includes('NOGROUP')) {
               log.warn({ stream, group }, `[${CODE}] consumer group missing; recreating`);
-              await ensureGroup(stream, group, options?.from ?? 'new').catch(() => undefined);
+              await ensureGroup(key, group, options?.from ?? 'new').catch(() => undefined);
               continue;
             }
             log.warn({ err, stream, group }, `[${CODE}] consume loop error; retrying`);
@@ -270,7 +279,8 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
     },
 
     async deleteStream(stream: string): Promise<void> {
-      await client.call('DEL', stream, `${stream}:dead`);
+      const key = streamKey(stream);
+      await client.call('DEL', key, `${key}:dead`);
     },
   };
 

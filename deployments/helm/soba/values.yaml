@@ -75,6 +75,7 @@ backend:
     documentGenerationDefaultCode: docgen-noop
     cacheDefaultCode: cache-memory
     messagebusDefaultCode: messagebus-memory
+    eventStreamDefaultCode: eventstream-memory
     # Temp storage plugin. Default tempstorage-os stages temp bytes under
     # os.tmpdir() (per-pod, no PVC). Override to tempstorage-mount for a shared
     # RWX PVC across replicas (see the tempStorage block below).
@@ -309,6 +310,9 @@ valkey:
   # Optional channel namespace, so releases sharing a Valkey never receive each other's bus events.
   # Empty = per-release prefix (<release>:), set by the backend configmap.
   channelPrefix: ""
+  # Optional stream namespace, so releases sharing a Valkey never read each other's event streams or
+  # share consumer groups. Empty = per-release prefix (<release>:), set by the backend configmap.
+  streamPrefix: ""
 
 # -- Temporal (shared server, env vars for backend + worker) ------------------
 temporal:
