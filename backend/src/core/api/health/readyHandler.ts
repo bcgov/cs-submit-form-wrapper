@@ -6,6 +6,7 @@ import {
   checkStorageReadiness,
   getCacheAdapter,
   getMessageBusAdapter,
+  getEventStreamAdapter,
   getTempStorageAdapter,
   getVirusScanAdapter,
 } from '../../integrations/plugins/PluginRegistry';
@@ -52,6 +53,7 @@ export async function readinessHandler(_req: Request, res: Response): Promise<vo
   }));
   const cache = await reportReadiness(() => getCacheAdapter().readinessCheck?.());
   const messageBus = await reportReadiness(() => getMessageBusAdapter().readinessCheck?.());
+  const eventStream = await reportReadiness(() => getEventStreamAdapter().readinessCheck?.());
 
   const body = {
     status: dbOk && allEnginesOk ? 'ready' : 'unhealthy',
@@ -63,6 +65,7 @@ export async function readinessHandler(_req: Request, res: Response): Promise<vo
     documentGeneration,
     cache,
     messageBus,
+    eventStream,
   };
 
   if (!dbOk || !allEnginesOk) {

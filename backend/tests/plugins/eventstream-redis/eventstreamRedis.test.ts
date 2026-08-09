@@ -5,7 +5,7 @@ import {
   buildRedisEventStreamAdapter,
   eventStreamPluginDefinition,
   extractEntries,
-  parsePayload,
+  parseEnvelope,
 } from '../../../src/plugins/eventstream-redis';
 
 // Points the adapter at a closed local port so connections are refused fast. No mocks: this
@@ -56,26 +56,36 @@ describe('extractEntries (XREADGROUP reply parsing)', () => {
   });
 });
 
-describe('parsePayload', () => {
-  it('parses the JSON data field', () => {
-    expect(parsePayload(['data', '{"e":1}'])).toEqual({ e: 1 });
+describe('parseEnvelope', () => {
+  it('parses the JSON envelope from the data field', () => {
+    expect(parseEnvelope(['data', '{"type":"order","data":{"e":1}}'])).toEqual({
+      type: 'order',
+      data: { e: 1 },
+      id: undefined,
+      time: undefined,
+    });
   });
 
-  it('returns {} when the data field is absent or malformed', () => {
-    expect(parsePayload(['other', 'x'])).toEqual({});
-    expect(parsePayload(['data', 'not-json'])).toEqual({});
+  it('returns an unknown envelope when the data field is absent or malformed', () => {
+    expect(parseEnvelope(['other', 'x'])).toEqual({ type: 'unknown', data: {} });
+    expect(parseEnvelope(['data', 'not-json'])).toEqual({ type: 'unknown', data: {} });
   });
 });
 
 describe('eventstream-redis (backend unreachable)', () => {
   let adapter: ReturnType<typeof unreachableAdapter>['adapter'];
+  let client: Redis;
 
   beforeEach(() => {
-    ({ adapter } = unreachableAdapter());
+    ({ adapter, client } = unreachableAdapter());
+  });
+
+  afterEach(() => {
+    client.disconnect();
   });
 
   it('append rejects (fail-loud) rather than dropping when the backend is down', async () => {
-    await expect(adapter.append('orders', { n: 1 })).rejects.toThrow();
+    await expect(adapter.append('orders', { type: 'order', data: { n: 1 } })).rejects.toThrow();
   });
 
   it('consume rejects when the group cannot be created (backend down)', async () => {

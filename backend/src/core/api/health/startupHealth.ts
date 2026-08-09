@@ -3,6 +3,7 @@ import { log } from '../../logging';
 import {
   getCacheAdapter,
   getMessageBusAdapter,
+  getEventStreamAdapter,
   getTempStorageAdapter,
   getVirusScanAdapter,
   resolveActivePluginCode,
@@ -20,6 +21,10 @@ import {
   messageBusSelfTest,
   type MessageBusSelfTestResult,
 } from '../../integrations/messagebus/messageBusSelfTest';
+import {
+  eventStreamSelfTest,
+  type EventStreamSelfTestResult,
+} from '../../integrations/eventstream/eventStreamSelfTest';
 import { checkDocumentGenerationReadiness } from '../../integrations/document-generation/DocumentGenerationRegistry';
 
 /** Run a check; swallow sync throws and rejections. */
@@ -34,7 +39,7 @@ async function probe(check: () => Promise<boolean>): Promise<boolean> {
 /** Log a one-shot up/down ping of db, temp storage, virus scanner and cache at startup. Log-only;
  *  never throws. Deeper per-service checks run separately below. */
 export async function logStartupHealth(): Promise<void> {
-  const [db, tempStorage, virusScanner, cache, messageBus] = await Promise.all([
+  const [db, tempStorage, virusScanner, cache, messageBus, eventStream] = await Promise.all([
     probe(() => pool.query('SELECT 1').then(() => true)),
     probe(() => getTempStorageAdapter().ping()),
     probe(() => getVirusScanAdapter().ping()),
@@ -52,9 +57,16 @@ export async function logStartupHealth(): Promise<void> {
           .readinessCheck?.()
           .then((r) => r.ok) ?? Promise.resolve(true),
     ),
+    // eventstream-memory has no readinessCheck — reported reachable.
+    probe(
+      () =>
+        getEventStreamAdapter()
+          .readinessCheck?.()
+          .then((r) => r.ok) ?? Promise.resolve(true),
+    ),
   ]);
 
-  const health = { db, tempStorage, virusScanner, cache, messageBus };
+  const health = { db, tempStorage, virusScanner, cache, messageBus, eventStream };
   const unreachable = Object.entries(health)
     .filter(([, ok]) => !ok)
     .map(([name]) => name);
@@ -167,6 +179,33 @@ export async function logMessageBusSelfTest(): Promise<void> {
     log.warn(
       { messageBus, message: result.message },
       'Message bus self-test: pub/sub delivery failed',
+    );
+  }
+}
+
+/** Log the event-stream self-test (append + consume back on a throwaway stream), including the active
+ *  backend. A failed round-trip logs WARN; the app still runs (async processing degrades, it isn't an
+ *  outage). Never throws. */
+export async function logEventStreamSelfTest(): Promise<void> {
+  let result: EventStreamSelfTestResult;
+  try {
+    result = await eventStreamSelfTest(getEventStreamAdapter());
+  } catch (err) {
+    log.warn({ err }, 'Event stream self-test could not run');
+    return;
+  }
+
+  const eventStream = {
+    code: resolveActivePluginCode('eventStream'),
+    delivered: result.delivered,
+  };
+
+  if (result.delivered) {
+    log.info({ eventStream }, 'Event stream self-test: append/consume delivery OK');
+  } else {
+    log.warn(
+      { eventStream, message: result.message },
+      'Event stream self-test: append/consume delivery failed',
     );
   }
 }

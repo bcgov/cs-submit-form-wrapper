@@ -25,6 +25,7 @@ function collector(count = 1) {
   return { seen, done, handler };
 }
 
+const evt = (n: number) => ({ type: 'order', data: { n } });
 const flush = (ms = 80): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 describe('eventstream-memory', () => {
@@ -34,34 +35,35 @@ describe('eventstream-memory', () => {
 
   it('replays appended events in order for a group started at the beginning', async () => {
     const bus = adapter();
-    await bus.append('orders', { n: 1 });
-    await bus.append('orders', { n: 2 });
+    await bus.append('orders', evt(1));
+    await bus.append('orders', evt(2));
 
     const { seen, done, handler } = collector(2);
     const stop = await bus.consume('orders', 'g1', 'c1', handler, { from: 'beginning' });
     await done;
     await stop();
 
-    expect(seen.map((m) => m.payload)).toEqual([{ n: 1 }, { n: 2 }]);
+    expect(seen.map((m) => m.event.data)).toEqual([{ n: 1 }, { n: 2 }]);
     expect(seen.every((m) => m.attempt === 1)).toBe(true);
+    expect(seen.every((m) => typeof m.event.time === 'string')).toBe(true);
   });
 
   it("default 'new' start skips events appended before the group joined", async () => {
     const bus = adapter();
-    await bus.append('orders', { n: 'old' });
+    await bus.append('orders', { type: 'order', data: { n: 'old' } });
 
     const { seen, done, handler } = collector(1);
     const stop = await bus.consume('orders', 'g1', 'c1', handler);
-    await bus.append('orders', { n: 'new' });
+    await bus.append('orders', { type: 'order', data: { n: 'new' } });
     await done;
     await stop();
 
-    expect(seen.map((m) => m.payload)).toEqual([{ n: 'new' }]);
+    expect(seen.map((m) => m.event.data)).toEqual([{ n: 'new' }]);
   });
 
   it('redelivers on handler throw until it succeeds, incrementing attempt', async () => {
     const bus = adapter();
-    await bus.append('orders', { n: 1 });
+    await bus.append('orders', evt(1));
 
     const attempts: number[] = [];
     let resolve!: () => void;
@@ -81,7 +83,7 @@ describe('eventstream-memory', () => {
 
   it('drops a poison message after maxDeliveries', async () => {
     const bus = adapter();
-    await bus.append('orders', { n: 1 });
+    await bus.append('orders', evt(1));
 
     const attempts: number[] = [];
     const handler = async (m: EventStreamMessage): Promise<void> => {
@@ -105,7 +107,7 @@ describe('eventstream-memory', () => {
     const stop = await bus.consume('orders', 'g1', 'c1', handler);
 
     await stop();
-    await bus.append('orders', { n: 1 });
+    await bus.append('orders', evt(1));
     await flush();
 
     expect(seen).toEqual([]);
