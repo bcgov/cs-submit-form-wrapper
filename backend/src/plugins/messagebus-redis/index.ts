@@ -18,9 +18,10 @@ type Handler = (payload: Record<string, unknown>) => Promise<void>;
  * SUBSCRIBE-mode socket cannot issue PUBLISH, so publisher and subscriber are separate. Neither
  * carries a key prefix — ioredis keyPrefix does not apply to channels — so channels are namespaced
  * explicitly with CHANNEL_PREFIX (default 'soba:'), letting releases share one Valkey without
- * cross-talk. Publish is best-effort: a failure during an outage is dropped (the connection's
- * transition log records the outage). ioredis re-subscribes its known channels after a reconnect,
- * so handlers survive a blip.
+ * cross-talk. Publish is best-effort and at-most-once: a publish issued while the backend is
+ * unreachable — during an outage, or the brief window before the publisher first connects — is
+ * dropped rather than queued (the offline queue is off; a transition log records the outage).
+ * ioredis re-subscribes its known channels after a reconnect, so handlers survive a blip.
  *
  * Returns the clients alongside the adapter so tests can disconnect them; production callers use the
  * plugin definition below, which drops them (the process holds a single memoized adapter).
