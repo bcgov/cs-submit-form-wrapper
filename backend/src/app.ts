@@ -13,6 +13,7 @@ import {
   logTempStorageSelfTest,
   logVirusScanSelfTest,
   logCacheSelfTest,
+  logMessageBusSelfTest,
   logDocumentGenerationReadiness,
 } from './core/api/health';
 import { metaRouter } from './core/api/meta';
@@ -148,5 +149,7 @@ app.listen(port, () => {
     .then(logTempStorageSelfTest)
     .then(logVirusScanSelfTest)
     .then(logCacheSelfTest)
-    .then(logDocumentGenerationReadiness);
+    .then(logMessageBusSelfTest)
+    .then(logDocumentGenerationReadiness)
+    .catch((err) => log.warn({ err }, 'Startup diagnostics failed'));
 });
