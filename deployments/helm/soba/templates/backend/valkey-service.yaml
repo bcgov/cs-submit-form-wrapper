@@ -1,6 +1,6 @@
-{{- if include "soba.cacheUsesRedis" . }}
-# In-namespace alias to the separately-deployed valkey (deployments/helm/valkey).
-# The backend targets this stable name ({{ include "soba.fullname" . }}-valkey);
+{{- if include "soba.usesValkey" . }}
+# In-namespace alias to the separately-deployed valkey (deployments/helm/valkey), shared by the
+# cache and the message bus. The backend targets this stable name ({{ include "soba.fullname" . }}-valkey);
 # only externalName changes per environment, so the backend config is env-invariant.
 apiVersion: v1
 kind: Service

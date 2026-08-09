@@ -29,6 +29,12 @@ data:
   PLUGIN_CACHE_REDIS_KEY_PREFIX: {{ .Values.valkey.keyPrefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
   {{- end }}
   MESSAGEBUS_DEFAULT_CODE: {{ .Values.backend.config.messagebusDefaultCode | quote }}
+  {{- if include "soba.messagebusUsesRedis" . }}
+  PLUGIN_MESSAGEBUS_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release channel namespace so releases sharing one Valkey (e.g. PRs in the dev namespace)
+  # never receive each other's events. Defaults to <release>:; override with valkey.channelPrefix.
+  PLUGIN_MESSAGEBUS_REDIS_CHANNEL_PREFIX: {{ .Values.valkey.channelPrefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
   TEMPSTORAGE_DEFAULT_CODE: {{ .Values.backend.config.tempStorageDefaultCode | quote }}
   {{- if include "soba.tempStorageUsesMount" . }}
   PLUGIN_TEMPSTORAGE_MOUNT_DIR: {{ .Values.backend.tempStorage.mountPath | quote }}
