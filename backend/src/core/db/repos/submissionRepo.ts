@@ -131,7 +131,7 @@ export const openSubmission = async (
       .where(and(eq(submissions.id, input.id), isNull(submissions.deletedAt)))
       .limit(1);
 
-    if (existing && existing.submittedBy === input.actorId && existing.formId === input.formId) {
+    if (existing?.submittedBy === input.actorId && existing?.formId === input.formId) {
       return { outcome: 'existing', record: existing };
     }
     return { outcome: 'conflict' };
