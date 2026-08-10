@@ -35,16 +35,16 @@ concurrency:
 jobs:
   changes:
     name: Detect deployable changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       deploy: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.deploy == 'true' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Filter changed paths
         if: github.event_name == 'pull_request'
-        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -68,7 +68,7 @@ jobs:
 
   set-vars:
     name: Set variables
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [qa, changes]
     if: ${{ needs.changes.outputs.deploy == 'true' && !startsWith(github.head_ref, 'release/') && github.head_ref != 'main' }}
     outputs:
@@ -107,18 +107,18 @@ jobs:
   deploy-crunchy:
     name: Deploy Crunchy Postgres
     needs: [set-vars]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       cluster: ${{ steps.crunchy.outputs.cluster }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.set-vars.outputs.ref }}
 
       - name: Deploy Crunchy (add PR user)
         id: crunchy
-        uses: bcgov/action-crunchy@v2.0.0
+        uses: bcgov/action-crunchy@7ee9c0bdec27f5251a8239373f51db1e01c7c4d9 # v2.1.0
         with:
           oc_namespace: ${{ secrets.OC_NAMESPACE }}
           oc_token: ${{ secrets.OC_TOKEN }}
@@ -135,21 +135,21 @@ jobs:
     environment:
       name: pr
       url: ${{ needs.set-vars.outputs.URL }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 18
     steps:
       - name: Checkout repository from pull request
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.set-vars.outputs.ref }}
 
       - name: Install OpenShift CLI
-        uses: redhat-actions/openshift-tools-installer@v1
+        uses: redhat-actions/openshift-tools-installer@e3b32c2ab7b064b2ce189121c4a49f509a99a7b4 # v3.0
         with:
           oc: "4.14"
 
       - name: Login to OpenShift Cluster
-        uses: redhat-actions/oc-login@v1
+        uses: redhat-actions/oc-login@2a1614bc977c054c8786c8e35fc9534bd0ddc156 # v2.0.1
         with:
           openshift_server_url: ${{ vars.OC_SERVER }}
           openshift_token: ${{ secrets.OC_TOKEN }}
@@ -267,7 +267,7 @@ jobs:
       # Pipeline performance fix: Revert if needed.
 
       - name: Release Comment on PR
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         if: success()
         with:
           header: release
