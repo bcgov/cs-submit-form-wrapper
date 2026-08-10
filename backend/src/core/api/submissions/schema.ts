@@ -12,10 +12,11 @@ import {
 extendZodWithOpenApi(z);
 
 // The client mints the submission id (uuidv7) so it can originate a submission without a round-trip.
-// Create is idempotent on this id (see openSubmission), which is what makes a retry safe.
+// Create is idempotent on this id (see openSubmission), which is what makes a retry safe. Enforce v7
+// specifically: the id is the record's identity, so we reject nil/low-entropy or wrong-version uuids.
 export const OpenSubmissionBodySchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.uuidv7(),
     formId: z.string().min(1),
   })
   .openapi('Submissions_OpenSubmissionBody');

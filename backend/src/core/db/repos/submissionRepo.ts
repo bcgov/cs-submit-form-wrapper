@@ -122,10 +122,13 @@ export const openSubmission = async (
       return { outcome: 'created', record: created };
     }
 
+    // Only a live row is a valid idempotent retry; a soft-deleted tombstone on the same id is a
+    // collision (409), not a resume — otherwise the caller gets a 200 to a submission that save/
+    // submit/fill all 404 on (they filter deletedAt).
     const [existing] = await tx
       .select()
       .from(submissions)
-      .where(eq(submissions.id, input.id))
+      .where(and(eq(submissions.id, input.id), isNull(submissions.deletedAt)))
       .limit(1);
 
     if (existing && existing.submittedBy === input.actorId && existing.formId === input.formId) {
