@@ -44,7 +44,9 @@ export const ListSubmissionsQuerySchema = requireAtLeastOneQueryField(
     cursor: z.string().min(1).optional(),
     workflowState: z.string().trim().min(1).optional(),
     createdBy: z.string().trim().min(1).optional(),
-    sort: CursorSortSchema.default('id:desc'),
+    // Order by server updatedAt (ts_id cursor), not by id: the submission id is client-minted
+    // (uuidv7) so it's no longer a reliable time proxy. id:desc stays available on request.
+    sort: CursorSortSchema.default('updatedAt:desc'),
   }),
   ['workspaceId', 'formId', 'formVersionId', 'submissionId'],
   'At least one of workspaceId, formId, formVersionId, or submissionId is required',
