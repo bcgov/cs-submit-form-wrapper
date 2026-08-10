@@ -113,8 +113,10 @@ export function createSubmissionsApiService(submissionService: SubmissionService
       };
     },
 
-    open: async (ctx: SubmissionsContextInput, formId: string) =>
-      toSubmissionDto(await submissionService.open({ ...ctx, formId })),
+    open: async (ctx: SubmissionsContextInput, formId: string, id: string) => {
+      const { created, record } = await submissionService.open({ ...ctx, formId, id });
+      return { created, submission: toSubmissionDto(record) };
+    },
 
     save: (ctx: SubmissionsContextInput, submissionId: string, data: Record<string, unknown>) =>
       submissionService.save({ ...ctx, submissionId, data }).then((row) => toSubmissionDto(row)),
