@@ -10,8 +10,6 @@ export interface MessageBusSelfTestResult {
   message?: string;
 }
 
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * Confirm the bus actually delivers, not just that the backend is reachable: subscribe to a unique
  * throwaway topic, publish a probe until a subscriber receives it (or the timeout elapses), then
@@ -50,7 +48,13 @@ export async function messageBusSelfTest(
     const deadline = Date.now() + timeoutMs;
     while (!received && Date.now() < deadline) {
       await adapter.publish(topic, { probe });
-      await Promise.race([got, delay(RETRY_INTERVAL_MS)]);
+      // Cancelable retry cadence: clear it when delivery wins, so no orphaned timer lingers.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        got,
+        new Promise<void>((resolve) => (timer = setTimeout(resolve, RETRY_INTERVAL_MS))),
+      ]);
+      clearTimeout(timer);
     }
     return received
       ? { delivered: true }
