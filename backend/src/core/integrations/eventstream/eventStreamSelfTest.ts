@@ -9,8 +9,6 @@ export interface EventStreamSelfTestResult {
   message?: string;
 }
 
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * Confirm the stream actually delivers, not just that the backend is reachable: consume a unique
  * throwaway stream from the beginning, append a probe, and wait for it to arrive. Checks readiness
@@ -33,6 +31,7 @@ export async function eventStreamSelfTest(
   const got = new Promise<void>((resolve) => (resolveGot = resolve));
 
   let stop: EventStreamSubscription | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     stop = await adapter.consume(
       stream,
@@ -47,13 +46,19 @@ export async function eventStreamSelfTest(
       { from: 'beginning' },
     );
     await adapter.append(stream, { type: 'selftest', data: { probe } });
-    await Promise.race([got, delay(timeoutMs)]);
+    // Cancelable timeout: clear it when delivery wins the race, else the orphaned timer keeps the
+    // event loop alive for timeoutMs after this resolves.
+    await Promise.race([
+      got,
+      new Promise<void>((resolve) => (timer = setTimeout(resolve, timeoutMs))),
+    ]);
     return received
       ? { delivered: true }
       : { delivered: false, message: 'no delivery within timeout' };
   } catch (err) {
     return { delivered: false, message: err instanceof Error ? err.message : String(err) };
   } finally {
+    if (timer) clearTimeout(timer);
     if (stop) await stop().catch(() => undefined);
     await adapter.deleteStream?.(stream).catch(() => undefined);
   }

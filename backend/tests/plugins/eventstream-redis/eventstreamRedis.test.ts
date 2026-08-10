@@ -74,14 +74,12 @@ describe('parseEnvelope', () => {
 
 describe('eventstream-redis (backend unreachable)', () => {
   let adapter: ReturnType<typeof unreachableAdapter>['adapter'];
-  let client: Redis;
 
   beforeEach(() => {
-    ({ adapter, client } = unreachableAdapter());
-  });
-
-  afterEach(() => {
-    client.disconnect();
+    // retryStrategy is overridden (in unreachableAdapter) to give up on the first refused connect, so
+    // the client ends itself — no disconnect() in teardown, which would arm ioredis's 2s
+    // disconnectTimeout and linger as an open handle past Jest's exit window.
+    ({ adapter } = unreachableAdapter());
   });
 
   it('append rejects (fail-loud) rather than dropping when the backend is down', async () => {
