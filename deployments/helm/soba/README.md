@@ -230,8 +230,15 @@ them in pairs.
 
 Hostnames are derived from the release name and `global.domain`:
 
-- **Frontend:** `<fullname>.<domain>` (e.g. `soba-pr-42.apps.gov.bc.ca`)
+- **Frontend:** one host per `frontend.apps` entry, `<fullname>-<name>.<domain>`
+  (e.g. `soba-dev-designer.apps.gov.bc.ca`, `soba-dev-forms.apps.gov.bc.ca`).
+  Override a single app with `frontend.apps.<name>.host` (PR slots pin the host this way).
 - **Backend API:** `<fullname>-api.<domain>` (e.g. `soba-pr-42-api.apps.gov.bc.ca`)
+
+Each `frontend.apps` entry renders its own Deployment/Service/Route/ConfigMap from the
+same image, differing only by `featuresAllowed` (the mode). The backend `CORS_ORIGIN`
+defaults to the origins of all enabled frontend apps; set `backend.config.corsOrigin`
+to override.
 
 ## Secrets Management
 

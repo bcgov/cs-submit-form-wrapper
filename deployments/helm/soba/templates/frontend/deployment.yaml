@@ -1,46 +1,52 @@
+{{- $root := . }}
+{{- range $name, $app := .Values.frontend.apps }}
+{{- if ne $app.enabled false }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "soba.fullname" . }}-frontend
+  name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
   labels:
-    {{- include "soba.labels" (dict "root" . "component" "frontend") | nindent 4 }}
+    {{- include "soba.labels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 4 }}
 spec:
-  {{- if not .Values.frontend.autoscaling.enabled }}
-  replicas: {{ .Values.frontend.replicas }}
+  {{- if not $root.Values.frontend.autoscaling.enabled }}
+  replicas: {{ $root.Values.frontend.replicas }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "soba.selectorLabels" (dict "root" . "component" "frontend") | nindent 6 }}
+      {{- include "soba.selectorLabels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 6 }}
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/frontend/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $root.Template.BasePath "/frontend/configmap.yaml") $root | sha256sum }}
       labels:
-        {{- include "soba.selectorLabels" (dict "root" . "component" "frontend") | nindent 8 }}
+        {{- include "soba.selectorLabels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 8 }}
     spec:
       containers:
         - name: frontend
-          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
-          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          image: "{{ $root.Values.frontend.image.repository }}:{{ $root.Values.frontend.image.tag }}"
+          imagePullPolicy: {{ $root.Values.frontend.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.frontend.service.port }}
+              containerPort: {{ $root.Values.frontend.service.port }}
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: {{ include "soba.fullname" . }}-frontend
+                name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
           livenessProbe:
             httpGet:
-              path: {{ if .Values.global.routePath }}{{ .Values.global.routePath }}/{{ else }}/{{ end }}
+              path: {{ if $root.Values.global.routePath }}{{ $root.Values.global.routePath }}/{{ else }}/{{ end }}
               port: http
-            initialDelaySeconds: {{ .Values.frontend.livenessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.frontend.livenessProbe.periodSeconds }}
+            initialDelaySeconds: {{ $root.Values.frontend.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $root.Values.frontend.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: {{ if .Values.global.routePath }}{{ .Values.global.routePath }}/{{ else }}/{{ end }}
+              path: {{ if $root.Values.global.routePath }}{{ $root.Values.global.routePath }}/{{ else }}/{{ end }}
               port: http
-            initialDelaySeconds: {{ .Values.frontend.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.frontend.readinessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.frontend.readinessProbe.timeoutSeconds }}
+            initialDelaySeconds: {{ $root.Values.frontend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $root.Values.frontend.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ $root.Values.frontend.readinessProbe.timeoutSeconds }}
           resources:
-            {{- toYaml .Values.frontend.resources | nindent 12 }}
+            {{- toYaml $root.Values.frontend.resources | nindent 12 }}
+{{- end }}
+{{- end }}

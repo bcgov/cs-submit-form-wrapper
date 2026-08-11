@@ -2,11 +2,12 @@
   "version": "0.2.0",
   "compounds": [
     {
-      "name": "SOBA (Backend + Temporal + Frontend)",
+      "name": "SOBA (Backend + Temporal + Frontends)",
       "configurations": [
         "SOBA Backend",
         "SOBA Temporal Worker",
-        "SOBA Frontend"
+        "SOBA Frontend (Designer)",
+        "SOBA Frontend (Forms)"
       ]
     },
     {
@@ -22,6 +23,9 @@
       "cwd": "${workspaceFolder}/backend",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
+      "env": {
+        "CORS_DEV_ORIGIN": "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100"
+      },
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal"
     },
@@ -36,20 +40,37 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "SOBA Frontend",
+      "name": "SOBA Frontend (Designer)",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/frontend",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev:watch"],
+      "runtimeArgs": ["dev:designer"],
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal"
     },
     {
-      "name": "SOBA Frontend (Chrome)",
+      "name": "SOBA Frontend (Forms)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:forms"],
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "SOBA Frontend Designer (Chrome)",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "SOBA Frontend Forms (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3100",
       "webRoot": "${workspaceFolder}/frontend"
     },
     {

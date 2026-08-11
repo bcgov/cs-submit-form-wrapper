@@ -1,12 +1,18 @@
+{{- $root := . }}
+{{- range $name, $app := .Values.frontend.apps }}
+{{- if ne $app.enabled false }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "soba.fullname" . }}-frontend
+  name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
   labels:
-    {{- include "soba.labels" (dict "root" . "component" "frontend") | nindent 4 }}
+    {{- include "soba.labels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 4 }}
 data:
   # Browser: public Route/Ingress to API (TLS).
-  NEXT_PUBLIC_SOBA_API_BASE_URL: {{ printf "https://%s/api/v1" (include "soba.backendHost" .) | quote }}
+  NEXT_PUBLIC_SOBA_API_BASE_URL: {{ printf "https://%s/api/v1" (include "soba.backendHost" $root) | quote }}
   # Next.js server-side bootstrap fetches only — in-cluster Service (not the public host).
-  SOBA_API_INTERNAL_URL: {{ .Values.frontend.internalApiBaseUrl | default (include "soba.sobaApiInternalBaseUrl" .) | quote }}
-  NEXT_PUBLIC_SOBA_FEATURES_ALLOWED: {{ .Values.frontend.featuresAllowed | default "*" | quote }}
+  SOBA_API_INTERNAL_URL: {{ $root.Values.frontend.internalApiBaseUrl | default (include "soba.sobaApiInternalBaseUrl" $root) | quote }}
+  NEXT_PUBLIC_SOBA_FEATURES_ALLOWED: {{ $app.featuresAllowed | default "*" | quote }}
+{{- end }}
+{{- end }}

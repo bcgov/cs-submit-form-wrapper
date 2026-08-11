@@ -29,9 +29,10 @@ import styles from './Header.module.css';
 type HeaderProps = {
   headerNavItems: PluginNavItem[];
   overlayNavItems: PluginNavItem[];
+  showWorkspaces: boolean;
 };
 
-function Header({ headerNavItems }: HeaderProps) {
+function Header({ headerNavItems, showWorkspaces }: HeaderProps) {
   const dispatch = useAppDispatch();
   const dict = useDictionary();
   const { addNotification } = useNotificationStore();
@@ -270,7 +271,7 @@ function Header({ headerNavItems }: HeaderProps) {
           </div>
         </div>
       </BCHeader>
-      {workspaceStatus === 'succeeded' && !hasWorkspaces && !canceledDefaultModal && (
+      {showWorkspaces && workspaceStatus === 'succeeded' && !hasWorkspaces && !canceledDefaultModal && (
         <WorkspaceModal canCreateWorkspace={canCreateWorkspace} />
       )}
     </div>

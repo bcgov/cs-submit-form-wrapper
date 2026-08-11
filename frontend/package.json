@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=8192 NEXT_DEBUG=1 next dev",
     "dev:watch": "nodemon --watch . --ext js,jsx,ts,tsx,json --exec \"npm run dev -- --hostname 0.0.0.0\"",
+    "dev:designer": "NODE_OPTIONS=--max-old-space-size=8192 NEXT_PUBLIC_SOBA_FEATURES_ALLOWED=workspaces,design-mode,meta,marketing next dev --hostname 0.0.0.0 -p 3000",
+    "dev:forms": "NODE_OPTIONS=--max-old-space-size=8192 NEXT_DIST_DIR=.next-forms NEXT_PUBLIC_SOBA_FEATURES_ALLOWED=submit-mode,files,meta next dev --hostname 0.0.0.0 -p 3100",
     "dev:pack": "next dev --webpack",
     "build": "NODE_ENV=production next build",
     "start": "next start",

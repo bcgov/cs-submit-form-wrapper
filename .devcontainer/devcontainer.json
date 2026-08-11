@@ -14,13 +14,16 @@
       "minikube": "latest"
     }
   },
-  "forwardPorts": [3000, 3001, 4000, 5432, 7233, 8088, 27017, 9000, 9001],
+  "forwardPorts": [3000, 3001, 3100, 4000, 5432, 7233, 8088, 27017, 9000, 9001],
   "portsAttributes": {
     "3000": {
-      "label": "Frontend (Next.js)"
+      "label": "Frontend - Designer (Next.js)"
     },
     "3001": {
       "label": "Form.io"
+    },
+    "3100": {
+      "label": "Frontend - Submitter (Next.js)"
     },
     "4000": {
       "label": "Backend (Express)"

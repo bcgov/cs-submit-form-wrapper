@@ -119,7 +119,7 @@ jobs:
       contents: read
     environment:
       name: test
-      url: https://${{ env.ACRONYM }}-test.${{ vars.OC_DOMAIN }}
+      url: https://${{ env.ACRONYM }}-test-designer.${{ vars.OC_DOMAIN }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -208,8 +208,9 @@ jobs:
           echo "Waiting for backend rollout..."
           oc rollout status deployment/soba-test-backend -n "${NAMESPACE}" --timeout=300s
 
-          echo "Waiting for frontend rollout..."
-          oc rollout status deployment/soba-test-frontend -n "${NAMESPACE}" --timeout=300s
+          echo "Waiting for frontend rollouts (designer + forms)..."
+          oc rollout status deployment/soba-test-frontend-designer -n "${NAMESPACE}" --timeout=300s
+          oc rollout status deployment/soba-test-frontend-forms -n "${NAMESPACE}" --timeout=300s
 
           echo "Waiting for formio rollout..."
           oc rollout status deployment/soba-test-formio -n "${NAMESPACE}" --timeout=300s

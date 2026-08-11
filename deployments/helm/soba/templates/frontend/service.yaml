@@ -1,15 +1,21 @@
+{{- $root := . }}
+{{- range $name, $app := .Values.frontend.apps }}
+{{- if ne $app.enabled false }}
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "soba.fullname" . }}-frontend
+  name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
   labels:
-    {{- include "soba.labels" (dict "root" . "component" "frontend") | nindent 4 }}
+    {{- include "soba.labels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.frontend.service.port }}
+    - port: {{ $root.Values.frontend.service.port }}
       targetPort: http
       protocol: TCP
       name: http
   selector:
-    {{- include "soba.selectorLabels" (dict "root" . "component" "frontend") | nindent 4 }}
+    {{- include "soba.selectorLabels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 4 }}
+{{- end }}
+{{- end }}

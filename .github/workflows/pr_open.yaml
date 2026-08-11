@@ -74,6 +74,7 @@ jobs:
     outputs:
       JOB_NAME: ${{ steps.vars.outputs.JOB_NAME }}
       URL: ${{ steps.vars.outputs.URL }}
+      URL_FORMS: ${{ steps.vars.outputs.URL_FORMS }}
       ref: ${{ steps.vars.outputs.ref }}
       PR_NUM: ${{ steps.vars.outputs.PR_NUM }}
       SLOT: ${{ steps.vars.outputs.SLOT }}
@@ -87,7 +88,8 @@ jobs:
           echo "PR_NUM=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "SLOT=$SLOT" >> "$GITHUB_OUTPUT"
           echo "JOB_NAME=pr-slot-$SLOT" >> "$GITHUB_OUTPUT"
-          echo "URL=https://soba-pr-slot-${SLOT}.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
+          echo "URL=https://soba-${SLOT}-designer.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
+          echo "URL_FORMS=https://soba-${SLOT}-forms.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
           echo "ref=refs/pull/$PR_NUMBER/head" >> "$GITHUB_OUTPUT"
 
   build:
@@ -202,20 +204,23 @@ jobs:
             image:
               repository: "ghcr.io/${REPO_LC}/backend"
               tag: "${TAG}"
-            config:
-              corsOrigin: "https://soba-pr-slot-${SLOT}.${DOMAIN}"
           frontend:
             image:
               repository: "ghcr.io/${REPO_LC}/frontend"
               tag: "${TAG}"
+            # Slot hosts are decoupled from the release name, so pin them per app.
+            # Backend CORS_ORIGIN is derived from these two hosts by the chart.
+            apps:
+              designer:
+                host: "soba-${SLOT}-designer.${DOMAIN}"
+              forms:
+                host: "soba-${SLOT}-forms.${DOMAIN}"
           temporalWorker:
             image:
               repository: "ghcr.io/${REPO_LC}/temporal-worker"
               tag: "${TAG}"
           global:
             domain: "${DOMAIN}"
-            routeHost: "soba-pr-slot-${SLOT}.${DOMAIN}"
-            routePath: ""
             prNumber: "${PR_NUM}"
           database:
             existingSecretName: "${{ steps.db.outputs.secret_name }}"
@@ -245,7 +250,8 @@ jobs:
 
           for rollout in \
             "deployment/${RELEASE}-backend:backend" \
-            "deployment/${RELEASE}-frontend:frontend" \
+            "deployment/${RELEASE}-frontend-designer:frontend" \
+            "deployment/${RELEASE}-frontend-forms:frontend" \
             "deployment/${RELEASE}-formio:formio" \
             "deployment/${RELEASE}-temporal-worker" \
             "statefulset/${RELEASE}-mongodb:mongodb"; do
@@ -274,7 +280,9 @@ jobs:
           hide_and_recreate: true
           hide_classify: "OUTDATED"
           message: |
-            Release ${{ github.sha }} deployed at <${{ needs.set-vars.outputs.URL }}>
+            Release ${{ github.sha }} deployed:
+            - Designer (design-mode): <${{ needs.set-vars.outputs.URL }}>
+            - Forms (submit-mode): <${{ needs.set-vars.outputs.URL_FORMS }}>
           number: ${{ needs.set-vars.outputs.PR_NUM }}
 
   Tests:

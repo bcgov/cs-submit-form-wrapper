@@ -3,7 +3,8 @@ global:
   namespace: ""
   # Set true to remove "keep" policy on Secrets/PVCs (e.g. PR teardown)
   forceCleanup: false
-  routeHost: ""
+  # Optional shared subpath for frontend Route/Ingress + liveness (blank = root).
+  # Per-frontend host is set via frontend.apps.<name>.host, not here.
   routePath: ""
   # Owning PR number when a PR reuses a deployment slot; read on teardown so a
   # closing PR does not uninstall a newer PR that has since taken the slot.
@@ -185,8 +186,18 @@ frontend:
     targetCPUUtilizationPercentage: 80
   # Optional: override SOBA_API_INTERNAL_URL (Next SSR → API). Default: in-cluster http://<release>-backend.<namespace>.svc.cluster.local:<port>/api/v1
   internalApiBaseUrl: ""
-  # Comma-separated codes from GET /meta/features, or * / all for every platform-allowed feature. Empty = none.
-  featuresAllowed: "*"
+  # Named frontend apps: one Deployment/Service/Route/ConfigMap each, same image, mode set by
+  # featuresAllowed (codes from GET /meta/features, or * / all). Host defaults to <fullname>-<name>.<domain>.
+  # All other frontend.* settings (image, probes, resources, route.tls, autoscaling) are shared.
+  apps:
+    designer:
+      enabled: true
+      featuresAllowed: "workspaces,design-mode,meta,marketing"
+      host: ""
+    forms:
+      enabled: true
+      featuresAllowed: "submit-mode,files,meta"
+      host: ""
 
 # -- Database (external Postgres) -----------------------------------------
 database:
