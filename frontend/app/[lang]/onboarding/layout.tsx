@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
 import { createIsFeatureAllowed, FEATURE_CODES } from '@/src/shared/featureFlags/flags';
 
-export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
+export default async function OnboardingLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const featuresMeta = await loadFeaturesMeta();
   const isFeatureAllowed = createIsFeatureAllowed(featuresMeta);
 

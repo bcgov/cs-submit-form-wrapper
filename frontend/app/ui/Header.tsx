@@ -32,7 +32,7 @@ type HeaderProps = {
   showWorkspaces: boolean;
 };
 
-function Header({ headerNavItems, showWorkspaces }: HeaderProps) {
+function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   const dispatch = useAppDispatch();
   const dict = useDictionary();
   const { addNotification } = useNotificationStore();

@@ -6,7 +6,7 @@
 set -uo pipefail
 
 PORTS=("$@")
-[ ${#PORTS[@]} -eq 0 ] && PORTS=(3000 3001 3100 4000)
+[[ ${#PORTS[@]} -eq 0 ]] && PORTS=(3000 3001 3100 4000)
 
 find_pids() {
   local p="$1"
@@ -17,13 +17,14 @@ find_pids() {
   elif command -v lsof >/dev/null 2>&1; then
     lsof -ti tcp:"$p" -sTCP:LISTEN 2>/dev/null
   fi
+  return 0
 }
 
 self=$$
 for p in "${PORTS[@]}"; do
   pids=$(find_pids "$p" | grep -vx "$self" | tr '\n' ' ')
   pids="${pids%% }"
-  if [ -z "${pids// /}" ]; then
+  if [[ -z "${pids// /}" ]]; then
     echo "port $p: nothing listening"
     continue
   fi

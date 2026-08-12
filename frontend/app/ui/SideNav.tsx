@@ -22,7 +22,7 @@ interface SideNavProps {
   showWorkspaces: boolean;
 }
 
-export function SideNav({ showAppLinks, showHome, showWorkspaces }: SideNavProps) {
+export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<SideNavProps>) {
   const { authenticated } = useKeycloak();
   const dict = useDictionary();
   const pathname = usePathname();
