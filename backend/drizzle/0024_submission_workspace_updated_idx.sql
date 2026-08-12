@@ -1,0 +1,1 @@
+CREATE INDEX "submission_workspace_updated_idx" ON "soba"."submission" USING btree ("workspace_id","updated_at" DESC,"id" DESC) WHERE "deleted_at" IS NULL;

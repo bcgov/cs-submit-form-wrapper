@@ -13,11 +13,13 @@ import {
 import { getFormVersionById, getPublishedVersionForForm } from '../db/repos/formVersionRepo';
 import { getFormEngineCodeForForm } from '../db/repos/formRepo';
 import { createFormEngineAdapter } from '../integrations/form-engine/FormEngineRegistry';
-import { NotFoundError, ValidationError } from '../errors';
+import { ConflictError, NotFoundError, ValidationError } from '../errors';
 import { SubmissionEventType, type SubmissionEventTypeCode } from '../db/codes';
 import { resolveSubmissionTransition } from './submissionLifecycle';
 
 interface CreateInput {
+  /** Client-minted uuidv7 that becomes the submission id. */
+  id: string;
   workspaceId: string;
   actorId: string;
   actorDisplayLabel: string | null;
@@ -55,11 +57,20 @@ interface ListInput {
 }
 
 export class SubmissionService {
-  /** Open a new submission against the form's currently published version (the only submittable one). */
+  /**
+   * Open a new submission against the form's currently published version (the only submittable one),
+   * under the client-supplied id. Idempotent: a retry of the same id by the same actor+form returns
+   * the existing record ({ created: false }); a collision with a different owner is a 409.
+   */
   async open(input: CreateInput) {
     const version = await getPublishedVersionForForm(input.workspaceId, input.formId);
     if (!version) throw new NotFoundError('Form has no published version');
-    return openSubmission({ ...input, formVersionId: version.id });
+
+    const result = await openSubmission({ ...input, formVersionId: version.id });
+    if (result.outcome === 'conflict') {
+      throw new ConflictError('Submission id already in use');
+    }
+    return { created: result.outcome === 'created', record: result.record };
   }
 
   /** Save the current answer data as a draft (opened → draft; draft stays draft). */
