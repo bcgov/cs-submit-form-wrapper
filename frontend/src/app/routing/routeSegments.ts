@@ -29,4 +29,6 @@ export const ROUTE_KIND_BY_SEGMENT: Readonly<Record<string, RouteKind>> = {
   submission: PUBLIC, // app/[lang]/submission/[submissionId]
   workspaces: WORKSPACES, // app/[lang]/workspaces
   workspace: WORKSPACES, // app/[lang]/workspace
+  // Diagnostic feature-support page; public (renders without auth, gated on the `meta` feature).
+  meta: PUBLIC, // app/[lang]/meta
 };

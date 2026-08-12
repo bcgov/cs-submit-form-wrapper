@@ -2,7 +2,11 @@
   "version": "0.2.0",
   "compounds": [
     {
-      "name": "SOBA (Backend + Temporal + Frontends)",
+      "name": "SOBA (Backend + Temporal + Frontend)",
+      "configurations": ["SOBA Backend", "SOBA Temporal Worker", "SOBA Frontend"]
+    },
+    {
+      "name": "SOBA (Backend + Temporal + Designer + Forms)",
       "configurations": [
         "SOBA Backend",
         "SOBA Temporal Worker",
@@ -40,6 +44,16 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "SOBA Frontend",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:combined"],
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
       "name": "SOBA Frontend (Designer)",
       "type": "node",
       "request": "launch",
@@ -60,7 +74,7 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "SOBA Frontend Designer (Chrome)",
+      "name": "SOBA Frontend (Chrome)",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000",
