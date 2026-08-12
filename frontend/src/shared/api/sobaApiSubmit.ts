@@ -27,18 +27,20 @@ export async function getSubmitSubmissionSchema(
 }
 
 /**
- * Open a SOBA submission (a PG row in the `opened` state); its answer data is written later via
- * saveSobaFormSubmission (draft) or submitSobaFormSubmission (submit). Token is optional: anonymous
- * submissions to a public-audience form are attributed to the public user.
+ * Open a SOBA submission (a PG row in the `opened` state) under a client-minted id (uuidv7); its
+ * answer data is written later via saveSobaFormSubmission (draft) or submitSobaFormSubmission (submit).
+ * The create is idempotent on the id, so a retry with the same id returns the same record. Token is
+ * optional: anonymous submissions to a public-audience form are attributed to the public user.
  */
 export async function openSobaFormSubmission(
   token: string | undefined,
   formId: string,
+  id: string,
 ): Promise<SubmissionResponse> {
   const response = await sobaFetch('/submit/submissions', {
     token,
     method: 'POST',
-    json: { formId },
+    json: { id, formId },
   });
   return parseJson<SubmissionResponse>(response);
 }
