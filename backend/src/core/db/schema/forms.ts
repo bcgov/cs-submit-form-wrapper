@@ -118,6 +118,11 @@ export const submissions = sobaSchema.table(
     ),
     workspaceIdx: index('submission_workspace_idx').on(table.workspaceId),
     formVersionIdx: index('submission_form_version_idx').on(table.formVersionId),
+    // Drives the staff list keyset: workspace slice ordered by server updatedAt (id as tiebreak),
+    // excluding soft-deleted rows. Matches the default updatedAt:desc / ts_id cursor.
+    workspaceUpdatedIdx: index('submission_workspace_updated_idx')
+      .on(table.workspaceId, table.updatedAt.desc(), table.id.desc())
+      .where(sql`${table.deletedAt} is null`),
   }),
 );
 
