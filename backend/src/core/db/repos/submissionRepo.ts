@@ -28,24 +28,12 @@ export interface SubmissionDetailRow extends SubmissionListRow {
 }
 
 interface CreateSubmissionInput {
-  /** Client-minted uuidv7; the submission's primary key (no longer server-generated). */
-  id: string;
   workspaceId: string;
   formId: string;
   formVersionId: string;
   actorId: string;
   actorDisplayLabel: string | null;
 }
-
-/**
- * created  — the id was free; a new opened submission (+ revision 0) was written.
- * existing — the id is already bound to this actor + form; the retry returns that row (idempotent).
- * conflict — the id is bound to a different actor or form (caller maps to 409).
- */
-export type OpenSubmissionResult =
-  | { outcome: 'created'; record: SubmissionRecord }
-  | { outcome: 'existing'; record: SubmissionRecord }
-  | { outcome: 'conflict' };
 
 interface SaveSubmissionInput {
   workspaceId: string;
@@ -78,24 +66,15 @@ export interface ListSubmissionsInput {
 }
 
 /**
- * Open a submission against a client-minted id: insert the row in the `opened` state and its
- * revision-0 `opened` event in one transaction, so every submission has a full history from the
- * moment a fill begins. `submittedBy` captures the actor who started it (the seeded public user for
- * anonymous fills).
- *
- * Idempotent on the id. `ON CONFLICT DO NOTHING` is the atomic gate: the row is only written when the
- * id is free, so concurrent double-opens are race-safe — the loser inserts nothing, falls through to
- * the select, and sees the winner's committed row. A taken id is a retry (same actor + form → return
- * the existing row) or a genuine collision (different owner → let the caller answer 409, not 500).
+ * Open a submission: insert the row in the `opened` state and its revision-0 `opened` event in one
+ * transaction, so every submission has a full history from the moment a fill begins. `submittedBy`
+ * captures the actor who started it (the seeded public user for anonymous fills).
  */
-export const openSubmission = async (
-  input: CreateSubmissionInput,
-): Promise<OpenSubmissionResult> => {
+export const openSubmission = async (input: CreateSubmissionInput) => {
   return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(submissions)
       .values({
-        id: input.id,
         workspaceId: input.workspaceId,
         formId: input.formId,
         formVersionId: input.formVersionId,
@@ -106,35 +85,19 @@ export const openSubmission = async (
         createdBy: input.actorDisplayLabel,
         updatedBy: input.actorDisplayLabel,
       })
-      .onConflictDoNothing()
       .returning();
 
-    if (created) {
-      await tx.insert(submissionRevisions).values({
-        workspaceId: input.workspaceId,
-        submissionId: created.id,
-        revisionNo: 0,
-        eventType: SubmissionEventType.opened,
-        beforeEngineSubmissionRef: null,
-        afterEngineSubmissionRef: null,
-        changedBy: input.actorId,
-      });
-      return { outcome: 'created', record: created };
-    }
+    await tx.insert(submissionRevisions).values({
+      workspaceId: input.workspaceId,
+      submissionId: created.id,
+      revisionNo: 0,
+      eventType: SubmissionEventType.opened,
+      beforeEngineSubmissionRef: null,
+      afterEngineSubmissionRef: null,
+      changedBy: input.actorId,
+    });
 
-    // Only a live row is a valid idempotent retry; a soft-deleted tombstone on the same id is a
-    // collision (409), not a resume — otherwise the caller gets a 200 to a submission that save/
-    // submit/fill all 404 on (they filter deletedAt).
-    const [existing] = await tx
-      .select()
-      .from(submissions)
-      .where(and(eq(submissions.id, input.id), isNull(submissions.deletedAt)))
-      .limit(1);
-
-    if (existing?.submittedBy === input.actorId && existing?.formId === input.formId) {
-      return { outcome: 'existing', record: existing };
-    }
-    return { outcome: 'conflict' };
+    return created;
   });
 };
 

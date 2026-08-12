@@ -9,7 +9,6 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { normalizeFormioRenderError } from '@/src/features/formio-v5/normalizeFormioRenderError';
 import { openSobaFormSubmission } from '@/src/shared/api/sobaApi';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { v7 as uuidv7 } from 'uuid';
 
 type StartLabels = {
   starting: string;
@@ -43,8 +42,7 @@ function StartSubmissionBody({ formId, labels }: Readonly<{ formId: string; labe
     startedRef.current = true;
     void (async () => {
       try {
-        // Mint the id client-side; a retry of this same id is idempotent server-side.
-        const created = await openSobaFormSubmission(token ?? undefined, formId, uuidv7());
+        const created = await openSobaFormSubmission(token ?? undefined, formId);
         // replace, not push: the start URL shouldn't sit in history and re-open on Back.
         router.replace(`/${locale}/submit/${created.id}`);
       } catch (err) {

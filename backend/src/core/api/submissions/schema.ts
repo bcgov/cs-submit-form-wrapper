@@ -11,12 +11,8 @@ import {
 
 extendZodWithOpenApi(z);
 
-// The client mints the submission id (uuidv7) so it can originate a submission without a round-trip.
-// Create is idempotent on this id (see openSubmission), which is what makes a retry safe. Enforce v7
-// specifically: the id is the record's identity, so we reject nil/low-entropy or wrong-version uuids.
 export const OpenSubmissionBodySchema = z
   .object({
-    id: z.uuidv7(),
     formId: z.string().min(1),
   })
   .openapi('Submissions_OpenSubmissionBody');
@@ -45,9 +41,7 @@ export const ListSubmissionsQuerySchema = requireAtLeastOneQueryField(
     cursor: z.string().min(1).optional(),
     workflowState: z.string().trim().min(1).optional(),
     createdBy: z.string().trim().min(1).optional(),
-    // Order by server updatedAt (ts_id cursor), not by id: the submission id is client-minted
-    // (uuidv7) so it's no longer a reliable time proxy. id:desc stays available on request.
-    sort: CursorSortSchema.default('updatedAt:desc'),
+    sort: CursorSortSchema.default('id:desc'),
   }),
   ['workspaceId', 'formId', 'formVersionId', 'submissionId'],
   'At least one of workspaceId, formId, formVersionId, or submissionId is required',

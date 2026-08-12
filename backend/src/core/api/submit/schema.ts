@@ -79,13 +79,8 @@ export const registerSubmitOpenApi = (registry: OpenAPIRegistry) => {
         description: 'Created submission',
         content: { 'application/json': { schema: SubmissionResponseSchema } },
       },
-      200: {
-        description: 'Existing submission (idempotent open: same id, actor, and form)',
-        content: { 'application/json': { schema: SubmissionResponseSchema } },
-      },
       401: { description: AUTH_REQUIRED },
       403: { description: AUTHZ },
-      409: { description: 'Submission id already in use by a different owner' },
     },
   });
 
