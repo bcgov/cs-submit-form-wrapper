@@ -1,0 +1,14 @@
+apiVersion: v2
+name: valkey
+description: Chart for deploying Valkey (Redis-compatible) as a shared cache for SOBA
+type: application
+version: 1.0.0
+appVersion: "8.1"
+keywords:
+  - valkey
+  - redis
+  - cache
+maintainers:
+  - name: BC Gov
+    url: https://github.com/bcgov
+kubeVersion: ">= 1.18.0"

@@ -8,6 +8,9 @@ backend:
     # Virus scan inherits virusscan-clamav from values.yaml: PRs deploy into the dev
     # namespace, so the <release>-clamav alias resolves to the shared dev clamav
     # (same namespace — no externalName override, no cross-namespace NSP needed).
+    # Same for the cache: PRs share the dev-namespace Valkey via the <release>-valkey alias;
+    # the per-release key prefix keeps each PR's cached rows separate.
+    cacheDefaultCode: cache-redis
   documentGeneration:
     cdogsV2:
       endpoint: https://cdogs-dev.api.gov.bc.ca/api

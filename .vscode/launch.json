@@ -69,6 +69,15 @@
       "program": "${workspaceFolder}",
       "runtimeExecutable": "echo",
       "runtimeArgs": ["ClamAV command sent successfully!"]
+    },
+    {
+      "name": "Valkey",
+      "type": "node",
+      "request": "launch",
+      "preLaunchTask": "Start Valkey Container",
+      "program": "${workspaceFolder}",
+      "runtimeExecutable": "echo",
+      "runtimeArgs": ["Valkey command sent successfully!"]
     }
   ]
 }

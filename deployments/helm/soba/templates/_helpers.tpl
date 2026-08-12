@@ -141,3 +141,12 @@ Any other code (e.g. virusscan-noop) needs no clamav wiring.
 {{- define "soba.virusScanUsesClamav" -}}
 {{- if eq .Values.backend.config.virusScanDefaultCode "virusscan-clamav" -}}true{{- end -}}
 {{- end }}
+
+{{/*
+Truthy ("true") only when the backend caches with cache-redis. Gates the valkey alias Service
+and the PLUGIN_CACHE_REDIS_URL env together so they cannot drift apart. Any other code (e.g.
+cache-memory) needs no valkey wiring.
+*/}}
+{{- define "soba.cacheUsesRedis" -}}
+{{- if eq .Values.backend.config.cacheDefaultCode "cache-redis" -}}true{{- end -}}
+{{- end }}

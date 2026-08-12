@@ -1,0 +1,11 @@
+# Prod: give the shared cache a bit more headroom. Still a single instance (best-effort cache).
+valkey:
+  maxmemory: "512mb"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      # Headroom over maxmemory (512mb) for fragmentation/buffers — see values.yaml.
+      memory: 896Mi

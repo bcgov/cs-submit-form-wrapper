@@ -41,6 +41,16 @@
         "reveal": "always",
         "panel": "new"
       }
+    },
+    {
+      "label": "Start Valkey Container",
+      "type": "shell",
+      "command": "docker rm -f soba-valkey || true && docker run -d --name soba-valkey --restart unless-stopped -p 6379:6379 valkey/valkey:8-alpine valkey-server --maxmemory-policy allkeys-lru && echo 'Valkey listening on localhost:6379 — set CACHE_DEFAULT_CODE=cache-redis and PLUGIN_CACHE_REDIS_URL=redis://localhost:6379 in backend/.env.local'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
     }
   ]
 }

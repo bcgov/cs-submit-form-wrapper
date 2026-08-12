@@ -1,0 +1,46 @@
+# Default values for valkey.
+# Deployed as standalone per-namespace shared infra (like clamav), before soba. The soba backend
+# reaches it via the in-namespace soba-valkey ExternalName alias (see the soba chart).
+
+# nameOverride -- override the name of the valkey chart
+nameOverride: ""
+
+# fullnameOverride -- override the full name of the valkey chart
+fullnameOverride: ""
+
+service:
+  # service.port -- The port the valkey service listens on
+  port: 6379
+
+valkey:
+  # valkey.image -- The Valkey image (Redis-compatible, OSI-licensed)
+  # Google's Docker Hub mirror — avoids the anonymous pull-rate limit on the cluster (same image).
+  image: mirror.gcr.io/valkey/valkey
+  # valkey.tag -- The Valkey image tag
+  tag: 8-alpine
+  # valkey.imagePullPolicy -- IfNotPresent
+  imagePullPolicy: IfNotPresent
+  # valkey.maxmemory -- Upper bound on the in-memory dataset before eviction kicks in
+  maxmemory: "256mb"
+  # valkey.maxmemoryPolicy -- Eviction policy once maxmemory is reached (cache: drop LRU keys)
+  maxmemoryPolicy: allkeys-lru
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      # Well above maxmemory: that bounds the dataset, not RSS — allocator fragmentation and client
+      # buffers live on top, so keep headroom to avoid an OOMKill before eviction engages.
+      memory: 448Mi
+
+# nsp.create -- Create a NetworkPolicy allowing in-namespace ingress on 6379 (needed under default-deny)
+nsp:
+  create: true
+
+# podSecurityContext / containerSecurityContext -- disabled by default; OpenShift assigns a
+# namespace-scoped SCC/uid. Enable and populate to pin a securityContext explicitly.
+podSecurityContext:
+  enabled: false
+containerSecurityContext:
+  enabled: false

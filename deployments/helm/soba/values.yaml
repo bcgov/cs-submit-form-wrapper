@@ -67,6 +67,10 @@ backend:
     gitTag: ""
     imageTag: ""
     formEngineDefaultCode: formio-v5
+    # Cache plugin. Default cache-memory (per-pod). Set cache-redis in a per-env values file
+    # (values-<env>.yaml) once that namespace's Valkey chart is deployed and confirmed reachable —
+    # cache-redis without a reachable Valkey is worse than cache-memory (no caching, warn per
+    # reconnect). See the valkey block below for the shared-cache wiring.
     # Document generation backend code the consumer defaults to.
     documentGenerationDefaultCode: docgen-noop
     cacheDefaultCode: cache-memory
@@ -220,7 +224,9 @@ formio:
   external:
     url: ""
   image:
-    repository: docker.io/formio/formio
+    # Pull official images through Google's Docker Hub mirror to avoid the anonymous pull-rate
+    # limit on the cluster (same image, matching digest).
+    repository: mirror.gcr.io/formio/formio
     tag: 4.6.0
     pullPolicy: IfNotPresent
   replicas: 1
@@ -252,7 +258,9 @@ mongodb:
   external:
     uri: ""
   image:
-    repository: docker.io/mongo
+    # Google's Docker Hub mirror — avoids the anonymous pull-rate limit on the cluster (same
+    # image, matching digest).
+    repository: mirror.gcr.io/library/mongo
     tag: "7"
     pullPolicy: IfNotPresent
   replicas: 1
@@ -282,6 +290,21 @@ clamav:
   externalName: ""
   port: 3310
   timeoutMs: "60000"
+
+# -- Valkey endpoint (alias to the separately-deployed valkey) ----------------
+# Valkey (Redis-compatible) runs as its own chart (deployments/helm/valkey), one per namespace,
+# providing the shared cache. The backend always targets an in-namespace <release>-valkey alias
+# Service on redis://<release>-valkey:port, so backend config never changes per env — only
+# externalName does. The alias Service + the PLUGIN_CACHE_REDIS_URL env are created only when
+# backend.config.cacheDefaultCode == cache-redis.
+valkey:
+  # Real valkey Service the <release>-valkey alias points at. Empty defaults to the valkey Service
+  # in THIS namespace; override for cross-namespace (e.g. a PR pointing at dev's valkey).
+  externalName: ""
+  port: 6379
+  # Optional key namespace, so releases sharing a Valkey never collide. Empty = per-release
+  # prefix (<release>:), set by the backend configmap.
+  keyPrefix: ""
 
 # -- Temporal (shared server, env vars for backend + worker) ------------------
 temporal:
