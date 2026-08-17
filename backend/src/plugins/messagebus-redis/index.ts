@@ -80,7 +80,8 @@ export function buildRedisMessageBusAdapter(config: PluginConfigReader): {
       log.warn({ err, channel }, '[messagebus-redis] dropping unparseable message');
       return;
     }
-    for (const handler of [...list]) {
+    // Handlers are scheduled, not called, so unsubscribing during delivery cannot disturb this loop.
+    for (const handler of list) {
       Promise.resolve()
         .then(() => handler(payload))
         .catch((err) => log.warn({ err, channel }, '[messagebus-redis] subscriber handler failed'));

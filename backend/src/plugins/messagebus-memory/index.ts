@@ -20,8 +20,8 @@ function createInMemoryMessageBusAdapter(config: PluginConfigReader): MessageBus
   const dispatch = (topic: string, payload: Record<string, unknown>): void => {
     const list = handlers.get(topic);
     if (!list?.length) return;
-    // Snapshot so a handler that unsubscribes during delivery doesn't disturb this fan-out.
-    for (const handler of [...list]) {
+    // Handlers are scheduled, not called, so unsubscribing during delivery cannot disturb this loop.
+    for (const handler of list) {
       Promise.resolve()
         .then(() => handler(payload))
         .catch((err) => log.warn({ err, topic }, '[messagebus-memory] subscriber handler failed'));
