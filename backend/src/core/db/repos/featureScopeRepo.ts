@@ -13,6 +13,14 @@ export interface NewFeatureScope {
   createdBy?: string | null;
 }
 
+export interface UpsertFeatureScopeInput {
+  featureCode: string;
+  scopeType: string;
+  scopeId: string;
+  status?: string;
+  updatedBy?: string | null;
+}
+
 export const createFeatureScope = async (input: NewFeatureScope): Promise<FeatureScopeRecord> => {
   const [row] = await db
     .insert(featureScopes)
@@ -25,6 +33,52 @@ export const createFeatureScope = async (input: NewFeatureScope): Promise<Featur
     })
     .returning();
   return row;
+};
+
+/**
+ * Ensure one grant row per (feature, scopeType, scopeId): create it when missing, otherwise update
+ * status and audit stamp in place. Keeps test/setup routes idempotent across repeated runs.
+ */
+export const upsertFeatureScope = async (
+  input: UpsertFeatureScopeInput,
+): Promise<FeatureScopeRecord> => {
+  const existing = await db
+    .select()
+    .from(featureScopes)
+    .where(
+      and(
+        eq(featureScopes.featureCode, input.featureCode),
+        eq(featureScopes.scopeType, input.scopeType),
+        eq(featureScopes.scopeId, input.scopeId),
+      ),
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    const [updated] = await db
+      .update(featureScopes)
+      .set({
+        status: input.status ?? existing[0].status,
+        updatedAt: new Date(),
+        updatedBy: input.updatedBy ?? null,
+      })
+      .where(eq(featureScopes.id, existing[0].id))
+      .returning();
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(featureScopes)
+    .values({
+      featureCode: input.featureCode,
+      scopeType: input.scopeType,
+      scopeId: input.scopeId,
+      status: input.status ?? FeatureScopeStatus.active,
+      createdBy: input.updatedBy ?? null,
+      updatedBy: input.updatedBy ?? null,
+    })
+    .returning();
+  return created;
 };
 
 export interface FeatureGrantLookup {

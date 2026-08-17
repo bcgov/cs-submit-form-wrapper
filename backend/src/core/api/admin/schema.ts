@@ -20,6 +20,18 @@ export const ListSobaAdminsQuerySchema = z
   })
   .openapi('Admin_ListSobaAdminsQuery');
 
+export const ListDocumentGenerationAuditsQuerySchema = z
+  .object({
+    workspaceId: z.uuid().optional(),
+    formId: z.uuid().optional(),
+    limit: z.coerce.number().int().min(1).max(200).default(100),
+  })
+  .refine((value) => !!value.workspaceId || !!value.formId, {
+    message: 'At least one of workspaceId or formId is required',
+    path: ['workspaceId'],
+  })
+  .openapi('Admin_ListDocumentGenerationAuditsQuery');
+
 export const ListSobaAdminsResponseSchema = z
   .object({
     items: z.array(SobaAdminItemSchema),
@@ -32,11 +44,44 @@ export const ListSobaAdminsResponseSchema = z
   })
   .openapi('Admin_ListSobaAdminsResponse');
 
+export const DocumentGenerationAuditItemSchema = z
+  .object({
+    id: z.uuid(),
+    workspaceId: z.uuid(),
+    formId: z.uuid(),
+    submissionId: z.uuid(),
+    mode: z.string(),
+    backendCode: z.string(),
+    outcome: z.string(),
+    httpStatus: z.number().int().nullable(),
+    durationMs: z.number().int(),
+    errorDetail: z.string().nullable(),
+    requestId: z.string().nullable(),
+    createdBy: z.uuid(),
+    createdAt: z.string(),
+  })
+  .openapi('Admin_DocumentGenerationAuditItem');
+
+export const ListDocumentGenerationAuditsResponseSchema = z
+  .object({
+    items: z.array(DocumentGenerationAuditItemSchema),
+  })
+  .openapi('Admin_ListDocumentGenerationAuditsResponse');
+
 export const AddSobaAdminBodySchema = z
   .object({
     userId: z.string().uuid(),
   })
   .openapi('Admin_AddSobaAdminBody');
+
+export const UpsertFeatureScopeBodySchema = z
+  .object({
+    featureCode: z.string().min(1),
+    scopeType: z.enum(['workspace', 'form']),
+    scopeId: z.uuid(),
+    status: z.enum(['active', 'inactive']).optional(),
+  })
+  .openapi('Admin_UpsertFeatureScopeBody');
 
 export const SobaAdminUserIdParamsSchema = z
   .object({
@@ -97,6 +142,54 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
     responses: {
       204: { description: 'Direct grant removed (or no-op if not direct)' },
       400: { description: 'Invalid userId' },
+    },
+  });
+
+  registry.registerPath({
+    method: 'post',
+    path: '/admin/feature-scopes',
+    tags: [TAG],
+    security: [{ bearerAuth: [] }],
+    request: {
+      body: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: UpsertFeatureScopeBodySchema,
+          },
+        },
+      },
+    },
+    responses: {
+      204: {
+        description:
+          'Feature scope upserted. Creates when missing, otherwise updates existing row status.',
+      },
+      400: { description: 'Invalid request body' },
+      403: { description: 'Requires soba_admin role' },
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/admin/document-generation/audits',
+    tags: [TAG],
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: ListDocumentGenerationAuditsQuerySchema,
+    },
+    responses: {
+      200: {
+        description: 'Recent document generation audit rows for workspace/form scope',
+        content: {
+          'application/json': {
+            schema: ListDocumentGenerationAuditsResponseSchema,
+          },
+        },
+      },
+      400: { description: 'Invalid query (workspaceId/formId/limit)' },
+      403: { description: 'Requires soba_admin role' },
+      404: { description: 'Document generation feature is disabled' },
     },
   });
 };

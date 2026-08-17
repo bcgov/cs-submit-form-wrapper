@@ -6,14 +6,22 @@ import {
   addDirectSobaAdmin,
   removeDirectSobaAdmin,
 } from '../../db/repos/sobaAdminRepo';
+import { upsertFeatureScope } from '../../db/repos/featureScopeRepo';
+import { listDocumentGenerationAudits } from '../../db/repos/documentGenerationAuditRepo';
 import { db } from '../../db/client';
 import { appUsers } from '../../db/schema';
 import { asyncHandler } from '../shared/asyncHandler';
 import { decodeCursor, encodeCursor } from '../shared/pagination';
-import { AddSobaAdminBodySchema } from './schema';
+import {
+  AddSobaAdminBodySchema,
+  ListDocumentGenerationAuditsQuerySchema,
+  UpsertFeatureScopeBodySchema,
+} from './schema';
 import type { Request } from 'express';
 
 type AddSobaAdminBody = z.infer<typeof AddSobaAdminBodySchema>;
+type UpsertFeatureScopeBody = z.infer<typeof UpsertFeatureScopeBodySchema>;
+type ListDocumentGenerationAuditsQuery = z.infer<typeof ListDocumentGenerationAuditsQuerySchema>;
 
 export const listSobaAdminsHandler = asyncHandler(async (req: Request, res: Response) => {
   const limit = Number(req.query.limit) || 20;
@@ -68,6 +76,20 @@ export const removeSobaAdminHandler = asyncHandler(
   async (req: Request<{ userId: string }>, res: Response) => {
     const { userId } = req.params;
     await removeDirectSobaAdmin(userId);
+    res.status(204).send();
+  },
+);
+
+export const upsertFeatureScopeHandler = asyncHandler(
+  async (req: Request<unknown, unknown, UpsertFeatureScopeBody>, res: Response) => {
+    const body = req.body as UpsertFeatureScopeBody;
+    await upsertFeatureScope({
+      featureCode: body.featureCode,
+      scopeType: body.scopeType,
+      scopeId: body.scopeId,
+      status: body.status,
+      updatedBy: req.actorId ?? null,
+    });
     res.status(204).send();
   },
 );
