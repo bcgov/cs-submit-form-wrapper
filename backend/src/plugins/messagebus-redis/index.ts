@@ -21,7 +21,8 @@ type Handler = (payload: Record<string, unknown>) => Promise<void>;
  * cross-talk. Publish is best-effort and at-most-once: a publish issued while the backend is
  * unreachable — during an outage, or the brief window before the publisher first connects — is
  * dropped rather than queued (the offline queue is off; a transition log records the outage).
- * ioredis re-subscribes its known channels after a reconnect, so handlers survive a blip.
+ * ioredis re-subscribes its known channels after a reconnect, so handlers survive a blip; a channel
+ * whose SUBSCRIBE failed outright is re-issued on the next connect.
  *
  * Returns the clients alongside the adapter so tests can disconnect them; production callers use the
  * plugin definition below, which drops them (the process holds a single memoized adapter).
@@ -49,6 +50,25 @@ export function buildRedisMessageBusAdapter(config: PluginConfigReader): {
 
   const channelFor = (topic: string): string => `${channelPrefix}${topic}`;
   const handlers = new Map<string, Handler[]>(); // keyed by channel (prefixed)
+  // Channels with a SUBSCRIBE in flight or established. Kept apart from handlers: a populated
+  // handler list does not mean the channel is subscribed, and a failed SUBSCRIBE is never replayed
+  // by ioredis (it only repeats channels that succeeded at least once).
+  const subscribedChannels = new Set<string>();
+
+  const ensureSubscribed = (channel: string): void => {
+    if (subscribedChannels.has(channel)) return;
+    subscribedChannels.add(channel);
+    subscriber.subscribe(channel).catch((err) => {
+      subscribedChannels.delete(channel);
+      log.warn({ err, channel }, '[messagebus-redis] subscribe failed');
+    });
+  };
+
+  // A SUBSCRIBE only rejects when the socket closed under it, so retry on the next connect. Channels
+  // that did subscribe are replayed by ioredis and skipped here.
+  subscriber.on('ready', () => {
+    for (const channel of handlers.keys()) ensureSubscribed(channel);
+  });
 
   const deliver = (channel: string, message: string): void => {
     const list = handlers.get(channel);
@@ -85,14 +105,9 @@ export function buildRedisMessageBusAdapter(config: PluginConfigReader): {
       const channels = (Array.isArray(topic) ? topic : [topic]).map(channelFor);
       for (const channel of channels) {
         const list = handlers.get(channel) ?? [];
-        const firstForChannel = list.length === 0;
         list.push(handler);
         handlers.set(channel, list);
-        if (firstForChannel) {
-          subscriber
-            .subscribe(channel)
-            .catch((err) => log.warn({ err, channel }, '[messagebus-redis] subscribe failed'));
-        }
+        ensureSubscribed(channel);
       }
       return () => {
         for (const channel of channels) {
@@ -101,6 +116,7 @@ export function buildRedisMessageBusAdapter(config: PluginConfigReader): {
           if (idx !== -1) list.splice(idx, 1);
           if (list.length === 0) {
             handlers.delete(channel);
+            subscribedChannels.delete(channel);
             subscriber
               .unsubscribe(channel)
               .catch((err) => log.warn({ err, channel }, '[messagebus-redis] unsubscribe failed'));

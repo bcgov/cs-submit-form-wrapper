@@ -52,3 +52,67 @@ describe('messagebus-redis (backend unreachable)', () => {
     expect(() => (unsubscribe as () => void)()).not.toThrow();
   });
 });
+
+// Client and adapter are real; only the subscriber's SUBSCRIBE is stubbed. An unreachable backend
+// queues it offline rather than rejecting, so it is the one way to reach the failure branch here.
+describe('messagebus-redis (SUBSCRIBE failure)', () => {
+  let built: ReturnType<typeof unreachableAdapter>;
+  let subscribe: jest.SpiedFunction<Redis['subscribe']>;
+
+  beforeEach(() => {
+    built = unreachableAdapter();
+    subscribe = jest.spyOn(built.subscriber, 'subscribe');
+  });
+
+  afterEach(() => {
+    subscribe.mockRestore();
+  });
+
+  const failOnce = (): void => {
+    subscribe
+      .mockRejectedValueOnce(new Error('Connection is closed.'))
+      .mockResolvedValue(1 as never);
+  };
+
+  it('re-issues SUBSCRIBE for a later subscriber when the first attempt failed', async () => {
+    failOnce();
+
+    built.adapter.subscribe!('t', async () => undefined);
+    await Promise.resolve(); // let the rejection settle
+    built.adapter.subscribe!('t', async () => undefined);
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenNthCalledWith(2, 'soba:t');
+  });
+
+  it('re-issues a failed SUBSCRIBE on the next connect, with no new subscriber', async () => {
+    failOnce();
+
+    built.adapter.subscribe!('t', async () => undefined);
+    await Promise.resolve();
+    built.subscriber.emit('ready');
+
+    expect(subscribe).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not re-issue SUBSCRIBE for a channel that is already subscribed', () => {
+    subscribe.mockResolvedValue(1 as never);
+
+    built.adapter.subscribe!('t', async () => undefined);
+    built.adapter.subscribe!('t', async () => undefined);
+    built.subscriber.emit('ready');
+
+    expect(subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-issue SUBSCRIBE for a channel whose last handler unsubscribed', () => {
+    subscribe.mockResolvedValue(1 as never);
+    jest.spyOn(built.subscriber, 'unsubscribe').mockResolvedValue(0 as never);
+
+    const unsubscribe = built.adapter.subscribe!('t', async () => undefined);
+    (unsubscribe as () => void)();
+    built.subscriber.emit('ready');
+
+    expect(subscribe).toHaveBeenCalledTimes(1);
+  });
+});
