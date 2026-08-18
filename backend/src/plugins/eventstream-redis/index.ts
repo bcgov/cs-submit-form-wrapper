@@ -8,6 +8,7 @@ import type {
   EventStreamSubscription,
 } from '../../core/integrations/eventstream/EventStreamAdapter';
 import type { PluginConfigReader } from '../../core/config/pluginConfig';
+import { resolveStreamRetention } from '../../core/integrations/eventstream/streamRetention';
 import { createRedisClient, optionalNumber } from '../shared/redis/redisClient';
 import { log } from '../../core/logging';
 
@@ -43,6 +44,17 @@ export function parseEnvelope(fields: string[]): EventEnvelope {
 }
 
 /**
+ * XADD trim arguments for a stream's retention: an approximate cap (`MAXLEN ~ N`) when one is
+ * declared, otherwise none. Approximate because Redis only removes whole macro nodes, so the stream
+ * settles within stream-node-max-entries of N rather than exactly at it; an exact `MAXLEN` costs
+ * more per append for a precision retention does not need. Only maxLen is applied — an age bound
+ * needs a separate XTRIM.
+ */
+export function trimArgs(retention: EventStreamConfig | undefined): (string | number)[] {
+  return retention?.maxLen ? ['MAXLEN', '~', retention.maxLen] : [];
+}
+
+/**
  * Flatten an XREADGROUP reply into its stream entries, tolerant of both wire protocols. ioredis
  * defaults to RESP3, where the per-stream map comes back flattened as [name, entries, name, entries];
  * under RESP2 it is the nested [[name, entries], ...]. We only ever read one stream, so either way we
@@ -73,6 +85,11 @@ export function extractEntries(reply: unknown): StreamEntry[] {
  * pending messages after MIN_IDLE_MS and redelivers them, dead-lettering to <stream>:dead once a
  * message has been delivered MAX_DELIVERIES times.
  *
+ * Redis has no server-side retention, so a declared cap is emulated by trimming on append. The cap
+ * comes from the shared declarations (streamRetention.ts), which every replica resolves the same
+ * way, so it does not matter which pod appends. Only maxLen is applied: XADD takes a single trim
+ * strategy, and an age bound also needs a periodic XTRIM to catch a stream that has gone quiet.
+ *
  * Returns the command client alongside the adapter so tests can disconnect it; production callers use
  * the plugin definition below, which drops it.
  */
@@ -86,9 +103,25 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
 
   const { client, whenReady } = createRedisClient(config, { logLabel: `${CODE}:cmd` });
 
-  // Per-stream retention recorded by ensureStream; append applies maxLen as an approximate trim.
-  // Age-based trimming and durability are handled at the deployment/persistence layer, not here.
-  const configs = new Map<string, EventStreamConfig>();
+  // Resolved from the shared declarations once per stream per process: the cap follows the stream,
+  // so every replica trims it the same way whether or not it provisioned it. Durability is a
+  // deployment/persistence concern.
+  const retentionCache = new Map<string, EventStreamConfig | undefined>();
+  const retentionFor = (stream: string): EventStreamConfig | undefined => {
+    if (retentionCache.has(stream)) return retentionCache.get(stream);
+    const retention = resolveStreamRetention(stream);
+    if (retention?.maxAgeMs !== undefined) {
+      // Not implemented. MINID trims by age on append (ids are ms timestamps), but XADD carries one
+      // strategy, so a stream with both limits needs a separate XTRIM — which append-time trimming
+      // would need anyway, since it never fires on a stream that has gone quiet.
+      log.warn(
+        { stream, maxAgeMs: retention.maxAgeMs },
+        `[${CODE}] maxAgeMs is declared but not applied; only maxLen is trimmed`,
+      );
+    }
+    retentionCache.set(stream, retention);
+    return retention;
+  };
 
   // Every stream key is namespaced so releases sharing one Valkey (e.g. PRs in the dev namespace)
   // never read each other's events or share consumer groups. keyPrefix does not apply to the .call()
@@ -142,8 +175,11 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
   };
 
   const adapter: EventStreamAdapter = {
-    async ensureStream(stream: string, streamConfig?: EventStreamConfig): Promise<void> {
-      if (streamConfig) configs.set(stream, streamConfig);
+    async ensureStream(stream: string): Promise<void> {
+      // Redis auto-creates a stream on first append (and consume passes MKSTREAM), so there is
+      // nothing to provision. Resolve retention now so a bad override or an unapplied maxAgeMs is
+      // logged at wiring time rather than on the first append.
+      retentionFor(stream);
     },
 
     async append(stream: string, event: EventEnvelope): Promise<{ id: string }> {
@@ -151,15 +187,17 @@ export function buildRedisEventStreamAdapter(config: PluginConfigReader): {
       // whenReady is bounded by connectTimeout, so a real outage still fails loud (at-least-once).
       await whenReady();
       const data = JSON.stringify({ ...event, time: event.time ?? new Date().toISOString() });
-      const maxLen = configs.get(stream)?.maxLen;
       const key = streamKey(stream);
-      // Approximate trim (MAXLEN ~) only when the stream was provisioned with a cap — no default, so
-      // an unconfigured stream never silently drops un-acked entries (at-least-once).
-      const id = (
-        maxLen
-          ? await client.call('XADD', key, 'MAXLEN', '~', maxLen, '*', DATA_FIELD, data)
-          : await client.call('XADD', key, '*', DATA_FIELD, data)
-      ) as string | null;
+      // Trim only when the stream is declared with a cap — no default, so an undeclared stream never
+      // silently drops un-acked entries (at-least-once).
+      const id = (await client.call(
+        'XADD',
+        key,
+        ...trimArgs(retentionFor(stream)),
+        '*',
+        DATA_FIELD,
+        data,
+      )) as string | null;
       if (!id) throw new Error(`[${CODE}] XADD returned no id for stream '${stream}'`);
       return { id };
     },

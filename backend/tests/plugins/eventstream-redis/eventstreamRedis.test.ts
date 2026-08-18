@@ -6,6 +6,7 @@ import {
   eventStreamPluginDefinition,
   extractEntries,
   parseEnvelope,
+  trimArgs,
 } from '../../../src/plugins/eventstream-redis';
 
 // Points the adapter at a closed local port so connections are refused fast. No mocks: this
@@ -53,6 +54,21 @@ describe('extractEntries (XREADGROUP reply parsing)', () => {
   it('returns [] for null or empty replies (BLOCK timeout)', () => {
     expect(extractEntries(null)).toEqual([]);
     expect(extractEntries([])).toEqual([]);
+  });
+});
+
+describe('trimArgs (XADD retention arguments)', () => {
+  it('emits an approximate MAXLEN when the stream declares a cap', () => {
+    expect(trimArgs({ maxLen: 1000 })).toEqual(['MAXLEN', '~', 1000]);
+  });
+
+  it('emits nothing when the stream is unbounded, so no un-acked entry is trimmed away', () => {
+    expect(trimArgs(undefined)).toEqual([]);
+    expect(trimArgs({})).toEqual([]);
+  });
+
+  it('ignores maxAgeMs — XADD takes a single trim strategy', () => {
+    expect(trimArgs({ maxAgeMs: 60_000 })).toEqual([]);
   });
 });
 

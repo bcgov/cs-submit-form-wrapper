@@ -18,10 +18,13 @@ export interface EventStreamReadinessResult {
 }
 
 /**
- * Stream-level provisioning/retention. On JetStream this maps to stream creation (max_msgs/max_age);
- * on Redis Streams it is applied as trimming. Retention and at-least-once are in tension — trimming
- * can drop un-acked entries if a consumer lags past the limit — so there is no default cap; a stream
- * is unbounded until a limit is set deliberately.
+ * Stream-level retention. On JetStream this maps to stream creation (max_msgs/max_age); on Redis
+ * Streams it is applied as trimming. Retention and at-least-once are in tension — trimming can drop
+ * un-acked entries if a consumer lags past the limit — so there is no default cap; a stream is
+ * unbounded until a limit is set deliberately.
+ *
+ * Not passed per call: limits are declared in streamRetention.ts and resolved identically on every
+ * replica, because a Redis-side trim is only consistent if every appending pod computes the same cap.
  */
 export interface EventStreamConfig {
   /** Approximate max retained entries (Redis XADD MAXLEN ~ N; JetStream max_msgs). */
@@ -65,11 +68,12 @@ export type EventStreamSubscription = () => Promise<void>;
 
 export interface EventStreamAdapter {
   /**
-   * Provision a stream and its retention. Portable, and required for JetStream (which cannot
-   * auto-create); Redis auto-creates on first append, so this is optional there but records the
-   * retention to apply. Idempotent.
+   * Provision a stream. Portable, and required for JetStream (which cannot auto-create); Redis
+   * auto-creates on first append, so it is a no-op there. Retention is not an argument — it comes
+   * from the shared declarations in streamRetention.ts, so a stream is capped the same way whether
+   * or not the appending replica is the one that provisioned it. Idempotent.
    */
-  ensureStream(stream: string, config?: EventStreamConfig): Promise<void>;
+  ensureStream(stream: string): Promise<void>;
 
   /**
    * Append a typed event; resolves with its entry id. Throws on failure — delivery is at-least-once,
