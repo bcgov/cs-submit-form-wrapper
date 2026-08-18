@@ -109,6 +109,8 @@ client.workflow.start(generatePdf, { taskQueue: "pdf-tasks" });
 
 This codebase supports **multiple workers** and **multiple task queues**. The shared default queue is `soba` (`TEMPORAL_TASK_QUEUE`), and individual worker deployments can override `TEMPORAL_TASK_QUEUE` (for example `document-generation`) to isolate workload types.
 
+What that isolation currently is: every worker runs the same image and registers the same workflows and activities, so the separation is one of **capacity and rollout** — its own resource limits, its own scaling, its own restarts — not of code. Deciding which queue a job runs on is still the caller's choice at start time. Narrowing a worker to only part of the code (for example activities but no workflows) needs a change to `Worker.create` in `src/temporal/worker.ts`; it cannot be done from deployment config alone.
+
 ---
 
 ## How the files flow (simple)
