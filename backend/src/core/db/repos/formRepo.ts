@@ -20,6 +20,7 @@ export interface ListFormsForWorkspaceInput {
 
 export interface FormListRow {
   id: string;
+  workspaceId: string;
   name: string;
   status: string;
   createdAt: Date;
@@ -65,10 +66,10 @@ interface UpdateFormInput {
 export const listFormsForWorkspace = async (
   input: ListFormsForWorkspaceInput,
 ): Promise<{ items: FormListRow[]; hasMore: boolean }> => {
-  if (input.workspaceIds.length === 0) {
-    return { items: [], hasMore: false };
+  const whereClauses = [isNull(forms.deletedAt)];
+  if (input.workspaceIds.length > 0) {
+    whereClauses.push(inArray(forms.workspaceId, input.workspaceIds));
   }
-  const whereClauses = [inArray(forms.workspaceId, input.workspaceIds), isNull(forms.deletedAt)];
 
   if (input.status) {
     whereClauses.push(eq(forms.status, input.status));
@@ -99,6 +100,7 @@ export const listFormsForWorkspace = async (
   const rows = await db
     .select({
       id: forms.id,
+      workspaceId: forms.workspaceId,
       name: forms.name,
       status: forms.status,
       createdAt: forms.createdAt,

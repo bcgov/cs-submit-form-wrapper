@@ -5,7 +5,6 @@ import { Button as DSButton } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageLayout, ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
 import { ListPageSearchField } from '@/src/components/ListPageSearchField';
-import { MutedHint } from '@/src/components/MutedHint';
 import { DsPageHeading } from '@/app/ui/DsPageHeading';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
@@ -13,12 +12,10 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces, selectActiveWorkspace } from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
-import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
-import { DefaultWorkspaceSwitch } from './DefaultWorkspaceSwitch';
 import { isWorkspaceManageRole } from '../workspaceRoles';
 
 const WorkspaceActionButtons = ({
@@ -60,7 +57,6 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
   const dictWorkspaces = dict.workspaces;
   const { authenticated, token, initializing } = useKeycloak();
   const dispatch = useAppDispatch();
-  const { addNotification } = useNotificationStore();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -71,12 +67,14 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
 
   const locale = getLocaleFromPath(pathname);
 
-  const { workspaces, activeWorkspaceId, status: workspaceStatus, error: workspaceError } =
-    useAppSelector((state) => state.workspace);
+  const {
+    workspaces,
+    status: workspaceStatus,
+    error: workspaceError,
+  } = useAppSelector((state) => state.workspace);
   const { data: currentUser, status: currentUserStatus } = useAppSelector(
     (state) => state.currentUser,
   );
-  const defaultWorkspaceId = currentUser?.preferences?.defaultWorkspaceId ?? null;
 
   useEffect(() => {
     if (authenticated && token && workspaceStatus === 'idle') {
@@ -117,24 +115,15 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
   const handleSelect = useCallback(
     (workspaceId: string, destination: 'forms' | 'manage') => {
       if (!token) return;
-      dispatch(selectActiveWorkspace({ token, workspaceId }))
-        .unwrap()
-        .then(() => {
-          if (destination === 'forms') {
-            router.push(`/${locale}/forms`);
-          } else {
-            router.push(`/${locale}/workspace/${workspaceId}`);
-          }
-        })
-        .catch((error) => {
-          addNotification({
-            text: dict.general.workspaceSwitchError,
-            type: 'error',
-            consoleError: error,
-          });
-        });
+
+      if (destination === 'forms') {
+        sessionStorage.setItem('soba.formListWorkspaceId', workspaceId);
+        router.push(`/${locale}/forms`);
+      } else {
+        router.push(`/${locale}/workspace/${workspaceId}`);
+      }
     },
-    [token, dispatch, router, locale, addNotification, dict.general.workspaceSwitchError],
+    [token, router, locale],
   );
 
   const handleAction = useCallback(
@@ -163,9 +152,6 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
             >
               {workspace.name}
             </RowActionButton>
-            {workspace.id === activeWorkspaceId ? (
-              <MutedHint>({dictWorkspaces.active})</MutedHint>
-            ) : null}
           </span>
         ),
       },
@@ -189,29 +175,8 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
           <WorkspaceRoleBadge role={workspace.role} data-testid={'role-' + workspace.id} />
         ),
       },
-      {
-        key: 'default',
-        label: dictWorkspaces.columns.default,
-        align: 'center',
-        render: (workspace: WorkspaceItem) => (
-          <DefaultWorkspaceSwitch
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-            defaultWorkspaceId={defaultWorkspaceId}
-            ariaLabelTemplate={dictWorkspaces.defaultWorkspaceLabel}
-            errorMessage={dictWorkspaces.defaultWorkspaceError}
-          />
-        ),
-      },
     ],
-    [
-      handleSelect,
-      handleAction,
-      dictWorkspaces,
-      activeWorkspaceId,
-      showFormsAction,
-      defaultWorkspaceId,
-    ],
+    [handleSelect, handleAction, dictWorkspaces, showFormsAction],
   );
 
   const loading = workspaceStatus === 'loading' || workspaceStatus === 'idle';

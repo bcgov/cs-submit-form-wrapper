@@ -1,7 +1,11 @@
 import type { NextConfig } from 'next';
 import { join } from 'path';
+import packageJson from './package.json';
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: packageJson.version,
+  },
   output: 'standalone',
   basePath: process.env.BASE_PATH || '',
   // React Aria ships ESM that needs transpiling for the App Router server

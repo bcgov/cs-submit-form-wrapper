@@ -6,15 +6,17 @@ export type WorkspaceSelectorItem = { id: string; name: string; kind: string };
 
 export function WorkspaceSelector({
   workspaces,
-  activeWorkspaceId,
+  selectedWorkspaceId,
   label,
   onChange,
   size = 'small',
+  allowAll = false,
 }: Readonly<{
   workspaces: WorkspaceSelectorItem[];
-  activeWorkspaceId: string | null;
+  selectedWorkspaceId: string | null;
   label: string;
   size?: 'small' | 'medium';
+  allowAll?: boolean;
   onChange: (key: string | number | null) => void;
 }>) {
   return (
@@ -22,11 +24,15 @@ export function WorkspaceSelector({
       size={size}
       id="workspace-select"
       data-testid="workspace-select"
+      label={label}
       aria-label={label}
       className="mr-2"
-      selectedKey={activeWorkspaceId || null}
-      onSelectionChange={onChange}
-      items={workspaces.map((ws) => ({ id: ws.id, label: `${ws.name} (${ws.kind})` }))}
+      selectedKey={selectedWorkspaceId || (allowAll ? 'all' : null)}
+      onSelectionChange={(key) => onChange(key === 'all' ? null : key)}
+      items={[
+        ...(allowAll ? [{ id: 'all', label: 'All Workspaces' }] : []),
+        ...workspaces.map((ws) => ({ id: ws.id, label: `${ws.name} (${ws.kind})` })),
+      ]}
     />
   );
 }

@@ -19,6 +19,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import FormDesigner from '@/src/features/designer/ui/FormDesigner';
 import { DynamicForm } from '@/src/features/formio-v5/ui/DynamicForm';
+import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
@@ -45,12 +46,18 @@ function FormForm({ formId }: { formId?: string }) {
 
   const { authenticated, token, initializing } = useKeycloak();
   const {
-    activeWorkspaceId,
     status: workspaceStatus,
     workspaces,
   } = useAppSelector((state) => state.workspace);
   const { addNotification } = useNotificationStore();
-  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
+  
+  let effectiveWorkspaceId = selectedWorkspaceId;
+  if (!formId && !selectedWorkspaceId && workspaces.length === 1) {
+    effectiveWorkspaceId = workspaces[0].id;
+  }
+
+  const activeWorkspace = workspaces.find((w) => w.id === effectiveWorkspaceId);
   const canManageWorkspace = !!activeWorkspace && isWorkspaceManageRole(activeWorkspace.role);
   // A new form can't be created until the workspace disclaimer is accepted (backend gate).
   const needsDisclaimer = !formId && !!activeWorkspace && !activeWorkspace.disclaimerAccepted;
@@ -83,6 +90,7 @@ function FormForm({ formId }: { formId?: string }) {
 
           setFormName(form?.name ?? '');
           setFormDesc(form?.description ?? '');
+          if (form?.workspaceId) setSelectedWorkspaceId(form.workspaceId);
 
           const items = versionsData.items || [];
           setVersions(items);
@@ -214,7 +222,7 @@ function FormForm({ formId }: { formId?: string }) {
   // CREATE: one-call create (form + empty v1), scoped to the active workspace, then provision.
   const createAndProvisionForm = async (schema: FormType, publish: boolean) => {
     const data: SobaFormType = { name: formName, description: formDesc };
-    const created = await createSobaFormioForm(token as string, data, activeWorkspaceId || undefined);
+    const created = await createSobaFormioForm(token as string, data, effectiveWorkspaceId || undefined);
     const versionId = created.formVersion?.id;
     if (versionId) {
       await saveFormVersionSchema(token as string, versionId, schema);
@@ -227,9 +235,9 @@ function FormForm({ formId }: { formId?: string }) {
 
   const saveForm = async (publish: boolean = false) => {
     if (isSaving || loading) return;
-    // Creating a form is workspace-scoped: without an active workspace the backend
+    // Creating a form is workspace-scoped: without an selected workspace the backend
     // rejects the request with a generic error, so surface a clear message instead.
-    if (!formId && !activeWorkspaceId) {
+    if (!formId && !effectiveWorkspaceId) {
       addNotification({ text: dict.form.noActiveWorkspaceError, type: 'error' });
       return;
     }
@@ -336,6 +344,16 @@ function FormForm({ formId }: { formId?: string }) {
           isDisabled={isHistoryView || isCurrentPublished}
         />
 
+        {!formId && workspaces.length > 1 && (
+          <WorkspaceSelector
+            label="Workspace"
+            workspaces={workspaces}
+            selectedWorkspaceId={effectiveWorkspaceId}
+            onChange={(id) => setSelectedWorkspaceId(id as string)}
+            size="medium"
+          />
+        )}
+
         {versions.length > 0 && (
           <Select
             label={dict.form.formVersion || 'Form Version'}
@@ -356,8 +374,8 @@ function FormForm({ formId }: { formId?: string }) {
         )}
 
         <FormSubmitterAudience
-          key={activeWorkspaceId ?? 'none'}
-          workspaceId={activeWorkspaceId}
+          key={effectiveWorkspaceId ?? 'none'}
+          workspaceId={effectiveWorkspaceId}
           token={token ?? undefined}
           canManage={canManageWorkspace}
         />

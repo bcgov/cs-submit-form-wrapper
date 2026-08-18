@@ -1,5 +1,7 @@
 'use client';
 
+import { Footer as BCFooter } from '@bcgov/design-system-react-components';
+
 /**
  * BC Gov footer.
  *
@@ -13,4 +15,18 @@
  * The `<Footer>` prop API (`hideAcknowledgement`, `contact`, `links`, …) is
  * unchanged, so existing usage continues to work.
  */
-export { Footer } from '@bcgov/design-system-react-components';
+
+const Footer = (props: React.ComponentProps<typeof BCFooter>) => {
+  const defaultCopyrightText = `© ${new Date().getUTCFullYear()} Government of British Columbia.`;
+  
+  const customCopyright = (
+    <>
+      {props.copyright || defaultCopyrightText}
+      <span style={{ float: 'right' }}>Version {process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}</span>
+    </>
+  ) as unknown as string;
+
+  return <BCFooter {...props} copyright={customCopyright} />;
+};
+
+export { Footer };

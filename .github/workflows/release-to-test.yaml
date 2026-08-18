@@ -43,12 +43,35 @@ jobs:
     # branches should start this deployment workflow.
     if: ${{ github.event_name != 'create' || (github.event.ref_type == 'branch' && startsWith(github.event.ref, 'release/sprint-')) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     outputs:
       ref: ${{ steps.vars.outputs.ref }}
       branch: ${{ steps.vars.outputs.branch }}
       image_version: ${{ steps.vars.outputs.image_version }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # Semantic release needs full history
+          # Need a token that can bypass branch protection if necessary, or default token
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: npm i -g pnpm@10.28.2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
       - name: Validate release branch
         id: vars
         run: |

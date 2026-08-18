@@ -12,7 +12,7 @@ describe('WorkspaceSelector', () => {
     render(
       <WorkspaceSelector
         workspaces={workspaces}
-        activeWorkspaceId="ws1"
+        selectedWorkspaceId="ws1"
         label="Select Workspace"
         onChange={() => {}}
       />,

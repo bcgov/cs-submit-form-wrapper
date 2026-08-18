@@ -65,3 +65,26 @@ export const hasAllPermissions = (perms: Set<string>, required: readonly string[
   if (perms.has(Permissions.all)) return true;
   return required.every((code) => perms.has(code));
 };
+
+/** Fetch all active workspaces for the actor where they hold the required permissions. */
+export const getWorkspaceIdsWithAllPermissions = async (
+  actorId: string,
+  required: readonly string[],
+): Promise<string[]> => {
+  const rows = await db
+    .select({ workspaceId: workspaceMemberships.workspaceId })
+    .from(workspaceMemberships)
+    .where(
+      and(
+        eq(workspaceMemberships.userId, actorId),
+        eq(workspaceMemberships.status, WorkspaceMembershipStatus.active),
+      ),
+    );
+
+  const allowed = [];
+  for (const row of rows) {
+    const perms = await resolveFormPermissions(actorId, row.workspaceId);
+    if (hasAllPermissions(perms, required)) allowed.push(row.workspaceId);
+  }
+  return allowed;
+};

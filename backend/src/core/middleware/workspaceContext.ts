@@ -239,11 +239,38 @@ export const workspaceFromQuery = async (
   }
 };
 
+/** Workspace-scoped routes (creates): workspace comes from the `workspaceId` body param. */
+export const workspaceFromBody = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const actorId = getActorId(req);
+    if (!actorId) {
+      throw new ValidationError(MISSING_ACTOR_IDENTITY);
+    }
+    const raw = req.body?.workspaceId;
+    const workspaceId = typeof raw === 'string' ? raw : '';
+    if (!workspaceId) {
+      throw new ValidationError('Missing workspaceId body parameter');
+    }
+    req.coreContext = await buildCoreContext(actorId, workspaceId, 'body');
+    echoWorkspace(res, workspaceId);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * List/search routes: resolve workspace from the most specific scope anchor in the query,
  * verify hierarchy consistency, membership, and restrict results to that single workspace.
  */
-export const workspaceListScope = (config: { anchorOrder: ListAnchorKind[] }) => {
+export const workspaceListScope = (config: {
+  anchorOrder: ListAnchorKind[];
+  allowEmpty?: boolean;
+}) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const actorId = getActorId(req);
@@ -252,11 +279,22 @@ export const workspaceListScope = (config: { anchorOrder: ListAnchorKind[] }) =>
       }
 
       const query: ListScopeQuery = {};
+      let hasAnchor = false;
       for (const key of config.anchorOrder) {
         const value = req.query[key];
         if (typeof value === 'string' && value) {
           query[key] = value;
+          hasAnchor = true;
         }
+      }
+
+      if (!hasAnchor && config.allowEmpty) {
+        req.listScope = {
+          actorId,
+          workspaceIds: [], // Will be populated by downstream requireFormPermissions
+          selectedWorkspaceId: undefined,
+        };
+        return next();
       }
 
       const resolved = await resolveListWorkspaceScope(query, config.anchorOrder);

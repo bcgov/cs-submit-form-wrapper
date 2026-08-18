@@ -1,7 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 
 // Mocks
@@ -92,7 +91,6 @@ vi.mock('@/lib/store', async () => ({
 }));
 
 import FormList from '@/src/features/designer/ui/FormList';
-import { selectWorkspace } from '@/src/shared/api/sobaApi';
 
 describe('FormList', () => {
   beforeEach(() => {

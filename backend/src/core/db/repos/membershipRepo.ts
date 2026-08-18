@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, lt, or, sql, inArray } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { db } from '../client';
 import {
@@ -7,6 +7,9 @@ import {
   userIdentities,
   workspaceDisclaimerAcceptances,
   workspaceMemberships,
+  workspaceGroupMemberships,
+  workspaceGroupRoles,
+  rolePermissions,
   workspaces,
 } from '../schema';
 import { getCacheAdapter } from '../../integrations/plugins/PluginRegistry';
@@ -192,6 +195,7 @@ export interface ListWorkspacesForUserInput {
   afterUpdatedAt?: Date;
   kind?: string;
   status?: string;
+  requiredPermission?: string;
 }
 
 export interface WorkspaceListRow {
@@ -227,6 +231,32 @@ export const listWorkspacesForUser = async (
       or(
         lt(workspaces.updatedAt, input.afterUpdatedAt),
         and(eq(workspaces.updatedAt, input.afterUpdatedAt), lt(workspaces.id, input.afterId)),
+      ),
+    );
+  }
+  if (input.requiredPermission) {
+    whereClauses.push(
+      inArray(
+        workspaces.id,
+        db
+          .select({ workspaceId: workspaceGroupMemberships.workspaceId })
+          .from(workspaceGroupMemberships)
+          .innerJoin(
+            workspaceGroupRoles,
+            eq(workspaceGroupRoles.groupId, workspaceGroupMemberships.groupId),
+          )
+          .innerJoin(rolePermissions, eq(rolePermissions.roleCode, workspaceGroupRoles.roleCode))
+          .where(
+            and(
+              eq(workspaceGroupMemberships.memberKind, 'user'),
+              eq(workspaceGroupMemberships.status, 'active'),
+              eq(workspaceGroupRoles.status, 'active'),
+              or(
+                eq(rolePermissions.permissionCode, input.requiredPermission),
+                eq(rolePermissions.permissionCode, '*'),
+              ),
+            ),
+          ),
       ),
     );
   }

@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Button as DSButton, InlineAlert } from '@bcgov/design-system-react-components';
+import {
+  Button as DSButton,
+  InlineAlert,
+  TagList,
+  TagGroup,
+} from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageLayout, ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
 import { ListPageSearchField } from '@/src/components/ListPageSearchField';
@@ -14,12 +19,12 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
-import { useAppSelector, useAppDispatch } from '@/lib/store';
+import { useAppSelector } from '@/lib/store';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
-import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
-import { selectActiveWorkspace } from '@/lib/slices/workspaceSlice';
 import { FaFolder, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
+
+const WORKSPACE_STORAGE_KEY = 'soba.formListWorkspaceId';
 
 const CustomActionButtons = ({
   form,
@@ -75,31 +80,46 @@ function FormList({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const dispatch = useAppDispatch();
-  const { addNotification } = useNotificationStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   const locale = getLocaleFromPath(pathname);
 
-  const { activeWorkspaceId, workspaces } = useAppSelector((state) => state.workspace);
-  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
+  const { workspaces } = useAppSelector((state) => state.workspace);
+
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(WORKSPACE_STORAGE_KEY) || null;
+    }
+    return null;
+  });
+
+  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
   // No accepted workspace disclaimer → block form creation, mirroring the form designer.
   const needsDisclaimer = !!activeWorkspace && !activeWorkspace.disclaimerAccepted;
 
+  const handleWorkspaceChange = useCallback((key: string | number | null) => {
+    const newWs = key ? String(key) : null;
+    setSelectedWorkspaceId(newWs);
+    if (newWs) {
+      sessionStorage.setItem(WORKSPACE_STORAGE_KEY, newWs);
+    } else {
+      sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
+    }
+  }, []);
+
   // Tracks the workspace whose forms we've already started loading. A ref (not state) dedupes
   // StrictMode's dev double-invoke while still re-fetching when the active workspace changes.
-  const fetchedWorkspaceRef = useRef<string | null>(null);
+  const fetchedWorkspaceRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!(authenticated && token && activeWorkspaceId)) return;
-    const ws = activeWorkspaceId;
-    // Skip StrictMode's duplicate mount run; a real workspace change has a new id and proceeds.
-    if (fetchedWorkspaceRef.current === ws) return;
+    if (!authenticated || !token) return;
+    const ws = selectedWorkspaceId || undefined;
+
     fetchedWorkspaceRef.current = ws;
-    setLoading(true);
     void (async () => {
+      setLoading(true);
       try {
         const data = await getSobaForms(token as string, ws);
         // Ignore a superseded response if the active workspace changed while this was in flight.
@@ -114,9 +134,7 @@ function FormList({
         if (fetchedWorkspaceRef.current === ws) setLoading(false);
       }
     })();
-    // No workspace selected for this tab: forms are workspace-scoped, so we render a
-    // "select a workspace" prompt (below) instead of calling the API.
-  }, [authenticated, token, activeWorkspaceId]);
+  }, [authenticated, token, selectedWorkspaceId]);
 
   const filteredForms = useMemo(() => {
     if (!searchQuery.trim()) return forms;
@@ -153,26 +171,6 @@ function FormList({
     [router, locale],
   );
 
-  // Round-trip through GET /workspaces/:id so the backend verifies membership before we
-  // persist the tab workspace to sessionStorage and Redux, then open the forms list.
-  const handleWorkspaceChange = (key: string | number | null) => {
-    if (!token || key == null) return;
-    const workspaceId = String(key);
-    if (workspaceId === activeWorkspaceId) return;
-    dispatch(selectActiveWorkspace({ token, workspaceId }))
-      .unwrap()
-      .then(() => {
-        router.push(`/${locale}/forms`);
-      })
-      .catch((error) => {
-        addNotification({
-          text: dict.general.workspaceSwitchError || 'Error switching workspace',
-          type: 'error',
-          consoleError: error,
-        });
-      });
-  };
-
   const formatLongDate = useFormatLongDate();
 
   const columns: Column<SobaFormSummary>[] = useMemo(
@@ -192,6 +190,26 @@ function FormList({
             </RowActionButton>
           ) : (
             <span>{form.name || dictForm?.nameLabel || 'Untitled Form'}</span>
+          );
+        },
+      },
+      {
+        key: 'workspace',
+        label: dict.workspaces?.workspace || 'Workspace',
+        render: (form: SobaFormSummary) => {
+          const ws = workspaces.find((w) => w.id === form.workspaceId);
+          return (
+            <TagGroup>
+              <TagList
+                items={[
+                  {
+                    color: 'yellow',
+                    id: `workspace-tag-${form.id}`,
+                    textValue: ws?.name || form.workspaceId,
+                  },
+                ]}
+              />
+            </TagGroup>
           );
         },
       },
@@ -223,7 +241,16 @@ function FormList({
         ),
       },
     ],
-    [handleAction, dictFormList, dictForm, designModeEnabled, submitModeEnabled, formatLongDate],
+    [
+      handleAction,
+      dictFormList,
+      dictForm,
+      dict.workspaces,
+      workspaces,
+      designModeEnabled,
+      submitModeEnabled,
+      formatLongDate,
+    ],
   );
 
   // Auth gate only — loading (including Keycloak init) is shown inside the table
@@ -246,7 +273,7 @@ function FormList({
           <DSButton
             variant="primary"
             data-testid="create-form-button"
-            isDisabled={!activeWorkspaceId || needsDisclaimer}
+            isDisabled={needsDisclaimer}
             onPress={() => router.push(`/${locale}/designer`)}
           >
             Create
@@ -258,9 +285,10 @@ function FormList({
         <div>
           <WorkspaceSelector
             workspaces={workspaces}
-            activeWorkspaceId={activeWorkspaceId}
+            selectedWorkspaceId={selectedWorkspaceId}
             label={dict.header.selectWorkspace}
             onChange={handleWorkspaceChange}
+            allowAll={true}
             size="medium"
           />
         </div>
@@ -277,29 +305,23 @@ function FormList({
         />
       ) : null}
 
-      {authenticated && !initializing && !activeWorkspaceId ? (
-        <InlineAlert variant="info" data-testid="forms-select-workspace">
-          {dict.general.selectWorkspace}
-        </InlineAlert>
-      ) : (
-        <DataTable<SobaFormSummary>
-          data={paginatedForms as SobaFormSummary[]}
-          columns={columns}
-          loading={loading || initializing}
-          error={error}
-          emptyMessage="No forms found matching your criteria."
-          loadingMessage={dict.general.loading}
-          itemName="items"
-          caption={dict.general.forms}
-          pageSize={pageSize}
-          currentPage={currentPage}
-          totalItems={filteredForms.length}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={handlePageSizeChange}
-          pageSizeOptions={[5, 10, 25, 50]}
-          keyExtractor={(form) => form.id}
-        />
-      )}
+      <DataTable<SobaFormSummary>
+        data={paginatedForms as SobaFormSummary[]}
+        columns={columns}
+        loading={loading || initializing}
+        error={error}
+        emptyMessage="No forms found matching your criteria."
+        loadingMessage={dict.general.loading}
+        itemName="items"
+        caption={dict.general.forms}
+        pageSize={pageSize}
+        currentPage={currentPage}
+        totalItems={filteredForms.length}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={handlePageSizeChange}
+        pageSizeOptions={[5, 10, 25, 50]}
+        keyExtractor={(form) => form.id}
+      />
     </ListPageLayout>
   );
 }
