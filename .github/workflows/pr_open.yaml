@@ -208,10 +208,10 @@ jobs:
             image:
               repository: "ghcr.io/${REPO_LC}/frontend"
               tag: "${TAG}"
-          temporalWorker:
-            image:
-              repository: "ghcr.io/${REPO_LC}/temporal-worker"
-              tag: "${TAG}"
+          temporalWorkersImage:
+            repository: "ghcr.io/${REPO_LC}/temporal-worker"
+            tag: "${TAG}"
+            pullPolicy: IfNotPresent
           global:
             domain: "${DOMAIN}"
             routeHost: "soba-pr-slot-${SLOT}.${DOMAIN}"
