@@ -7,6 +7,7 @@ export interface WorkspaceState {
   activeWorkspaceId: string | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
+  canceledDefaultModal: boolean;
 }
 
 const initialState: WorkspaceState = {
@@ -15,6 +16,7 @@ const initialState: WorkspaceState = {
   activeWorkspaceId: getWorkspaceId(),
   status: 'idle',
   error: null,
+  canceledDefaultModal: false,
 };
 
 /** When this tab has no active workspace yet, pick one to establish via the backend. */
@@ -74,6 +76,9 @@ const workspaceSlice = createSlice({
       state.status = 'idle';
       state.error = null;
     },
+    setCanceledDefaultModal(state, action: PayloadAction<boolean>) {
+      state.canceledDefaultModal = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -104,6 +109,6 @@ const workspaceSlice = createSlice({
   },
 });
 
-export const { setActiveWorkspaceId, clearWorkspaceState } = workspaceSlice.actions;
+export const { setActiveWorkspaceId, clearWorkspaceState, setCanceledDefaultModal } = workspaceSlice.actions;
 
 export default workspaceSlice.reducer;

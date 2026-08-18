@@ -51,6 +51,8 @@ describe('workspaceOnboarding', () => {
             role: 'member',
             status: 'active',
             disclaimerAccepted: false,
+            useCase: 'other',
+            org: 'other',
           },
         ],
         currentUser: {

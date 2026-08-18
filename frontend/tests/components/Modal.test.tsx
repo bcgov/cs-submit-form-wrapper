@@ -2,6 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Modal } from '@/src/components/Modal';
 
+vi.mock('@/app/[lang]/Providers', () => ({
+  useDictionary: () => ({ locale: 'en', modal: { dialogActions: 'Dialog actions' } }),
+}));
+
 describe('Modal Component', () => {
   it('renders nothing when show is false', () => {
     render(

@@ -18,6 +18,9 @@ vi.mock('@/app/[lang]/Providers', () => ({
     },
     general: { notAuthenticated: 'Not authed' },
     locale: 'en',
+    modal: {
+      dialogActions: 'Dialog actions',
+    },
   }),
 }));
 

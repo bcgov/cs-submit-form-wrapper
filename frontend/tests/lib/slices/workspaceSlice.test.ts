@@ -16,6 +16,8 @@ const workspace = (id: string) => ({
   role: 'owner',
   status: 'active',
   disclaimerAccepted: false,
+  useCase: 'other',
+  org: 'other',
 });
 
 const baseState: WorkspaceState = {
@@ -23,6 +25,7 @@ const baseState: WorkspaceState = {
   activeWorkspaceId: null,
   status: 'idle',
   error: null,
+  canceledDefaultModal: false,
 };
 
 describe('workspaceSlice', () => {

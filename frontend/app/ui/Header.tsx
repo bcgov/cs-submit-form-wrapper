@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Dropdown } from 'react-bootstrap';
@@ -22,6 +22,8 @@ import { LoginButton } from './LoginButton';
 import { LanguageSelector, type LanguageOption } from './LanguageSelector';
 import { WorkspaceSelector } from './WorkspaceSelector';
 import type { PluginNavItem } from '@/src/types/plugins';
+import { WorkspaceModal } from '@/src/components/WorkspaceModal';
+
 import styles from './Header.module.css';
 
 type HeaderProps = {
@@ -46,12 +48,15 @@ function Header({ headerNavItems }: HeaderProps) {
     workspaces,
     activeWorkspaceId,
     status: workspaceStatus,
+    canceledDefaultModal,
   } = useAppSelector((state) => state.workspace);
 
   const headerChromeRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const establishingWorkspaceRef = useRef(false);
   const clientMounted = useClientMounted();
+
+  const { data: currentStateUser } = useAppSelector((state) => state.currentUser);
 
   useEffect(() => {
     init();
@@ -129,6 +134,9 @@ function Header({ headerNavItems }: HeaderProps) {
     dict.general.workspaceSwitchError,
   ]);
 
+  const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces.length]);
+  const canCreateWorkspace = currentStateUser?.capabilities?.canCreateWorkspace === true;
+
   const handleLogout = () => {
     dispatch(clearCurrentUser());
     logout();
@@ -167,7 +175,8 @@ function Header({ headerNavItems }: HeaderProps) {
     const isCurrentTokenUser = currentUser.token === token;
     const backendDisplayName = isCurrentTokenUser ? currentUser.displayName : null;
     const keycloakDisplayName =
-      typeof idTokenParsed?.display_name === 'string' && idTokenParsed.display_name.trim().length > 0
+      typeof idTokenParsed?.display_name === 'string' &&
+      idTokenParsed.display_name.trim().length > 0
         ? idTokenParsed.display_name
         : null;
     let displayName: string | null;
@@ -218,7 +227,7 @@ function Header({ headerNavItems }: HeaderProps) {
         {authenticated ? (
           authenticatedUserMenu
         ) : (
-          <LoginButton data-testid="login-button" label={dict.general.login} />
+          <LoginButton variant="secondary" data-testid="login-button" label={dict.general.login} />
         )}
       </div>
     );
@@ -228,7 +237,7 @@ function Header({ headerNavItems }: HeaderProps) {
     <div ref={headerChromeRef} data-testid="app-header">
       <BCHeader
         logoLinkElement={
-          <Link href="/" data-testid="bcgov-header-logo" title="Government of British Columbia" />
+          <Link href="/" data-testid="bcgov-header-logo" title={dict.header.bcgovTitle} />
         }
         title={dict.general.title}
         titleElement="h1"
@@ -240,7 +249,11 @@ function Header({ headerNavItems }: HeaderProps) {
       >
         <div className="d-flex align-items-center gap-3">
           {headerNavItems.length > 0 ? (
-            <nav aria-label="Primary" data-testid="primary-nav" className="d-none d-md-block">
+            <nav
+              aria-label={dict.header.primaryNavAria}
+              data-testid="primary-nav"
+              className="d-none d-md-block"
+            >
               <ul className="list-unstyled d-flex align-items-center gap-3 mb-0">
                 {headerNavItems.map((item) => (
                   <li key={item.id}>
@@ -257,6 +270,9 @@ function Header({ headerNavItems }: HeaderProps) {
           </div>
         </div>
       </BCHeader>
+      {workspaceStatus === 'succeeded' && !hasWorkspaces && !canceledDefaultModal && (
+        <WorkspaceModal canCreateWorkspace={canCreateWorkspace} />
+      )}
     </div>
   );
 }

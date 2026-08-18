@@ -21,10 +21,10 @@ on:
 
 jobs:
   playwright-run:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.pr_branch }}
           fetch-depth: 0
@@ -48,7 +48,7 @@ jobs:
           BASE_URL: ${{ inputs.BASE_URL }}
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: playwright-report
@@ -56,7 +56,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Playwright screenshots on failure
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: playwright-screenshots

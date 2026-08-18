@@ -47,6 +47,8 @@ export class WorkspacesApiService {
         kind: r.kind,
         role: r.role,
         status: r.status,
+        org: r.org,
+        useCase: r.useCase,
         disclaimerAccepted: r.disclaimerAcceptedAt != null,
       })),
       page: {
@@ -75,6 +77,8 @@ export class WorkspacesApiService {
     kind: string;
     role: string;
     status: string;
+    org: string | null;
+    useCase: string | null;
     disclaimerAcceptedAt: Date | null;
   }) {
     return {
@@ -83,6 +87,8 @@ export class WorkspacesApiService {
       kind: row.kind,
       role: row.role,
       status: row.status,
+      org: row.org,
+      useCase: row.useCase,
       disclaimerAccepted: row.disclaimerAcceptedAt != null,
     };
   }
@@ -90,7 +96,7 @@ export class WorkspacesApiService {
   async create(
     actorId: string,
     idpCode: string | null,
-    body: { name: string; disclaimerAccepted?: boolean },
+    body: { name: string; org: string; useCase: string; disclaimerAccepted?: boolean },
   ) {
     const canCreate = await canCreateWorkspaceByIdp(idpCode);
     if (!canCreate) {
@@ -101,6 +107,8 @@ export class WorkspacesApiService {
     const workspaceId = await createTeamWorkspace(
       actorId,
       body.name,
+      body.org,
+      body.useCase,
       body.disclaimerAccepted ?? false,
     );
     const row = await getWorkspaceForUser(workspaceId, actorId);
@@ -113,7 +121,7 @@ export class WorkspacesApiService {
   async update(
     workspaceId: string,
     actorId: string,
-    body: { name?: string; disclaimerAccepted?: boolean },
+    body: { name?: string; org?: string; useCase?: string; disclaimerAccepted?: boolean },
   ) {
     const updated = await updateWorkspace(workspaceId, actorId, body);
     if (!updated) {

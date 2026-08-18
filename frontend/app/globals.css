@@ -17,6 +17,7 @@
   --app-surface-muted: var(--theme-gray-30);
   /* Subtle grey for hover and zebra striping. */
   --app-hover: var(--theme-gray-20);
+  --bcgov-light-blue: #f1f8fe;
 }
 
 body {
@@ -48,3 +49,11 @@ a {
   border-color: var(--surface-color-border-default);
 }
 
+.bg-bcgov-light-blue {
+  background-color: var(--bcgov-light-blue) !important;
+  --bs-table-bg: var(--bcgov-light-blue);
+}
+
+.bcgov-light-blue {
+  color: var(--bcgov-light-blue);
+}
