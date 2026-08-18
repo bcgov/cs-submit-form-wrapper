@@ -41,6 +41,16 @@
         "reveal": "always",
         "panel": "new"
       }
+    },
+    {
+      "label": "Start Valkey Container",
+      "type": "shell",
+      "command": "docker rm -f soba-valkey || true && docker run -d --name soba-valkey --restart unless-stopped -p 6379:6379 -v soba-valkey-data:/data valkey/valkey:8-alpine valkey-server --dir /data --maxmemory-policy volatile-lru --appendonly yes --appendfsync everysec && echo 'Valkey on localhost:6379 — supports cache + message bus + event streams (volatile-lru so TTL-less stream keys are protected; durable AOF in the soba-valkey-data volume). Enable the *-redis codes + PLUGIN_*_REDIS_URL in backend/.env.local (see .env.local.example). Fresh slate: docker volume rm soba-valkey-data'",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
     }
   ]
 }

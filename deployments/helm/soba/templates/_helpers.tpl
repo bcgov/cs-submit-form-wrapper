@@ -163,3 +163,35 @@ Any other code (e.g. virusscan-noop) needs no clamav wiring.
 {{- define "soba.virusScanUsesClamav" -}}
 {{- if eq .Values.backend.config.virusScanDefaultCode "virusscan-clamav" -}}true{{- end -}}
 {{- end }}
+
+{{/*
+Truthy ("true") only when the backend caches with cache-redis. Gates the PLUGIN_CACHE_REDIS_URL
+env. Any other code (e.g. cache-memory) needs no cache wiring.
+*/}}
+{{- define "soba.cacheUsesRedis" -}}
+{{- if eq .Values.backend.config.cacheDefaultCode "cache-redis" -}}true{{- end -}}
+{{- end }}
+
+{{/*
+Truthy ("true") only when the backend runs the message bus on messagebus-redis. Gates the
+PLUGIN_MESSAGEBUS_REDIS_* env. Any other code (e.g. messagebus-memory) needs no bus wiring.
+*/}}
+{{- define "soba.messagebusUsesRedis" -}}
+{{- if eq .Values.backend.config.messagebusDefaultCode "messagebus-redis" -}}true{{- end -}}
+{{- end }}
+
+{{/*
+Truthy ("true") only when the backend runs event streams on eventstream-redis. Gates the
+PLUGIN_EVENTSTREAM_REDIS_* env. Any other code (e.g. eventstream-memory) needs no stream wiring.
+*/}}
+{{- define "soba.eventstreamUsesRedis" -}}
+{{- if eq .Values.backend.config.eventStreamDefaultCode "eventstream-redis" -}}true{{- end -}}
+{{- end }}
+
+{{/*
+Truthy ("true") when anything (cache, message bus or event stream) needs Valkey. Gates the single
+valkey alias Service, which they share — so it exists whenever any is on redis and never drifts.
+*/}}
+{{- define "soba.usesValkey" -}}
+{{- if or (eq .Values.backend.config.cacheDefaultCode "cache-redis") (eq .Values.backend.config.messagebusDefaultCode "messagebus-redis") (eq .Values.backend.config.eventStreamDefaultCode "eventstream-redis") -}}true{{- end -}}
+{{- end }}

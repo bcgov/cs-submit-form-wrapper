@@ -1,0 +1,26 @@
+{{- if .Values.nsp.create }}
+# Allow Valkey ingress (6379) from pods in the same namespace only. Valkey is per-namespace shared
+# infra (the soba backend reaches it in-namespace via the soba-valkey ExternalName alias), so the
+# namespace is the trust boundary. Required under a default-deny namespace, where Valkey would
+# otherwise get no ingress at all.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "valkey.fullname" . }}-allow-valkey
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "valkey.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Empty podSelector = any pod in this namespace.
+        - podSelector: {}
+      ports:
+        - port: 6379
+          protocol: TCP
+{{- end }}

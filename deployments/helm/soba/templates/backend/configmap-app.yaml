@@ -22,7 +22,26 @@ data:
   {{- end }}
   FORM_ENGINE_DEFAULT_CODE: {{ .Values.backend.config.formEngineDefaultCode | quote }}
   CACHE_DEFAULT_CODE: {{ .Values.backend.config.cacheDefaultCode | quote }}
+  {{- if include "soba.cacheUsesRedis" . }}
+  PLUGIN_CACHE_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release key namespace so releases sharing one Valkey (e.g. PRs in the dev namespace) never
+  # read each other's cached rows. Defaults to <release>:; override with valkey.keyPrefix.
+  PLUGIN_CACHE_REDIS_KEY_PREFIX: {{ .Values.valkey.keyPrefix | default .Values.valkey.prefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
   MESSAGEBUS_DEFAULT_CODE: {{ .Values.backend.config.messagebusDefaultCode | quote }}
+  {{- if include "soba.messagebusUsesRedis" . }}
+  PLUGIN_MESSAGEBUS_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release channel namespace so releases sharing one Valkey (e.g. PRs in the dev namespace)
+  # never receive each other's events. Defaults to <release>:; override with valkey.channelPrefix.
+  PLUGIN_MESSAGEBUS_REDIS_CHANNEL_PREFIX: {{ .Values.valkey.channelPrefix | default .Values.valkey.prefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
+  EVENTSTREAM_DEFAULT_CODE: {{ .Values.backend.config.eventStreamDefaultCode | quote }}
+  {{- if include "soba.eventstreamUsesRedis" . }}
+  PLUGIN_EVENTSTREAM_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release stream namespace so releases sharing one Valkey never read each other's streams or
+  # share consumer groups. Defaults to <release>:; override with valkey.streamPrefix.
+  PLUGIN_EVENTSTREAM_REDIS_STREAM_PREFIX: {{ .Values.valkey.streamPrefix | default .Values.valkey.prefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
   TEMPSTORAGE_DEFAULT_CODE: {{ .Values.backend.config.tempStorageDefaultCode | quote }}
   {{- if include "soba.tempStorageUsesMount" . }}
   PLUGIN_TEMPSTORAGE_MOUNT_DIR: {{ .Values.backend.tempStorage.mountPath | quote }}

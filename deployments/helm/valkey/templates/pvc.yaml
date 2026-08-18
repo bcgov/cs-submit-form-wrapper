@@ -1,0 +1,22 @@
+{{- if .Values.valkey.persistence.enabled }}
+# Durable store for AOF/RDB when this Valkey hosts event streams. Kept across uninstall/upgrade so
+# stream data and consumer groups are not destroyed by a chart operation.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "valkey.fullname" . }}-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "valkey.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.valkey.persistence.size | quote }}
+  {{- if .Values.valkey.persistence.storageClassName }}
+  storageClassName: {{ .Values.valkey.persistence.storageClassName | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,13 @@
+# Prod: give the shared cache a bit more headroom. Still a single instance (best-effort cache).
+# Prod soba currently runs in-memory adapters (no cache/bus/stream redis), so this stays cache-tuned;
+# when prod adopts redis for durable streams, enable volatile-lru + persistence here to match.
+valkey:
+  maxmemory: "512mb"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      # Headroom over maxmemory (512mb) for fragmentation/buffers — see values.yaml.
+      memory: 896Mi

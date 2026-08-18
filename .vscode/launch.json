@@ -3,20 +3,30 @@
   "compounds": [
     {
       "name": "SOBA (Backend + Temporal + Frontend)",
-      "configurations": ["SOBA Backend", "SOBA Temporal Worker", "SOBA Frontend"]
+      "configurations": [
+        "SOBA Backend",
+        "SOBA Temporal Worker (soba)",
+        "SOBA Temporal Worker (document-generation)",
+        "SOBA Frontend"
+      ]
     },
     {
       "name": "SOBA (Backend + Temporal + Designer + Forms)",
       "configurations": [
         "SOBA Backend",
-        "SOBA Temporal Worker",
+        "SOBA Temporal Worker (soba)",
+        "SOBA Temporal Worker (document-generation)",
         "SOBA Frontend (Designer)",
         "SOBA Frontend (Forms)"
       ]
     },
     {
       "name": "SOBA (Backend + Temporal)",
-      "configurations": ["SOBA Backend", "SOBA Temporal Worker"]
+      "configurations": [
+        "SOBA Backend",
+        "SOBA Temporal Worker (soba)",
+        "SOBA Temporal Worker (document-generation)"
+      ]
     }
   ],
   "configurations": [
@@ -34,12 +44,30 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "SOBA Temporal Worker",
+      "name": "SOBA Temporal Worker (soba)",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/backend",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["exec", "tsx", "watch", "temporal-worker.ts"],
+      "env": {
+        "TEMPORAL_TASK_QUEUE": "soba",
+        "TEMPORAL_WORKER_HEALTH_PORT": "9090"
+      },
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "SOBA Temporal Worker (document-generation)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "tsx", "watch", "temporal-worker.ts"],
+      "env": {
+        "TEMPORAL_TASK_QUEUE": "document-generation",
+        "TEMPORAL_WORKER_HEALTH_PORT": "9091"
+      },
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal"
     },
@@ -104,6 +132,15 @@
       "program": "${workspaceFolder}",
       "runtimeExecutable": "echo",
       "runtimeArgs": ["ClamAV command sent successfully!"]
+    },
+    {
+      "name": "Valkey",
+      "type": "node",
+      "request": "launch",
+      "preLaunchTask": "Start Valkey Container",
+      "program": "${workspaceFolder}",
+      "runtimeExecutable": "echo",
+      "runtimeArgs": ["Valkey command sent successfully!"]
     }
   ]
 }

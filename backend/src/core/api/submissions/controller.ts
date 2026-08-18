@@ -54,8 +54,13 @@ export const listSubmissions = asyncHandler(async (req: Request, res: Response) 
 export const openSubmission = asyncHandler(
   async (req: Request<unknown, unknown, OpenSubmissionBody>, res: Response) => {
     const ctx = req.coreContext!;
-    const result = await submissionsApiService.open(ctx, req.body.formId);
-    res.status(201).json(result);
+    // 201 when this call created the row, 200 when it idempotently returned an existing one.
+    const { created, submission } = await submissionsApiService.open(
+      ctx,
+      req.body.formId,
+      req.body.id,
+    );
+    res.status(created ? 201 : 200).json(submission);
   },
 );
 

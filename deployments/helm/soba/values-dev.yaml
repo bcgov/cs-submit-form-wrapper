@@ -11,6 +11,9 @@ backend:
   config:
     logLevel: debug
     nodeEnv: development
+    cacheDefaultCode: cache-redis
+    messagebusDefaultCode: messagebus-redis
+    eventStreamDefaultCode: eventstream-redis
     documentGenerationDefaultCode: cdogs-v2
   documentGeneration:
     cdogsV2:
@@ -54,13 +57,32 @@ temporal:
   namespace: "soba-dev"
   taskQueue: "soba"
 
-temporalWorker:
-  enabled: true
-  image:
-    repository: ghcr.io/bcgov/soba/temporal-worker
-    tag: latest
-    pullPolicy: IfNotPresent
-  replicas: 1
+temporalWorkers:
+  - name: temporal-worker
+    enabled: true
+    taskQueue: "soba"
+    replicas: 1
+    healthPort: 9090
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 512Mi
+
+  - name: temporal-worker-document-generation
+    enabled: true
+    taskQueue: "document-generation"
+    replicas: 1
+    healthPort: 9091
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 512Mi
 
 vault:
   enabled: true

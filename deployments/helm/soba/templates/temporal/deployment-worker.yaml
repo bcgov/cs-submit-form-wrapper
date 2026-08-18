@@ -1,69 +1,81 @@
-{{- $tw := .Values.temporalWorker | default dict }}
-{{- $twEnabled := false }}
-{{- if hasKey $tw "enabled" }}{{ $twEnabled = index $tw "enabled" }}{{ end }}
-{{- if $twEnabled }}
+{{- $workers := .Values.temporalWorkers | default list }}
+{{- $imageDefaults := .Values.temporalWorkersImage | default dict }}
+{{- range $i, $worker := $workers }}
+{{- $enabled := false }}
+{{- if hasKey $worker "enabled" }}{{ $enabled = index $worker "enabled" }}{{ end }}
+{{- if $enabled }}
+{{- $name := required "temporalWorkers[].name is required" (index $worker "name") }}
+{{- $component := (index $worker "component") | default $name }}
+{{- $image := (index $worker "image") | default dict }}
+{{- $imageRepository := (index $image "repository") | default ((index $imageDefaults "repository") | default "ghcr.io/bcgov/soba/temporal-worker") }}
+{{- $imageTag := (index $image "tag") | default ((index $imageDefaults "tag") | default "latest") }}
+{{- $imagePullPolicy := (index $image "pullPolicy") | default ((index $imageDefaults "pullPolicy") | default "IfNotPresent") }}
+{{- $resources := (index $worker "resources") | default dict }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "soba.fullname" . }}-temporal-worker
+  name: {{ include "soba.fullname" $ }}-{{ $name }}
   labels:
-    {{- include "soba.labels" (dict "root" . "component" "temporal-worker") | nindent 4 }}
+    {{- include "soba.labels" (dict "root" $ "component" $component) | nindent 4 }}
 spec:
-  replicas: {{ .Values.temporalWorker.replicas }}
+  replicas: {{ (index $worker "replicas") | default 1 }}
   selector:
     matchLabels:
-      {{- include "soba.selectorLabels" (dict "root" . "component" "temporal-worker") | nindent 6 }}
+      {{- include "soba.selectorLabels" (dict "root" $ "component" $component) | nindent 6 }}
   template:
     metadata:
       annotations:
-        checksum/config-temporal: {{ include (print $.Template.BasePath "/temporal/configmap.yaml") . | sha256sum }}
-        checksum/config-app: {{ include (print $.Template.BasePath "/backend/configmap-app.yaml") . | sha256sum }}
-        checksum/config-formio: {{ include (print $.Template.BasePath "/backend/configmap-formio.yaml") . | sha256sum }}
-        checksum/config-sso: {{ include (print $.Template.BasePath "/backend/configmap-sso.yaml") . | sha256sum }}
-        checksum/config-ratelimit: {{ include (print $.Template.BasePath "/backend/configmap-ratelimit.yaml") . | sha256sum }}
-        checksum/secret-db: {{ include (print $.Template.BasePath "/secrets/db-secret.yaml") . | sha256sum }}
-        {{- if not .Values.vault.enabled }}
-        checksum/secret-formio: {{ include (print $.Template.BasePath "/secrets/formio-secret.yaml") . | sha256sum }}
+        checksum/config-temporal: {{ include (print $.Template.BasePath "/temporal/configmap.yaml") $ | sha256sum }}
+        checksum/config-app: {{ include (print $.Template.BasePath "/backend/configmap-app.yaml") $ | sha256sum }}
+        checksum/config-formio: {{ include (print $.Template.BasePath "/backend/configmap-formio.yaml") $ | sha256sum }}
+        checksum/config-sso: {{ include (print $.Template.BasePath "/backend/configmap-sso.yaml") $ | sha256sum }}
+        checksum/config-ratelimit: {{ include (print $.Template.BasePath "/backend/configmap-ratelimit.yaml") $ | sha256sum }}
+        checksum/secret-db: {{ include (print $.Template.BasePath "/secrets/db-secret.yaml") $ | sha256sum }}
+        {{- if not $.Values.vault.enabled }}
+        checksum/secret-formio: {{ include (print $.Template.BasePath "/secrets/formio-secret.yaml") $ | sha256sum }}
         {{- end }}
       labels:
-        {{- include "soba.selectorLabels" (dict "root" . "component" "temporal-worker") | nindent 8 }}
+        {{- include "soba.selectorLabels" (dict "root" $ "component" $component) | nindent 8 }}
     spec:
       containers:
-        - name: temporal-worker
-          image: "{{ .Values.temporalWorker.image.repository }}:{{ .Values.temporalWorker.image.tag }}"
-          imagePullPolicy: {{ .Values.temporalWorker.image.pullPolicy }}
+        - name: {{ $name }}
+          image: "{{ $imageRepository }}:{{ $imageTag }}"
+          imagePullPolicy: {{ $imagePullPolicy }}
           ports:
             - name: health
-              containerPort: {{ .Values.temporalWorker.healthPort | default 9090 }}
+              containerPort: {{ (index $worker "healthPort") | default 9090 }}
               protocol: TCP
           envFrom:
             - configMapRef:
-                name: {{ include "soba.fullname" . }}-temporal
+                name: {{ include "soba.fullname" $ }}-temporal
             - configMapRef:
-                name: {{ include "soba.fullname" . }}-backend-app
+                name: {{ include "soba.fullname" $ }}-backend-app
             - configMapRef:
-                name: {{ include "soba.fullname" . }}-backend-formio
+                name: {{ include "soba.fullname" $ }}-backend-formio
             - configMapRef:
-                name: {{ include "soba.fullname" . }}-backend-sso
+                name: {{ include "soba.fullname" $ }}-backend-sso
             - configMapRef:
-                name: {{ include "soba.fullname" . }}-backend-ratelimit
-            {{- if not .Values.database.existingSecretName }}
+                name: {{ include "soba.fullname" $ }}-backend-ratelimit
+            {{- if not $.Values.database.existingSecretName }}
             - secretRef:
-                name: {{ include "soba.fullname" . }}-db
+                name: {{ include "soba.fullname" $ }}-db
             {{- end }}
-            {{- if not .Values.vault.enabled }}
+            {{- if not $.Values.vault.enabled }}
             - secretRef:
-                name: {{ include "soba.fullname" . }}-formio
+                name: {{ include "soba.fullname" $ }}-formio
             {{- end }}
           env:
             - name: TEMPORAL_WORKER_HEALTH_PORT
-              value: {{ .Values.temporalWorker.healthPort | default 9090 | quote }}
-            {{- if .Values.database.existingSecretName }}
+              value: {{ ((index $worker "healthPort") | default 9090) | quote }}
+            - name: TEMPORAL_TASK_QUEUE
+              value: {{ ((index $worker "taskQueue") | default "soba") | quote }}
+            {{- if $.Values.database.existingSecretName }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "soba.dbSecretName" . }}
-                  key: {{ include "soba.dbSecretKey" . }}
+                  name: {{ include "soba.dbSecretName" $ }}
+                  key: {{ include "soba.dbSecretKey" $ }}
             {{- end }}
           readinessProbe:
             httpGet:
@@ -82,5 +94,6 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 3
           resources:
-            {{- toYaml .Values.temporalWorker.resources | nindent 12 }}
+            {{- toYaml $resources | nindent 12 }}
+{{- end }}
 {{- end }}

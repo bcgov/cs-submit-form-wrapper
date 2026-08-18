@@ -1,0 +1,14 @@
+{{- if include "soba.usesValkey" . }}
+# In-namespace alias to the separately-deployed valkey (deployments/helm/valkey), shared by the
+# cache and the message bus. The backend targets this stable name ({{ include "soba.fullname" . }}-valkey);
+# only externalName changes per environment, so the backend config is env-invariant.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "soba.fullname" . }}-valkey
+  labels:
+    {{- include "soba.labels" (dict "root" . "component" "valkey") | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: {{ .Values.valkey.externalName | default (printf "valkey.%s.svc.cluster.local" .Release.Namespace) | quote }}
+{{- end }}
