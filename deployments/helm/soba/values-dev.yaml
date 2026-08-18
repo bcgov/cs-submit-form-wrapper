@@ -12,6 +12,7 @@ backend:
     logLevel: debug
     nodeEnv: development
     cacheDefaultCode: cache-redis
+    messagebusDefaultCode: messagebus-redis
     documentGenerationDefaultCode: cdogs-v2
   documentGeneration:
     cdogsV2:

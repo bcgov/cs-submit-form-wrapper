@@ -143,10 +143,25 @@ Any other code (e.g. virusscan-noop) needs no clamav wiring.
 {{- end }}
 
 {{/*
-Truthy ("true") only when the backend caches with cache-redis. Gates the valkey alias Service
-and the PLUGIN_CACHE_REDIS_URL env together so they cannot drift apart. Any other code (e.g.
-cache-memory) needs no valkey wiring.
+Truthy ("true") only when the backend caches with cache-redis. Gates the PLUGIN_CACHE_REDIS_URL
+env. Any other code (e.g. cache-memory) needs no cache wiring.
 */}}
 {{- define "soba.cacheUsesRedis" -}}
 {{- if eq .Values.backend.config.cacheDefaultCode "cache-redis" -}}true{{- end -}}
+{{- end }}
+
+{{/*
+Truthy ("true") only when the backend runs the message bus on messagebus-redis. Gates the
+PLUGIN_MESSAGEBUS_REDIS_* env. Any other code (e.g. messagebus-memory) needs no bus wiring.
+*/}}
+{{- define "soba.messagebusUsesRedis" -}}
+{{- if eq .Values.backend.config.messagebusDefaultCode "messagebus-redis" -}}true{{- end -}}
+{{- end }}
+
+{{/*
+Truthy ("true") when anything (cache or message bus) needs Valkey. Gates the single valkey alias
+Service, which both share — so it exists whenever either is on redis and never drifts from the env.
+*/}}
+{{- define "soba.usesValkey" -}}
+{{- if or (eq .Values.backend.config.cacheDefaultCode "cache-redis") (eq .Values.backend.config.messagebusDefaultCode "messagebus-redis") -}}true{{- end -}}
 {{- end }}

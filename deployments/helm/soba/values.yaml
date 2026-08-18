@@ -293,18 +293,22 @@ clamav:
 
 # -- Valkey endpoint (alias to the separately-deployed valkey) ----------------
 # Valkey (Redis-compatible) runs as its own chart (deployments/helm/valkey), one per namespace,
-# providing the shared cache. The backend always targets an in-namespace <release>-valkey alias
-# Service on redis://<release>-valkey:port, so backend config never changes per env — only
-# externalName does. The alias Service + the PLUGIN_CACHE_REDIS_URL env are created only when
-# backend.config.cacheDefaultCode == cache-redis.
+# providing the shared cache and message bus. The backend always targets an in-namespace
+# <release>-valkey alias Service on redis://<release>-valkey:port, so backend config never changes
+# per env — only externalName does. The alias Service is created when either cacheDefaultCode ==
+# cache-redis or messagebusDefaultCode == messagebus-redis; each plugin's PLUGIN_*_REDIS_* env is
+# emitted only when that plugin is on redis.
 valkey:
   # Real valkey Service the <release>-valkey alias points at. Empty defaults to the valkey Service
   # in THIS namespace; override for cross-namespace (e.g. a PR pointing at dev's valkey).
   externalName: ""
   port: 6379
-  # Optional key namespace, so releases sharing a Valkey never collide. Empty = per-release
-  # prefix (<release>:), set by the backend configmap.
+  # Optional key namespace, so releases sharing a Valkey never collide on cache keys. Empty =
+  # per-release prefix (<release>:), set by the backend configmap.
   keyPrefix: ""
+  # Optional channel namespace, so releases sharing a Valkey never receive each other's bus events.
+  # Empty = per-release prefix (<release>:), set by the backend configmap.
+  channelPrefix: ""
 
 # -- Temporal (shared server, env vars for backend + worker) ------------------
 temporal:
