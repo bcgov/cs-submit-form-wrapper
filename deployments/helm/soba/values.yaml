@@ -75,6 +75,7 @@ backend:
     documentGenerationDefaultCode: docgen-noop
     cacheDefaultCode: cache-memory
     messagebusDefaultCode: messagebus-memory
+    eventStreamDefaultCode: eventstream-memory
     # Temp storage plugin. Default tempstorage-os stages temp bytes under
     # os.tmpdir() (per-pod, no PVC). Override to tempstorage-mount for a shared
     # RWX PVC across replicas (see the tempStorage block below).
@@ -293,7 +294,8 @@ clamav:
 
 # -- Valkey endpoint (alias to the separately-deployed valkey) ----------------
 # Valkey (Redis-compatible) runs as its own chart (deployments/helm/valkey), one per namespace,
-# providing the shared cache and message bus. The backend always targets an in-namespace
+# providing the shared cache, message bus and event streams (tune its persistence/eviction in the
+# valkey chart per what it hosts). The backend always targets an in-namespace
 # <release>-valkey alias Service on redis://<release>-valkey:port, so backend config never changes
 # per env — only externalName does. The alias Service is created when either cacheDefaultCode ==
 # cache-redis or messagebusDefaultCode == messagebus-redis; each plugin's PLUGIN_*_REDIS_* env is
@@ -303,12 +305,20 @@ valkey:
   # in THIS namespace; override for cross-namespace (e.g. a PR pointing at dev's valkey).
   externalName: ""
   port: 6379
+  # Umbrella namespace for ALL Redis uses (cache keys, bus channels, streams) on a shared Valkey.
+  # Empty = per-release prefix (<release>:). Set this to a caller-unique value (e.g. per PR number,
+  # not the reused deploy slot) so short-lived releases that recycle names never collide. The
+  # per-capability *Prefix values below override it when set.
+  prefix: ""
   # Optional key namespace, so releases sharing a Valkey never collide on cache keys. Empty =
   # per-release prefix (<release>:), set by the backend configmap.
   keyPrefix: ""
   # Optional channel namespace, so releases sharing a Valkey never receive each other's bus events.
   # Empty = per-release prefix (<release>:), set by the backend configmap.
   channelPrefix: ""
+  # Optional stream namespace, so releases sharing a Valkey never read each other's event streams or
+  # share consumer groups. Empty = per-release prefix (<release>:), set by the backend configmap.
+  streamPrefix: ""
 
 # -- Temporal (shared server, env vars for backend + worker) ------------------
 temporal:

@@ -13,6 +13,7 @@ backend:
     nodeEnv: development
     cacheDefaultCode: cache-redis
     messagebusDefaultCode: messagebus-redis
+    eventStreamDefaultCode: eventstream-redis
     documentGenerationDefaultCode: cdogs-v2
   documentGeneration:
     cdogsV2:

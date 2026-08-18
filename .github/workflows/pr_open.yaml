@@ -223,6 +223,10 @@ jobs:
           temporal:
             address: "temporal-frontend.${NAMESPACE}.svc.cluster.local:7233"
             namespace: "soba-pr-${PR_NUM}"
+          valkey:
+            # PR-unique Redis namespace (by PR number, not the reused slot) so a recycled slot never
+            # inherits a previous PR's cached rows, bus channels or streams on the shared Valkey.
+            prefix: "soba-pr-${PR_NUM}:"
 
           OVERRIDE
 

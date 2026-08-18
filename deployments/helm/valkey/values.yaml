@@ -1,6 +1,9 @@
 # Default values for valkey.
 # Deployed as standalone per-namespace shared infra (like clamav), before soba. The soba backend
-# reaches it via the in-namespace soba-valkey ExternalName alias (see the soba chart).
+# reaches it via the in-namespace soba-valkey ExternalName alias (see the soba chart). One instance
+# backs all Redis-based capabilities (cache, message bus, event streams); the blocks below tune it
+# for whichever it hosts — a pure cache (defaults) or a durable event-stream store (persistence on +
+# volatile-lru). If streams move to another backend (e.g. NATS), leave the cache-only defaults.
 
 # nameOverride -- override the name of the valkey chart
 nameOverride: ""
@@ -20,10 +23,43 @@ valkey:
   tag: 8-alpine
   # valkey.imagePullPolicy -- IfNotPresent
   imagePullPolicy: IfNotPresent
+  # valkey.replicas -- Number of Valkey pods. KEEP AT 1 unless you have added a real HA topology.
+  # This chart runs a SINGLE Valkey (a Deployment, not replication or cluster). replicas > 1 here
+  # does NOT scale or make it HA — it creates N INDEPENDENT instances behind one Service, so cache
+  # reads/invalidations hit only one at random (incoherent) and streams break (a stream + its
+  # consumer group live on whichever instance a connection lands on). It is rejected outright when
+  # persistence is enabled (an RWO PVC cannot be multi-attached; concurrent writers corrupt AOF/RDB).
+  # Scaling paths:
+  #   - Vertical (supported here): raise maxmemory + resources below.
+  #   - HA / read scaling: primary + replica(s) via Sentinel/operator (StatefulSet) — writes still go
+  #     to one primary; a separate effort, not in this chart.
+  #   - Horizontal write/memory: Valkey Cluster (sharded, StatefulSet) — bigger lift, needs a
+  #     cluster-aware client (the backend uses a single-node client today); one stream still lives on
+  #     one shard, so you scale by spreading many streams across shards.
+  #   - Note: backend/consumer pods already scale horizontally against ONE Valkey via stream consumer
+  #     groups; this knob is only the Valkey server tier.
+  replicas: 1
   # valkey.maxmemory -- Upper bound on the in-memory dataset before eviction kicks in
   maxmemory: "256mb"
-  # valkey.maxmemoryPolicy -- Eviction policy once maxmemory is reached (cache: drop LRU keys)
+  # valkey.maxmemoryPolicy -- Eviction once maxmemory is reached. 'allkeys-lru' suits a pure cache.
+  # When this Valkey also hosts durable event streams, use 'volatile-lru': cache entries carry a TTL
+  # and stay evictable, while stream keys (no TTL) are never evicted — so streams are not silently
+  # dropped under memory pressure (writes fail-loud instead, which at-least-once wants).
   maxmemoryPolicy: allkeys-lru
+  # valkey.persistence -- Durability. Off by default (a pure cache is best-effort and disposable).
+  # Enable when this Valkey hosts event streams: AOF persists to a PVC so a restart does not lose
+  # streams or consumer groups. Pair with maxmemoryPolicy: volatile-lru.
+  persistence:
+    enabled: false
+    # Append-only file: the durability mechanism for streams.
+    appendOnly: true
+    # fsync policy: 'everysec' (≤1s loss on crash, good throughput) / 'always' (safest, slow) / 'no'.
+    appendfsync: everysec
+    # Optional RDB snapshot points (e.g. "900 1 300 10"); empty leaves RDB off (AOF is the durability).
+    save: ""
+    # PVC size and class for /data (only provisioned when enabled).
+    size: 1Gi
+    storageClassName: ""
   resources:
     requests:
       cpu: 50m

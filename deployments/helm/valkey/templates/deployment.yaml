@@ -1,3 +1,6 @@
+{{- if and (gt (int .Values.valkey.replicas) 1) .Values.valkey.persistence.enabled -}}
+{{- fail "valkey: replicas > 1 with persistence.enabled is unsupported — an RWO PVC cannot be multi-attached and concurrent writers corrupt AOF/RDB. Use replicas: 1, or a replication/cluster topology (not provided by this chart). See values.yaml." -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,9 +9,14 @@ metadata:
   labels:
     {{- include "valkey.labels" . | nindent 4 }}
 spec:
-  # A single shared instance: the app treats the cache as best-effort, so this is not HA. Scaling
-  # out would need Valkey clustering/replication, which the cache use case does not warrant.
-  replicas: 1
+  # Single shared instance by default (not HA). Best-effort as a cache; durable via persistence for
+  # streams. replicas > 1 here is independent instances, NOT scaling/HA — see values.yaml.
+  replicas: {{ .Values.valkey.replicas }}
+  {{- if .Values.valkey.persistence.enabled }}
+  # AOF lives on a RWO PVC bound to one pod, so never run two at once mid-rollout.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "valkey.selectorLabels" . | nindent 6 }}
@@ -27,20 +35,37 @@ spec:
           {{- if .Values.containerSecurityContext.enabled }}
           securityContext: {{- omit .Values.containerSecurityContext "enabled" | toYaml | nindent 12 }}
           {{- end }}
-          # Pure cache: bound memory and evict least-recently-used keys rather than erroring on a
-          # full store. Values are small (memberships), so the default sizing is generous.
+          # Memory is always bounded. Persistence + eviction policy are tuned per use (see values.yaml):
+          # a pure cache evicts LRU and does not persist; a durable stream store persists (AOF) and
+          # uses volatile-lru so TTL-less stream keys are never evicted.
           args:
             - valkey-server
-            - --save
-            - ""
             - --maxmemory
             - {{ .Values.valkey.maxmemory | quote }}
             - --maxmemory-policy
             - {{ .Values.valkey.maxmemoryPolicy | quote }}
+            {{- if .Values.valkey.persistence.enabled }}
+            - --dir
+            - /data
+            - --appendonly
+            - {{ ternary "yes" "no" .Values.valkey.persistence.appendOnly | quote }}
+            - --appendfsync
+            - {{ .Values.valkey.persistence.appendfsync | default "everysec" | quote }}
+            - --save
+            - {{ .Values.valkey.persistence.save | quote }}
+            {{- else }}
+            - --save
+            - ""
+            {{- end }}
           ports:
             - name: valkey
               containerPort: 6379
               protocol: TCP
+          {{- if .Values.valkey.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          {{- end }}
           readinessProbe:
             exec:
               command: ["valkey-cli", "ping"]
@@ -53,3 +78,9 @@ spec:
             timeoutSeconds: 3
           resources:
             {{- toYaml .Values.valkey.resources | nindent 12 }}
+      {{- if .Values.valkey.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "valkey.fullname" . }}-data
+      {{- end }}
