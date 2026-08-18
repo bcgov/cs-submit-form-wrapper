@@ -180,8 +180,9 @@ jobs:
           echo "Waiting for mongodb rollout..."
           oc rollout status statefulset/soba-dev-mongodb -n "${NAMESPACE}" --timeout=300s
 
-          echo "Waiting for temporal-worker rollout..."
+          echo "Waiting for temporal-worker rollouts..."
           oc rollout status deployment/soba-dev-temporal-worker -n "${NAMESPACE}" --timeout=300s
+          oc rollout status deployment/soba-dev-temporal-worker-document-generation -n "${NAMESPACE}" --timeout=300s
 
       # Pipeline performance fix: Revert if needed.
       # Temporarily disabled openshift diagnostics; uncomment to restore.

@@ -8,7 +8,8 @@ env:
   ACRONYM: soba
   # PR deployments map to a fixed pool of slots (PR_NUM % SLOT_COUNT) so login
   # hostnames are a known, finite set. Sourced from the repo variable so
-  # pr_close.yaml and the Keycloak redirect URIs (soba-pr-slot-0 .. N-1) share one
+  # pr_close.yaml and the Keycloak redirect URIs (soba-N-designer / soba-N-forms,
+  # N = 0 .. SLOT_COUNT-1) share one value; the literal is a fallback if unset.
   # value; the literal is a fallback if the variable is unset.
   SLOT_COUNT: ${{ vars.SLOT_COUNT || '20' }}
 
