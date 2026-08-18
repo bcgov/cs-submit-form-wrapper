@@ -56,7 +56,6 @@ temporal:
 
 temporalWorkers:
   - name: temporal-worker
-    component: temporal-worker
     enabled: true
     taskQueue: "soba"
     replicas: 1
@@ -70,7 +69,6 @@ temporalWorkers:
         memory: 512Mi
 
   - name: temporal-worker-document-generation
-    component: temporal-worker-document-generation
     enabled: true
     taskQueue: "document-generation"
     replicas: 1

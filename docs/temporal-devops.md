@@ -114,7 +114,7 @@ For each image family, the workflow:
 The SOBA Helm chart under `deployments/helm/soba` now includes:
 
 - a `temporal` config block for shared connection settings
-- a `temporalWorkers` array for dedicated worker deployments
+- a `temporalWorkers` array for dedicated worker deployments, plus a `temporalWorkersImage` block holding the image shared by all of them
 - a `templates/temporal/configmap.yaml` that injects:
   - `TEMPORAL_ALLOWED`
   - `TEMPORAL_ADDRESS`
@@ -205,10 +205,8 @@ The current PR flow is:
 7. Inject:
    - `temporal.address = temporal-frontend.<namespace>.svc.cluster.local:7233`
    - `temporal.namespace = soba-pr-<N>`
-
-- `temporalWorkers[*].image.repository = ghcr.io/<repo>/temporal-worker`
-- `temporalWorkers[*].image.tag = sha-<short_sha>`
-
+   - `temporalWorkersImage.repository = ghcr.io/<repo>/temporal-worker`
+   - `temporalWorkersImage.tag = sha-<short_sha>`
 8. Wait for `backend`, `frontend`, `formio`, `mongodb`, and `temporal-worker`
 9. Run Playwright tests
 
@@ -227,7 +225,7 @@ The `develop` deployment workflow in `.github/workflows/on-merge.yaml` now mirro
 
 In addition, `on-merge.yaml` now:
 
-- overrides the `temporalWorkers[*]` image tag to the just-built `sha-<short_sha>`
+- overrides `temporalWorkersImage.tag` to the just-built `sha-<short_sha>`
 - injects `temporal.address` (`temporal-frontend.<namespace>.svc.cluster.local:7233`) and `temporal.namespace` (`soba-dev`) into the Helm values override
 - waits for the `soba-dev-temporal-worker` rollout
 
@@ -445,7 +443,7 @@ Temporal is currently wired only for PR and `develop` (dev). TEST and PROD do no
 
 `values-test.yaml` has no `temporal`/`temporalWorkers` blocks, and `release-to-test.yaml` has no Temporal steps. To reach PR/dev parity:
 
-- add `temporal` (with `allowed: "true"`, `namespace: "soba-test"`, `taskQueue: "soba"`) and `temporalWorkers` entries (`enabled: true`, image, resources) to `values-test.yaml`
+- add `temporal` (with `allowed: "true"`, `namespace: "soba-test"`, `taskQueue: "soba"`), a `temporalWorkersImage` block, and `temporalWorkers` entries (`enabled: true`, task queue, health port, resources) to `values-test.yaml`
 - call the shared composite action in `release-to-test.yaml`:
   ```yaml
   - name: Deploy shared Temporal and ensure test namespace
@@ -456,7 +454,7 @@ Temporal is currently wired only for PR and `develop` (dev). TEST and PROD do no
       retention: "14d"
       chart_version: ${{ vars.TEMPORAL_CHART_VERSION || '0.74.0' }}
   ```
-- inject `temporal.address`/`temporal.namespace` and the built `temporalWorkers[*].image` tags into the values override (mirror `on-merge.yaml`)
+- inject `temporal.address`/`temporal.namespace` and the built `temporalWorkersImage.tag` into the values override (mirror `on-merge.yaml`)
 - add `deployment/soba-test-temporal-worker` to the rollout-status waits
 
 ### PROD

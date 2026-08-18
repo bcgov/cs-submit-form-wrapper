@@ -308,13 +308,13 @@ This means changes to `.devcontainer/config/temporal-dynamicconfig.yaml` take ef
 
 Set in `backend/.env` (and `.env.example`). Read via `env.getTemporal*()` helpers in `src/core/config/env.ts`.
 
-| Variable                      | Default          | What it does                                                                                                                  |
-| ----------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `TEMPORAL_ALLOWED`            | `false`          | When `true`, worker connects and `getClient()` works; when `false`, worker exits without connecting and `getClient()` rejects |
-| `TEMPORAL_ADDRESS`            | `localhost:7233` | Where the Temporal server is listening                                                                                        |
-| `TEMPORAL_NAMESPACE`          | `default`        | Logical namespace for isolating workflows                                                                                     |
-| `TEMPORAL_TASK_QUEUE`         | `soba`           | Default queue name — each worker can override this via env                                                                    |
-| `TEMPORAL_WORKER_HEALTH_PORT` | `9090`           | Worker HTTP health port (`/readyz`, `/healthz`); each worker process must use a unique port                                   |
+| Variable                      | Default          | What it does                                                                                                                                                             |
+| ----------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TEMPORAL_ALLOWED`            | `false`          | When `true`, worker connects and `getClient()` works; when `false`, worker exits without connecting and `getClient()` rejects. `.env.example` ships `true` for local dev |
+| `TEMPORAL_ADDRESS`            | `localhost:7233` | Where the Temporal server is listening                                                                                                                                   |
+| `TEMPORAL_NAMESPACE`          | `default`        | Logical namespace for isolating workflows                                                                                                                                |
+| `TEMPORAL_TASK_QUEUE`         | `soba`           | Default queue name — each worker can override this via env                                                                                                               |
+| `TEMPORAL_WORKER_HEALTH_PORT` | `9090`           | Worker HTTP health port (`/readyz`, `/healthz`); each worker process must use a unique port                                                                              |
 
 ---
 

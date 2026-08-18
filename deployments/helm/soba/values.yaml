@@ -291,14 +291,16 @@ temporal:
   taskQueue: "soba"
 
 # -- Temporal workers (dedicated image with glibc for @temporalio/core-bridge) --
+# Shared by every entry in temporalWorkers; a worker may override it with its own `image` block.
 temporalWorkersImage:
   repository: ghcr.io/bcgov/soba/temporal-worker
   tag: latest
   pullPolicy: IfNotPresent
 
+# Helm replaces lists rather than merging them, so an environment values file that sets
+# temporalWorkers must restate every worker it wants — entries added here alone reach nothing.
 temporalWorkers:
   - name: temporal-worker
-    component: temporal-worker
     enabled: false
     taskQueue: "soba"
     replicas: 1
@@ -313,7 +315,6 @@ temporalWorkers:
         memory: 512Mi
 
   - name: temporal-worker-document-generation
-    component: temporal-worker-document-generation
     enabled: false
     taskQueue: "document-generation"
     replicas: 1

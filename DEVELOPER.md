@@ -109,14 +109,15 @@ VS Code config lives in `.vscode/launch.json` and `.vscode/tasks.json`.
 
 **Launch (`launch.json`):** Run and debug from the Run and Debug view.
 
-| Configuration                            | Purpose                                                     |
-| ---------------------------------------- | ----------------------------------------------------------- |
-| **SOBA Backend**                         | Start backend dev server (`pnpm dev` in `backend/`)         |
-| **SOBA Temporal Worker**                 | Start Temporal worker (`tsx watch temporal-worker.ts`)      |
-| **SOBA Frontend**                        | Start frontend dev server (`pnpm dev:watch` in `frontend/`) |
-| **SOBA (Backend + Temporal + Frontend)** | Compound: backend, Temporal worker, and frontend            |
-| **SOBA (Backend + Temporal)**            | Compound: backend and Temporal worker                       |
-| **SOBA Frontend (Chrome)**               | Attach Chrome to frontend (URL `http://localhost:3000`)     |
+| Configuration                                  | Purpose                                                      |
+| ---------------------------------------------- | ------------------------------------------------------------ |
+| **SOBA Backend**                               | Start backend dev server (`pnpm dev` in `backend/`)          |
+| **SOBA Temporal Worker (soba)**                | Worker on the `soba` queue (health port 9090)                |
+| **SOBA Temporal Worker (document-generation)** | Worker on the `document-generation` queue (health port 9091) |
+| **SOBA Frontend**                              | Start frontend dev server (`pnpm dev:watch` in `frontend/`)  |
+| **SOBA (Backend + Temporal + Frontend)**       | Compound: backend, both Temporal workers, and frontend       |
+| **SOBA (Backend + Temporal)**                  | Compound: backend and both Temporal workers                  |
+| **SOBA Frontend (Chrome)**                     | Attach Chrome to frontend (URL `http://localhost:3000`)      |
 
 **Tasks (`tasks.json`):** Run from Command Palette → “Tasks: Run Task”.
 
@@ -185,7 +186,7 @@ Tests live under `backend/tests/`. See [In Detail — Testing](#testing) for app
 
 ### Temporal
 
-[Temporal](https://temporal.io) sidecar runs in compose (port 7233; UI on 8088). Worker scripts above poll `TEMPORAL_TASK_QUEUE` (default `soba`). Queue can be overridden per worker deployment (for example a dedicated `document-generation` queue). **`TEMPORAL_ALLOWED=false`** by default — worker exits without connecting; set `true` for local workflow dev. See `docs/temporal.md` for workflow details.
+[Temporal](https://temporal.io) sidecar runs in compose (port 7233; UI on 8088). Worker scripts above poll `TEMPORAL_TASK_QUEUE` (default `soba`). Queue can be overridden per worker deployment (for example a dedicated `document-generation` queue). `.env.example` ships **`TEMPORAL_ALLOWED=true`** so the compound launch configs connect out of the box; set it to `false` to make the workers exit without connecting. The code default (when the variable is unset) is still `false`. See `docs/temporal.md` for workflow details.
 
 ### API layout
 
