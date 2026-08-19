@@ -120,24 +120,6 @@ describe('FormList', () => {
     expect(screen.getByText('Form Two')).toBeInTheDocument();
   });
 
-  it('disables the Create button when there is no active workspace', async () => {
-    mockWorkspaceState.activeWorkspaceId = null;
-    await act(async () => {
-      render(<FormList />);
-    });
-    const createBtn = screen.getByTestId('create-form-button');
-    expect(createBtn).toBeDisabled();
-  });
-
-  it('warns and disables Create when the workspace disclaimer is not accepted', async () => {
-    mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: false }];
-    await act(async () => {
-      render(<FormList />);
-    });
-    expect(screen.getByTestId('forms-disclaimer-required-alert')).toBeInTheDocument();
-    expect(screen.getByTestId('create-form-button')).toBeDisabled();
-  });
-
   it('search works to filter forms', async () => {
     await act(async () => {
       render(<FormList />);

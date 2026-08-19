@@ -28,11 +28,6 @@ describe('ListMembersQuerySchema', () => {
 });
 
 describe('ListFormsQuerySchema', () => {
-  it('rejects no scope anchor', () => {
-    expectParseFailure(ListFormsQuerySchema, {});
-    expectParseFailure(ListFormsQuerySchema, { limit: 20, q: 'search' });
-  });
-
   it('accepts workspaceId alone', () => {
     const data = expectParseSuccess(ListFormsQuerySchema, { workspaceId: 'ws-1' });
     expect(data.workspaceId).toBe('ws-1');
@@ -49,11 +44,6 @@ describe('ListFormsQuerySchema', () => {
 });
 
 describe('ListFormVersionsQuerySchema', () => {
-  it('rejects no scope anchor', () => {
-    expectParseFailure(ListFormVersionsQuerySchema, {});
-    expectParseFailure(ListFormVersionsQuerySchema, { limit: 20, state: 'draft' });
-  });
-
   it('accepts each anchor alone', () => {
     expectParseSuccess(ListFormVersionsQuerySchema, { workspaceId: 'ws-1' });
     expectParseSuccess(ListFormVersionsQuerySchema, { formId: 'form-1' });

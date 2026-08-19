@@ -52,16 +52,16 @@ vi.mock('@/app/[lang]/Providers', () => ({
 
 vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@bcgov/design-system-react-components')>();
-  
+
   type SelectItem = { id: string | number; label: string };
-  
+
   return {
     ...actual,
-    Select: ({ 
-      'data-testid': testId, 
-      value, 
-      onChange, 
-      items 
+    Select: ({
+      'data-testid': testId,
+      value,
+      onChange,
+      items,
     }: {
       'data-testid'?: string;
       value?: string | number | null;
@@ -76,13 +76,14 @@ vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
       >
         <option value="">Select...</option>
         {items?.map((item) => (
-          <option key={item.id} value={item.id}>{item.label}</option>
+          <option key={item.id} value={item.id}>
+            {item.label}
+          </option>
         ))}
       </select>
     ),
   };
 });
-
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -185,7 +186,6 @@ describe('WorkspaceForm', () => {
     await userEvent.type(screen.getByRole('textbox'), 'New Team');
     await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
     await userEvent.selectOptions(screen.getByTestId('workspace-use-case'), 'testUseCase');
-    await userEvent.click(screen.getByTestId('workspace-default-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => {
