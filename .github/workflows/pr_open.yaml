@@ -245,27 +245,6 @@ jobs:
             -f /tmp/values-override.yaml
           # Pipeline performance fix: Revert if needed.
 
-          REVISION=$(helm status "${RELEASE}" -n "${NAMESPACE}" -o json | jq -r '.version')
-          # Clean up old migration jobs and keep only current revision
-          oc get jobs -n "${NAMESPACE}" -o name \
-            | grep "${RELEASE}-migrate-" \
-            | grep -v -- "-migrate-${REVISION}$" \
-            | xargs -r oc delete -n "${NAMESPACE}" 2>/dev/null || true
-
-          for rollout in \
-            "deployment/${RELEASE}-backend:backend" \
-            "deployment/${RELEASE}-frontend-designer:frontend" \
-            "deployment/${RELEASE}-frontend-forms:frontend" \
-            "deployment/${RELEASE}-formio:formio" \
-            "deployment/${RELEASE}-temporal-worker" \
-            "deployment/${RELEASE}-temporal-worker-document-generation" \
-            "statefulset/${RELEASE}-mongodb:mongodb"; do
-            resource="${rollout%%:*}"
-            label="${rollout##*:}"
-            echo "Waiting for ${label} rollout..."
-            oc rollout status "${resource}" -n "${NAMESPACE}" --timeout=300s
-          done
-
       # Pipeline performance fix: Revert if needed.
       # Temporarily disabled openshift diagnostics; uncomment to restore.
       # - name: Deployment diagnostics
