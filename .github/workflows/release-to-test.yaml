@@ -67,20 +67,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Extract Clean Version from Tag
-        id: pre_release
-        run: |
-          # If tag is v1.2.3, this turns it into 1.2.3
-          RAW_TAG="${{ github.event.release.tag_name }}"
-          CLEAN_VERSION="${RAW_TAG#v}"
-          echo "version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
-
       - name: Run Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Force semantic-release to use the tag version if it exists
-          SEMANTIC_RELEASE_VERSION: ${{ steps.pre_release.outputs.version }}
-          OVERRIDE_VERSION: ${{ steps.pre_release.outputs.version }}
         run: npm run semantic-release
 
       - name: Validate release branch
