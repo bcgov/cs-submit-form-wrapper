@@ -41,8 +41,8 @@ crunchy:
       storageClassName: netapp-block-standard
       walStorage: 2Gi
     requests:
-      cpu: 250m
-      memory: 4Gi
+      cpu: 150m
+      memory: 1536Mi
     replicaCertCopy:
       requests:
         cpu: 10m
@@ -57,7 +57,7 @@ crunchy:
         - "host all all 0.0.0.0/0 scram-sha-256"
         - "host all all ::1/128 scram-sha-256"
       parameters:
-        shared_buffers: 1GB
+        shared_buffers: 512MB
         wal_buffers: "-1"
         min_wal_size: 128MB
         max_wal_size: 512MB
