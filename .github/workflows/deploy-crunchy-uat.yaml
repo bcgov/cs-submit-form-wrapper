@@ -1,0 +1,120 @@
+# Manual UAT Crunchy PostgreSQL deployment.
+#
+# This workflow manages only the UAT Crunchy cluster lifecycle. Normal UAT app
+# deployments should consume the existing Crunchy-generated secrets and run
+# application migrations separately.
+name: Deploy Crunchy UAT
+
+run-name: Deploy UAT Crunchy Postgres
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openshift-uat-crunchy
+  cancel-in-progress: false
+
+jobs:
+  deploy-crunchy-uat:
+    name: Deploy UAT Crunchy Postgres
+    environment:
+      name: uat
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      release: ${{ steps.crunchy.outputs.release }}
+      cluster: ${{ steps.crunchy.outputs.cluster }}
+    steps:
+      - name: Deploy Crunchy
+        id: crunchy
+        uses: bcgov/action-crunchy@7ee9c0bdec27f5251a8239373f51db1e01c7c4d9 # v2.1.0
+        with:
+          oc_namespace: ${{ secrets.OC_NAMESPACE }}
+          oc_token: ${{ secrets.OC_TOKEN }}
+          oc_server: ${{ vars.OC_SERVER }}
+          values_file: deployments/helm/action-crunchy/values-uat.yml
+          release_name: pg-soba-uat
+          ref: v2.1.0
+
+      - name: Validate Crunchy resources
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+          CLUSTER: ${{ steps.crunchy.outputs.cluster }}
+        run: |
+          set -euo pipefail
+
+          oc -n "$NAMESPACE" get postgrescluster "$CLUSTER"
+
+          READY_REPLICAS="$(oc -n "$NAMESPACE" get postgrescluster "$CLUSTER" -o jsonpath='{.status.instances[0].readyReplicas}')"
+          if [ "$READY_REPLICAS" != "3" ]; then
+            echo "::error::Expected 3 ready Postgres replicas for ${CLUSTER}, got ${READY_REPLICAS:-0}"
+            exit 1
+          fi
+
+          for secret in \
+            "${CLUSTER}-pguser-appproxy" \
+            "${CLUSTER}-pguser-admin" \
+            "${CLUSTER}-pguser-app-reader" \
+            "${CLUSTER}-pguser-temporal"; do
+            oc -n "$NAMESPACE" get secret "$secret" >/dev/null
+          done
+
+          APPPROXY_SECRET="${CLUSTER}-pguser-appproxy"
+          oc -n "$NAMESPACE" get secret "$APPPROXY_SECRET" -o jsonpath='{.data.uri}' >/dev/null
+          oc -n "$NAMESPACE" get secret "$APPPROXY_SECRET" -o jsonpath="{.data['pgbouncer-uri']}" >/dev/null
+
+      - name: Validate database connectivity
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+          CLUSTER: ${{ steps.crunchy.outputs.cluster }}
+        run: |
+          set -euo pipefail
+
+          PRIMARY_POD="$(oc -n "$NAMESPACE" get pod \
+            -l "postgres-operator.crunchydata.com/cluster=${CLUSTER},postgres-operator.crunchydata.com/role=master" \
+            -o jsonpath='{.items[0].metadata.name}')"
+
+          if [ -z "$PRIMARY_POD" ]; then
+            echo "::error::Could not find primary Postgres pod for ${CLUSTER}"
+            exit 1
+          fi
+
+          oc -n "$NAMESPACE" get secret "${CLUSTER}-pguser-appproxy" -o jsonpath='{.data.uri}' \
+            | base64 -d \
+            | oc -n "$NAMESPACE" exec -i "$PRIMARY_POD" -c database -- \
+                sh -c 'read -r DATABASE_URI && psql "$DATABASE_URI" -v ON_ERROR_STOP=1 -c "SELECT current_database(), current_user;"'
+
+          oc -n "$NAMESPACE" get secret "${CLUSTER}-pguser-appproxy" -o jsonpath="{.data['pgbouncer-uri']}" \
+            | base64 -d \
+            | oc -n "$NAMESPACE" exec -i "$PRIMARY_POD" -c database -- \
+                sh -c 'read -r DATABASE_URI && psql "$DATABASE_URI" -v ON_ERROR_STOP=1 -c "SELECT current_database(), current_user;"'
+
+          oc -n "$NAMESPACE" get secret "${CLUSTER}-pguser-temporal" -o jsonpath='{.data.uri}' \
+            | base64 -d \
+            | oc -n "$NAMESPACE" exec -i "$PRIMARY_POD" -c database -- \
+                sh -c 'read -r DATABASE_URI && psql "$DATABASE_URI" -v ON_ERROR_STOP=1 -c "SELECT current_database(), current_user;"'
+
+          oc -n "$NAMESPACE" get secret "${CLUSTER}-pguser-appproxy" -o jsonpath='{.data.uri}' \
+            | base64 -d \
+            | oc -n "$NAMESPACE" exec -i "$PRIMARY_POD" -c database -- \
+                sh -c 'read -r DATABASE_URI && psql "$DATABASE_URI" -v ON_ERROR_STOP=1 -c "SELECT datname FROM pg_database WHERE datname IN ('"'"'app'"'"', '"'"'postgres'"'"', '"'"'temporal'"'"', '"'"'temporal_visibility'"'"') ORDER BY datname;"'
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## UAT Crunchy Postgres"
+            echo ""
+            echo "- Helm release: ${{ steps.crunchy.outputs.release }}"
+            echo "- Crunchy cluster: ${{ steps.crunchy.outputs.cluster }}"
+            echo "- Values file: deployments/helm/action-crunchy/values-uat.yml"
+            echo ""
+            echo "Expected pguser secrets:"
+            echo ""
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-appproxy"
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-admin"
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-app-reader"
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-temporal"
+          } >> "$GITHUB_STEP_SUMMARY"
