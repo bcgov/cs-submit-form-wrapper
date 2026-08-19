@@ -1,20 +1,78 @@
+{{- $root := . }}
 {{- if .Values.backend.route.enabled }}
+{{- $baseAnnotations := .Values.backend.route.annotations | default dict }}
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: {{ include "soba.fullname" . }}-backend
+  name: {{ include "soba.fullname" $root }}-backend
   labels:
-    {{- include "soba.labels" (dict "root" . "component" "backend") | nindent 4 }}
+    {{- include "soba.labels" (dict "root" $root "component" "backend") | nindent 4 }}
+  {{- with $baseAnnotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
 spec:
-  host: {{ include "soba.backendHost" . }}
+  host: {{ include "soba.backendHost" $root }}
   to:
     kind: Service
-    name: {{ include "soba.fullname" . }}-backend
+    name: {{ include "soba.fullname" $root }}-backend
     weight: 100
   port:
     targetPort: http
   tls:
-    termination: {{ .Values.backend.route.tls.termination }}
-    insecureEdgeTerminationPolicy: {{ .Values.backend.route.tls.insecureEdgeTerminationPolicy }}
+    termination: {{ $root.Values.backend.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ $root.Values.backend.route.tls.insecureEdgeTerminationPolicy }}
   wildcardPolicy: None
+{{- /* Path-scoped Routes on the same host; separate HAProxy backend each, longest path wins. */}}
+{{- $seen := dict }}
+{{- range $extra := $root.Values.backend.route.extraPaths | default list }}
+{{- $name := required "backend.route.extraPaths[].name is required" $extra.name }}
+{{- $path := required "backend.route.extraPaths[].path is required" $extra.path }}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name) }}
+{{- fail (printf "backend.route.extraPaths[%s].name must be lowercase alphanumeric or '-'" $name) }}
+{{- end }}
+{{- if hasKey $seen $name }}
+{{- fail (printf "backend.route.extraPaths[%s].name is used more than once" $name) }}
+{{- end }}
+{{- $_ := set $seen $name true }}
+{{- if not (hasPrefix "/" $path) }}
+{{- fail (printf "backend.route.extraPaths[%s].path must start with '/' (got %q)" $name $path) }}
+{{- end }}
+{{- if eq $root.Values.backend.route.tls.termination "passthrough" }}
+{{- fail (printf "backend.route.extraPaths[%s] needs edge or reencrypt termination; passthrough cannot match on path" $name) }}
+{{- end }}
+{{- $component := printf "backend-%s" $name }}
+{{- if gt (len $component) 63 }}
+{{- fail (printf "backend.route.extraPaths[%s].name is too long; the %s label is %d chars, max 63" $name $component (len $component)) }}
+{{- end }}
+{{- $annotations := merge (deepCopy ($extra.annotations | default dict)) $baseAnnotations }}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "soba.fullname" $root }}-backend-{{ $name }}
+  labels:
+    {{- include "soba.labels" (dict "root" $root "component" $component) | nindent 4 }}
+  {{- with $annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  host: {{ include "soba.backendHost" $root }}
+  path: {{ $path }}
+  to:
+    kind: Service
+    name: {{ include "soba.fullname" $root }}-backend
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: {{ $root.Values.backend.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ $root.Values.backend.route.tls.insecureEdgeTerminationPolicy }}
+  wildcardPolicy: None
+{{- end }}
 {{- end }}

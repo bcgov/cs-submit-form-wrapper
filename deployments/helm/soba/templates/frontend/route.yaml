@@ -2,6 +2,13 @@
 {{- if .Values.frontend.route.enabled }}
 {{- range $name, $app := .Values.frontend.apps }}
 {{- if ne $app.enabled false }}
+{{- /* App annotations win; deepCopy keeps merge from writing back into .Values. */}}
+{{- $appRoute := $app.route | default dict }}
+{{- $appAnnotations := dict }}
+{{- if kindIs "map" $appRoute }}
+{{- $appAnnotations = $appRoute.annotations | default dict }}
+{{- end }}
+{{- $annotations := merge (deepCopy $appAnnotations) ($root.Values.frontend.route.annotations | default dict) }}
 ---
 apiVersion: route.openshift.io/v1
 kind: Route
@@ -9,6 +16,12 @@ metadata:
   name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
   labels:
     {{- include "soba.labels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 4 }}
+  {{- with $annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
 spec:
   host: {{ include "soba.frontendHostFor" (dict "root" $root "name" $name "app" $app) }}
   {{- if $root.Values.global.routePath }}

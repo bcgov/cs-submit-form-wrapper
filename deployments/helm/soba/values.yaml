@@ -38,6 +38,18 @@ backend:
     tls:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
+    # Router tuning for the API host; see README.
+    annotations:
+      # Inactivity timeout. The router's 30s default is tight for the synchronous CDOGS
+      # call under /submit/submissions/:id/{preview,print}, which cannot be scoped below.
+      haproxy.router.openshift.io/timeout: "60s"
+    # Path-scoped Routes on the same host, annotations merged over the ones above.
+    extraPaths:
+      - name: files
+        path: /api/v1/submit/files
+        annotations:
+          # Upload is silent through the clamd scan (clamav.timeoutMs, 60s).
+          haproxy.router.openshift.io/timeout: "300s"
   ingress:
     enabled: false
     ingressClassName: ""
@@ -178,6 +190,8 @@ frontend:
     tls:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
+    # Applied to every app's Route; frontend.apps.<name>.route.annotations overrides per app.
+    annotations: {}
   ingress:
     enabled: false
     ingressClassName: ""
