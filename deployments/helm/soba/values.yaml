@@ -53,7 +53,10 @@ backend:
   ingress:
     enabled: false
     ingressClassName: ""
-    annotations: {}
+    # ingress-nginx only; other controllers ignore these.
+    annotations:
+      nginx.ingress.kubernetes.io/affinity: "cookie"
+      nginx.ingress.kubernetes.io/session-cookie-name: "soba-affinity"
     tls: false
     tlsSecretName: ""
   autoscaling:
@@ -195,7 +198,10 @@ frontend:
   ingress:
     enabled: false
     ingressClassName: ""
-    annotations: {}
+    # ingress-nginx only; other controllers ignore these. Shared by every app.
+    annotations:
+      nginx.ingress.kubernetes.io/affinity: "cookie"
+      nginx.ingress.kubernetes.io/session-cookie-name: "soba-affinity"
     tls: false
     tlsSecretName: ""
   autoscaling:
