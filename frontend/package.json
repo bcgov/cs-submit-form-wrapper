@@ -1,6 +1,6 @@
 {
   "name": "@soba/frontend",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "NODE_OPTIONS=--max-old-space-size=8192 NEXT_DEBUG=1 next dev",
