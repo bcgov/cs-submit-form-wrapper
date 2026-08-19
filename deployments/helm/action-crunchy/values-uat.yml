@@ -3,7 +3,7 @@
 #
 # UAT is intended to mirror the future production database pattern:
 # - stable release/cluster name supplied by workflow: pg-soba-uat / pg-soba-uat-crunchy
-# - explicit users, no fallback users
+# - explicit users and no fallback users
 # - backend runtime connects through PgBouncer as appproxy
 # - migrations use appproxy
 # - Temporal connects directly as temporal
