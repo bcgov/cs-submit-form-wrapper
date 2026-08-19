@@ -14,14 +14,14 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config-app: {{ include (print $.Template.BasePath "/backend/configmap-app.yaml") . | sha256sum }}
-        checksum/config-formio: {{ include (print $.Template.BasePath "/backend/configmap-formio.yaml") . | sha256sum }}
-        checksum/config-document-generation: {{ include (print $.Template.BasePath "/backend/configmap-document-generation.yaml") . | sha256sum }}
-        checksum/config-sso: {{ include (print $.Template.BasePath "/backend/configmap-sso.yaml") . | sha256sum }}
-        checksum/config-ratelimit: {{ include (print $.Template.BasePath "/backend/configmap-ratelimit.yaml") . | sha256sum }}
-        checksum/secret-db: {{ include (print $.Template.BasePath "/secrets/db-secret.yaml") . | sha256sum }}
+        checksum/config-app: {{ include (print .Template.BasePath "/backend/configmap-app.yaml") . | sha256sum }}
+        checksum/config-formio: {{ include (print .Template.BasePath "/backend/configmap-formio.yaml") . | sha256sum }}
+        checksum/config-document-generation: {{ include (print .Template.BasePath "/backend/configmap-document-generation.yaml") . | sha256sum }}
+        checksum/config-sso: {{ include (print .Template.BasePath "/backend/configmap-sso.yaml") . | sha256sum }}
+        checksum/config-ratelimit: {{ include (print .Template.BasePath "/backend/configmap-ratelimit.yaml") . | sha256sum }}
+        checksum/secret-db: {{ include (print .Template.BasePath "/secrets/db-secret.yaml") . | sha256sum }}
         {{- if not .Values.vault.enabled }}
-        checksum/secret-formio: {{ include (print $.Template.BasePath "/secrets/formio-secret.yaml") . | sha256sum }}
+        checksum/secret-formio: {{ include (print .Template.BasePath "/secrets/formio-secret.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.vault.enabled }}
         vault.hashicorp.com/agent-inject: 'true'

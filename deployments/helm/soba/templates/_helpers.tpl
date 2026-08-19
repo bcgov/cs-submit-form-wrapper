@@ -86,7 +86,7 @@ If mongodb is internal, point at the in-cluster service; otherwise use mongodb.e
 {{/*
 Public host for a named frontend app (Route / Ingress).
 Per-app `host` override wins; otherwise <fullname>-<name>.<domain>.
-Usage: {{ include "soba.frontendHostFor" (dict "root" $ "name" $name "app" $app) }}
+Usage: {{ include "soba.frontendHostFor" (dict "root" $root "name" $name "app" $app) }}
 */}}
 {{- define "soba.frontendHostFor" -}}
 {{- if .app.host -}}
