@@ -1,7 +1,7 @@
 # Manual UAT Crunchy PostgreSQL deployment.
 #
 # This workflow manages only the UAT Crunchy cluster lifecycle. Normal UAT app
-# deployments should consume the existing Crunchy-generated secrets and run
+# UAT app deployments should consume the existing Crunchy-generated secrets and run
 # application migrations separately.
 name: Deploy Crunchy UAT
 
