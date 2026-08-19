@@ -84,10 +84,32 @@ If mongodb is internal, point at the in-cluster service; otherwise use mongodb.e
 {{- end }}
 
 {{/*
-Frontend public URL (Route / Ingress host).
+Public host for a named frontend app (Route / Ingress).
+Per-app `host` override wins; otherwise <fullname>-<name>.<domain>.
+Usage: {{ include "soba.frontendHostFor" (dict "root" $root "name" $name "app" $app) }}
 */}}
-{{- define "soba.frontendHost" -}}
-{{- printf "%s.%s" (include "soba.fullname" .) .Values.global.domain }}
+{{- define "soba.frontendHostFor" -}}
+{{- if .app.host -}}
+{{- .app.host -}}
+{{- else -}}
+{{- printf "%s-%s.%s" (include "soba.fullname" .root) .name .root.Values.global.domain -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Comma-separated https:// origins for every enabled frontend app.
+Feeds the backend CORS allowlist so both modes can call the API.
+*/}}
+{{- define "soba.frontendOrigins" -}}
+{{- $root := . -}}
+{{- $origins := list -}}
+{{- range $name, $app := .Values.frontend.apps -}}
+{{- if ne $app.enabled false -}}
+{{- $host := include "soba.frontendHostFor" (dict "root" $root "name" $name "app" $app) -}}
+{{- $origins = append $origins (printf "https://%s" $host) -}}
+{{- end -}}
+{{- end -}}
+{{- join "," $origins -}}
 {{- end }}
 
 {{/*

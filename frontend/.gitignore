@@ -1,4 +1,6 @@
 **.next
+# Secondary dev-server build dir (forms/submit-mode via NEXT_DIST_DIR)
+.next-forms
 .env
 !.env.example
 .env.local
@@ -7,3 +9,6 @@
 .env.production.local
 node_modules
 *.tsbuildinfo
+# Next generates this; its content is distDir-dependent, so it churns between the
+# designer/forms dev servers. Untracked (Next recreates it on dev/build).
+next-env.d.ts

@@ -1,35 +1,42 @@
+{{- $root := . }}
 {{- if .Values.frontend.ingress.enabled }}
+{{- range $name, $app := .Values.frontend.apps }}
+{{- if ne $app.enabled false }}
+{{- $host := include "soba.frontendHostFor" (dict "root" $root "name" $name "app" $app) }}
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "soba.fullname" . }}-frontend
+  name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
   labels:
-    {{- include "soba.labels" (dict "root" . "component" "frontend") | nindent 4 }}
-  {{- with .Values.frontend.ingress.annotations }}
+    {{- include "soba.labels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 4 }}
+  {{- with $root.Values.frontend.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.frontend.ingress.ingressClassName }}
-  ingressClassName: {{ .Values.frontend.ingress.ingressClassName }}
+  {{- if $root.Values.frontend.ingress.ingressClassName }}
+  ingressClassName: {{ $root.Values.frontend.ingress.ingressClassName }}
   {{- end }}
-  {{- if .Values.frontend.ingress.tls }}
+  {{- if $root.Values.frontend.ingress.tls }}
   tls:
     - hosts:
-        - {{ include "soba.frontendHost" . }}
-      {{- if .Values.frontend.ingress.tlsSecretName }}
-      secretName: {{ .Values.frontend.ingress.tlsSecretName }}
+        - {{ $host }}
+      {{- if $root.Values.frontend.ingress.tlsSecretName }}
+      secretName: {{ $root.Values.frontend.ingress.tlsSecretName }}
       {{- end }}
   {{- end }}
   rules:
-    - host: {{ include "soba.frontendHost" . }}
+    - host: {{ $host }}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ include "soba.fullname" . }}-frontend
+                name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
                 port:
                   name: http
+{{- end }}
+{{- end }}
 {{- end }}

@@ -19,9 +19,10 @@ import styles from './SideNav.module.css';
 interface SideNavProps {
   showAppLinks: boolean;
   showHome: boolean;
+  showWorkspaces: boolean;
 }
 
-export function SideNav({ showAppLinks, showHome }: SideNavProps) {
+export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<SideNavProps>) {
   const { authenticated } = useKeycloak();
   const dict = useDictionary();
   const pathname = usePathname();
@@ -41,7 +42,7 @@ export function SideNav({ showAppLinks, showHome }: SideNavProps) {
     });
   }
 
-  if (showAppLinks && authenticated) {
+  if (showWorkspaces && authenticated) {
     navItems.push({
       href: `/${locale}/workspaces`,
       title: dict.header.workspaces,

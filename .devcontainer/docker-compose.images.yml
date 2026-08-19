@@ -17,6 +17,8 @@ services:
       - ../backend/.env.local
     environment:
       DATABASE_URL: postgres://postgres:postgres@host.docker.internal:5432/soba
+      # Both frontends run cross-origin against this backend; allow each port explicitly.
+      CORS_ORIGIN: http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100
       # Form.io sidecar runs in sibling compose (host :3001). localhost here is this container.
       PLUGIN_FORMIO_V5_API_BASE_URL: http://host.docker.internal:3001
       PLUGIN_FORMIO_V5_ADMIN_API_URL: http://host.docker.internal:3001
@@ -25,14 +27,27 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
-  frontend:
+  # Same image, two modes. Designer on :3000, forms on :3100.
+  frontend-designer:
     image: soba/frontend:local
     ports:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_SOBA_API_BASE_URL: http://localhost:4000/api/v1
-      NEXT_PUBLIC_SOBA_FEATURES_ALLOWED: all
+      NEXT_PUBLIC_SOBA_FEATURES_ALLOWED: workspaces,design-mode,meta,marketing
       # SSR / RSC fetch from inside this container (not localhost — that is this container)
+      SOBA_API_INTERNAL_URL: http://backend:4000/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  frontend-forms:
+    image: soba/frontend:local
+    ports:
+      - "3100:3000"
+    environment:
+      NEXT_PUBLIC_SOBA_API_BASE_URL: http://localhost:4000/api/v1
+      NEXT_PUBLIC_SOBA_FEATURES_ALLOWED: submit-mode,files,meta
       SOBA_API_INTERNAL_URL: http://backend:4000/api/v1
     depends_on:
       - backend

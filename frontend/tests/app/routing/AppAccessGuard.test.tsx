@@ -79,7 +79,7 @@ describe('AppAccessGuard', () => {
     h.state.currentUser.status = 'loading';
 
     await act(async () => {
-      render(<AppAccessGuard locale="en">child</AppAccessGuard>);
+      render(<AppAccessGuard locale="en" workspacesEnabled={true}>child</AppAccessGuard>);
     });
 
     expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('AppAccessGuard', () => {
     h.state.currentUser.status = 'succeeded';
 
     await act(async () => {
-      render(<AppAccessGuard locale="en">child</AppAccessGuard>);
+      render(<AppAccessGuard locale="en" workspacesEnabled={true}>child</AppAccessGuard>);
     });
 
     expect(screen.getByText('We could not load your session.')).toBeInTheDocument();
@@ -106,7 +106,7 @@ describe('AppAccessGuard', () => {
     h.state.currentUser.status = 'succeeded';
 
     await act(async () => {
-      render(<AppAccessGuard locale="en">child</AppAccessGuard>);
+      render(<AppAccessGuard locale="en" workspacesEnabled={true}>child</AppAccessGuard>);
     });
 
     await userEvent.click(screen.getByTestId('session-error-retry'));
@@ -129,7 +129,7 @@ describe('AppAccessGuard', () => {
     };
 
     await act(async () => {
-      render(<AppAccessGuard locale="en">visible child</AppAccessGuard>);
+      render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
     });
 
     expect(screen.getByText('visible child')).toBeInTheDocument();

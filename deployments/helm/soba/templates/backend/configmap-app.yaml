@@ -7,8 +7,8 @@ metadata:
 data:
   LOG_LEVEL: {{ .Values.backend.config.logLevel | quote }}
   NODE_ENV: {{ .Values.backend.config.nodeEnv | quote }}
-  {{- $frontendOrigin := printf "https://%s" (include "soba.frontendHost" .) }}
-  CORS_ORIGIN: {{ .Values.backend.config.corsOrigin | default $frontendOrigin | quote }}
+  {{- $frontendOrigins := include "soba.frontendOrigins" . }}
+  CORS_ORIGIN: {{ .Values.backend.config.corsOrigin | default $frontendOrigins | quote }}
   {{- $backendApiBase := printf "https://%s/api/v1" (include "soba.backendHost" .) }}
   SOBA_API_BASE_URL: {{ .Values.backend.config.sobaApiBaseUrl | default $backendApiBase | quote }}
   {{- if .Values.backend.config.gitSha }}

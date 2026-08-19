@@ -8,7 +8,9 @@
 # Default Node heap for commands run in this shell (override per machine).
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
-# Frontend: Next.js dev with hot reload (bypasses inline NODE_OPTIONS in package.json).
+# Frontend: bare `next dev` with a lower per-task heap. The pnpm dev scripts
+# (dev, dev:designer, dev:forms, ...) already honor an exported NODE_OPTIONS —
+# this alias is just a shortcut that also skips their extra flags.
 soba-fe() {
   NODE_OPTIONS=--max-old-space-size=1536 pnpm --dir /workspaces/soba/frontend exec next dev --hostname 0.0.0.0
 }

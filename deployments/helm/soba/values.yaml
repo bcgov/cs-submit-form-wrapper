@@ -3,7 +3,8 @@ global:
   namespace: ""
   # Set true to remove "keep" policy on Secrets/PVCs (e.g. PR teardown)
   forceCleanup: false
-  routeHost: ""
+  # Optional shared subpath for frontend Route/Ingress + liveness (blank = root).
+  # Per-frontend host is set via frontend.apps.<name>.host, not here.
   routePath: ""
   # Owning PR number when a PR reuses a deployment slot; read on teardown so a
   # closing PR does not uninstall a newer PR that has since taken the slot.
@@ -37,10 +38,28 @@ backend:
     tls:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
+    # Router tuning for the API host; see README.
+    annotations:
+      # Inactivity timeout. The router's 30s default is tight for the synchronous CDOGS
+      # call under /submit/submissions/:id/{preview,print}, which cannot be scoped below.
+      haproxy.router.openshift.io/timeout: "60s"
+      # The router sets a session cookie on edge routes whether or not we ask; this just
+      # names it. sobaFetch sends no credentials, so nothing returns it on this host.
+      router.openshift.io/cookie_name: "soba-affinity"
+    # Path-scoped Routes on the same host, annotations merged over the ones above.
+    extraPaths:
+      - name: files
+        path: /api/v1/submit/files
+        annotations:
+          # Upload is silent through the clamd scan (clamav.timeoutMs, 60s).
+          haproxy.router.openshift.io/timeout: "300s"
   ingress:
     enabled: false
     ingressClassName: ""
-    annotations: {}
+    # ingress-nginx only; other controllers ignore these.
+    annotations:
+      nginx.ingress.kubernetes.io/affinity: "cookie"
+      nginx.ingress.kubernetes.io/session-cookie-name: "soba-affinity"
     tls: false
     tlsSecretName: ""
   autoscaling:
@@ -177,10 +196,17 @@ frontend:
     tls:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
+    # Applied to every app's Route; frontend.apps.<name>.route.annotations overrides per app.
+    annotations:
+      # Names the session cookie the router already sets on edge routes.
+      router.openshift.io/cookie_name: "soba-affinity"
   ingress:
     enabled: false
     ingressClassName: ""
-    annotations: {}
+    # ingress-nginx only; other controllers ignore these. Shared by every app.
+    annotations:
+      nginx.ingress.kubernetes.io/affinity: "cookie"
+      nginx.ingress.kubernetes.io/session-cookie-name: "soba-affinity"
     tls: false
     tlsSecretName: ""
   autoscaling:
@@ -190,8 +216,18 @@ frontend:
     targetCPUUtilizationPercentage: 80
   # Optional: override SOBA_API_INTERNAL_URL (Next SSR → API). Default: in-cluster http://<release>-backend.<namespace>.svc.cluster.local:<port>/api/v1
   internalApiBaseUrl: ""
-  # Comma-separated codes from GET /meta/features, or * / all for every platform-allowed feature. Empty = none.
-  featuresAllowed: "*"
+  # Named frontend apps: one Deployment/Service/Route/ConfigMap each, same image, mode set by
+  # featuresAllowed (codes from GET /meta/features, or * / all). Host defaults to <fullname>-<name>.<domain>.
+  # All other frontend.* settings (image, probes, resources, route.tls, autoscaling) are shared.
+  apps:
+    designer:
+      enabled: true
+      featuresAllowed: "workspaces,design-mode,meta,marketing"
+      host: ""
+    forms:
+      enabled: true
+      featuresAllowed: "submit-mode,files,meta"
+      host: ""
 
 # -- Database (external Postgres) -----------------------------------------
 database:

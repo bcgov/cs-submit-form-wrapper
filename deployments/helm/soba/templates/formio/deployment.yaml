@@ -13,9 +13,9 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/formio/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print .Template.BasePath "/formio/configmap.yaml") . | sha256sum }}
         {{- if not .Values.vault.enabled }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secrets/formio-secret.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print .Template.BasePath "/secrets/formio-secret.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.vault.enabled }}
         vault.hashicorp.com/agent-inject: 'true'

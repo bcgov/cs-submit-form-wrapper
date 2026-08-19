@@ -62,7 +62,7 @@ DEVCONTAINER_NODE_OPTIONS=--max-old-space-size=4096
 Rebuild the container to apply. Notes:
 
 - `DEVCONTAINER_MEMORY_SWAP` is memory **plus** swap combined. Set it equal to `DEVCONTAINER_MEMORY` to disable swap; higher allows that much swap on top.
-- `NODE_OPTIONS` caps the V8 heap **per process** (Next dev, Jest, and tsserver each get their own) — it can't be derived from the memory cap, so keep it sensible by hand.
+- `NODE_OPTIONS` caps the V8 heap **per process** (Next dev, Jest, and tsserver each get their own) — it can't be derived from the memory cap, so keep it sensible by hand. The frontend `pnpm dev*` scripts honor this value (they fall back to `--max-old-space-size=8192` only when it's unset), so `DEVCONTAINER_NODE_OPTIONS` tunes them too.
 - `.env` is gitignored; with no file, or all lines commented, the container runs uncapped.
 
 Heap out of memory during a build → raise `--max-old-space-size`. Tests killed with `SIGKILL` → you're over total RAM; lower the heaps or run backend tests serially (`pnpm --dir backend test`).

@@ -8,8 +8,8 @@ env:
   ACRONYM: soba
   # PR deployments map to a fixed pool of slots (PR_NUM % SLOT_COUNT) so login
   # hostnames are a known, finite set. Sourced from the repo variable so
-  # pr_close.yaml and the Keycloak redirect URIs (soba-pr-slot-0 .. N-1) share one
-  # value; the literal is a fallback if the variable is unset.
+  # pr_close.yaml and the Keycloak redirect URIs (soba-N-designer / soba-N-forms,
+  # N = 0 .. SLOT_COUNT-1) share one value; the literal is a fallback if unset.
   SLOT_COUNT: ${{ vars.SLOT_COUNT || '20' }}
 
 on:
@@ -74,6 +74,7 @@ jobs:
     outputs:
       JOB_NAME: ${{ steps.vars.outputs.JOB_NAME }}
       URL: ${{ steps.vars.outputs.URL }}
+      URL_FORMS: ${{ steps.vars.outputs.URL_FORMS }}
       ref: ${{ steps.vars.outputs.ref }}
       PR_NUM: ${{ steps.vars.outputs.PR_NUM }}
       SLOT: ${{ steps.vars.outputs.SLOT }}
@@ -87,7 +88,8 @@ jobs:
           echo "PR_NUM=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "SLOT=$SLOT" >> "$GITHUB_OUTPUT"
           echo "JOB_NAME=pr-slot-$SLOT" >> "$GITHUB_OUTPUT"
-          echo "URL=https://soba-pr-slot-${SLOT}.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
+          echo "URL=https://soba-${SLOT}-designer.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
+          echo "URL_FORMS=https://soba-${SLOT}-forms.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
           echo "ref=refs/pull/$PR_NUMBER/head" >> "$GITHUB_OUTPUT"
 
   build:
@@ -202,20 +204,23 @@ jobs:
             image:
               repository: "ghcr.io/${REPO_LC}/backend"
               tag: "${TAG}"
-            config:
-              corsOrigin: "https://soba-pr-slot-${SLOT}.${DOMAIN}"
           frontend:
             image:
               repository: "ghcr.io/${REPO_LC}/frontend"
               tag: "${TAG}"
+            # Slot hosts are decoupled from the release name, so pin them per app.
+            # Backend CORS_ORIGIN is derived from these two hosts by the chart.
+            apps:
+              designer:
+                host: "soba-${SLOT}-designer.${DOMAIN}"
+              forms:
+                host: "soba-${SLOT}-forms.${DOMAIN}"
           temporalWorkersImage:
             repository: "ghcr.io/${REPO_LC}/temporal-worker"
             tag: "${TAG}"
             pullPolicy: IfNotPresent
           global:
             domain: "${DOMAIN}"
-            routeHost: "soba-pr-slot-${SLOT}.${DOMAIN}"
-            routePath: ""
             prNumber: "${PR_NUM}"
           database:
             existingSecretName: "${{ steps.db.outputs.secret_name }}"
@@ -240,25 +245,6 @@ jobs:
             -f /tmp/values-override.yaml
           # Pipeline performance fix: Revert if needed.
 
-          REVISION=$(helm status "${RELEASE}" -n "${NAMESPACE}" -o json | jq -r '.version')
-          # Clean up old migration jobs and keep only current revision
-          oc get jobs -n "${NAMESPACE}" -o name \
-            | grep "${RELEASE}-migrate-" \
-            | grep -v -- "-migrate-${REVISION}$" \
-            | xargs -r oc delete -n "${NAMESPACE}" 2>/dev/null || true
-
-          for rollout in \
-            "deployment/${RELEASE}-backend:backend" \
-            "deployment/${RELEASE}-frontend:frontend" \
-            "deployment/${RELEASE}-formio:formio" \
-            "deployment/${RELEASE}-temporal-worker" \
-            "statefulset/${RELEASE}-mongodb:mongodb"; do
-            resource="${rollout%%:*}"
-            label="${rollout##*:}"
-            echo "Waiting for ${label} rollout..."
-            oc rollout status "${resource}" -n "${NAMESPACE}" --timeout=300s
-          done
-
       # Pipeline performance fix: Revert if needed.
       # Temporarily disabled openshift diagnostics; uncomment to restore.
       # - name: Deployment diagnostics
@@ -278,7 +264,9 @@ jobs:
           hide_and_recreate: true
           hide_classify: "OUTDATED"
           message: |
-            Release ${{ github.sha }} deployed at <${{ needs.set-vars.outputs.URL }}>
+            Release ${{ github.sha }} deployed:
+            - Designer (design-mode): <${{ needs.set-vars.outputs.URL }}>
+            - Forms (submit-mode): <${{ needs.set-vars.outputs.URL_FORMS }}>
           number: ${{ needs.set-vars.outputs.PR_NUM }}
 
   Tests:
