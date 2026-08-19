@@ -37,7 +37,6 @@ crunchy:
         prometheus.io/scrape: 'true'
         prometheus.io/port: '9187'
     dataVolumeClaimSpec:
-      # PVCs can grow but cannot shrink. Choose UAT sizes carefully before first deploy.
       storage: 20Gi
       storageClassName: netapp-block-standard
       walStorage: 2Gi
@@ -48,7 +47,6 @@ crunchy:
       requests:
         cpu: 10m
         memory: 128Mi
-  # Backups are intentionally out of scope for the first UAT DB setup.
   pgBackRest:
     enabled: false
     s3:
