@@ -65,12 +65,12 @@ jobs:
         run: npm i -g pnpm@10.28.2
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+        run: npm run semantic-release
 
       - name: Validate release branch
         id: vars
