@@ -43,6 +43,9 @@ backend:
       # Inactivity timeout. The router's 30s default is tight for the synchronous CDOGS
       # call under /submit/submissions/:id/{preview,print}, which cannot be scoped below.
       haproxy.router.openshift.io/timeout: "60s"
+      # The router sets a session cookie on edge routes whether or not we ask; this just
+      # names it. sobaFetch sends no credentials, so nothing returns it on this host.
+      router.openshift.io/cookie_name: "soba-affinity"
     # Path-scoped Routes on the same host, annotations merged over the ones above.
     extraPaths:
       - name: files
@@ -194,7 +197,9 @@ frontend:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
     # Applied to every app's Route; frontend.apps.<name>.route.annotations overrides per app.
-    annotations: {}
+    annotations:
+      # Names the session cookie the router already sets on edge routes.
+      router.openshift.io/cookie_name: "soba-affinity"
   ingress:
     enabled: false
     ingressClassName: ""
