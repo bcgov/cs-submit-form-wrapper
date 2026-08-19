@@ -27,10 +27,17 @@
     "dev:services:up": "docker compose -f .devcontainer/docker-compose.yml up -d --wait",
     "dev:db:up": "pnpm dev:services:up && pnpm db:init",
     "clean:workspace": "bash scripts/clean-workspace.sh",
-    "clean:workspace:full": "bash scripts/clean-workspace.sh --full -y"
+    "clean:workspace:full": "bash scripts/clean-workspace.sh --full -y",
+    "release": "semantic-release"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.28.2"
+  "packageManager": "pnpm@10.28.2",
+  "devDependencies": {
+    "@semantic-release/commit-analyzer": "^13.0.0",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^24.2.1"
+  }
 }
