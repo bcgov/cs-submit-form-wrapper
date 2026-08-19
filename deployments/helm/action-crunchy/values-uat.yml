@@ -92,7 +92,7 @@ crunchy:
         - 'postgres'
         - '{{ .Values.global.config.dbName }}'
       options: "SUPERUSER CREATEDB CREATEROLE"
-    - name: 'app_reader'
+    - name: 'app-reader'
       databases:
         - '{{ .Values.global.config.dbName }}'
     - name: 'temporal'
