@@ -62,7 +62,7 @@ jobs:
           node-version: 20
 
       - name: Install pnpm
-        run: npm i -g pnpm@10.28.2
+        run: npm i -g --ignore-scripts pnpm@10.28.2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
