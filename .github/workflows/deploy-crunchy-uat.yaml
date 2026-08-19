@@ -9,6 +9,10 @@ run-name: Deploy UAT Crunchy Postgres
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/deploy-crunchy-uat.yaml"
+      - "deployments/helm/action-crunchy/values-uat.yml"
 
 permissions:
   contents: read
