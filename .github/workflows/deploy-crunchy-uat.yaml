@@ -130,6 +130,9 @@ jobs:
             backoffLimit: 2
             ttlSecondsAfterFinished: 300
             template:
+              metadata:
+                labels:
+                  postgres-operator.crunchydata.com/cluster: ${CLUSTER}
               spec:
                 restartPolicy: Never
                 containers:
