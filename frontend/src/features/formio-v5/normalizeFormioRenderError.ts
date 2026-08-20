@@ -1,3 +1,5 @@
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+
 /**
  * Turn Form.io `@formio/react` <Form /> `onError` payloads into a single user-facing string.
  * Form.io passes booleans, strings, Error instances, arrays (e.g. submission validation),
@@ -15,7 +17,16 @@ function formioErrorPartToMessage(part: unknown): string | null {
   return null;
 }
 
-export function normalizeFormioRenderError(err: unknown, fallbackMessage: string): string {
+/**
+ * `sessionExpiredMessage` is the translated string for an ended session; without it a
+ * SessionExpiredError would reach the page as its untranslated `message`.
+ */
+export function normalizeFormioRenderError(
+  err: unknown,
+  fallbackMessage: string,
+  sessionExpiredMessage?: string,
+): string {
+  if (sessionExpiredMessage && isSessionExpired(err)) return sessionExpiredMessage;
   if (err === false) return fallbackMessage;
   if (typeof err === 'string') return err;
   if (err instanceof Error) return err.message;

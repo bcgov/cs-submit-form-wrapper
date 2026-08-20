@@ -16,6 +16,7 @@ import {
   getSubmitSubmissionData,
 } from '@/src/shared/api/sobaApi';
 import type { SubmissionListItem } from '@/src/types/submissions';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 export function SubmissionView() {
   const params = useParams();
@@ -34,6 +35,7 @@ export function SubmissionView() {
   // null = no engine document (submission has no saved answers); {} = empty answers on a real doc.
   const [content, setContent] = useState<{ data?: Record<string, unknown> } | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const [loaded, setLoaded] = useState(false);
   // Guard the load with a ref (not the `loaded` state) so StrictMode's dev double-invoke fetches once.
   const loadStartedRef = useRef(false);
@@ -55,8 +57,10 @@ export function SubmissionView() {
         ]);
         if (loadedSchema) setSchema(loadedSchema);
         setContent(fetchedContent);
-      } catch {
-        setNotFound(true);
+      } catch (err) {
+        // An ended session is not a missing submission; saying "not found" hides why.
+        if (isSessionExpired(err)) setSessionEnded(true);
+        else setNotFound(true);
       } finally {
         setLoaded(true);
       }
@@ -71,6 +75,13 @@ export function SubmissionView() {
     if (!loaded) {
       return <CenteredProgress label={dictSub?.loading || dict.general.loading} />;
     }
+    if (sessionEnded) {
+      return (
+        <InlineAlert variant="danger" role="alert" data-testid="submission-view-session-expired">
+          {dict.general.sessionExpired}
+        </InlineAlert>
+      );
+    }
     if (notFound || !submission) {
       return (
         <InlineAlert variant="danger" role="alert" data-testid="submission-view-notfound">
@@ -80,37 +91,37 @@ export function SubmissionView() {
     }
     return (
       <>
-          <div className="mb-3" data-testid="submission-view-header">
-            <h3 className="h5 mb-1">{submission.formName || dict.form?.nameLabel || 'Submission'}</h3>
-            <div className="small text-muted">
-              <span data-testid="submission-view-version">v{submission.versionNo ?? 1}</span>
-              {' · '}
-              <WorkflowStateBadge
-                state={submission.workflowState}
-                data-testid="submission-view-status"
-              />
-              {submission.submittedAt ? (
-                <>
-                  {' · '}
-                  <span data-testid="submission-view-submitted">
-                    {dictSub?.submittedOn || 'Submitted'} {formatLongDate(submission.submittedAt)}
-                  </span>
-                </>
-              ) : null}
-            </div>
-          </div>
-
-          {schema && content !== null ? (
-            <ReadOnlyFormView
-              schema={schema}
-              submission={{ data: (content.data ?? {}) as Submission['data'] }}
-              testId="submission-view-form"
+        <div className="mb-3" data-testid="submission-view-header">
+          <h3 className="h5 mb-1">{submission.formName || dict.form?.nameLabel || 'Submission'}</h3>
+          <div className="small text-muted">
+            <span data-testid="submission-view-version">v{submission.versionNo ?? 1}</span>
+            {' · '}
+            <WorkflowStateBadge
+              state={submission.workflowState}
+              data-testid="submission-view-status"
             />
-          ) : (
-            <InlineAlert variant="info" role="alert" data-testid="submission-view-nocontent">
-              {dictSub?.noContent || 'No submitted answers to display.'}
-            </InlineAlert>
-          )}
+            {submission.submittedAt ? (
+              <>
+                {' · '}
+                <span data-testid="submission-view-submitted">
+                  {dictSub?.submittedOn || 'Submitted'} {formatLongDate(submission.submittedAt)}
+                </span>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        {schema && content !== null ? (
+          <ReadOnlyFormView
+            schema={schema}
+            submission={{ data: (content.data ?? {}) as Submission['data'] }}
+            testId="submission-view-form"
+          />
+        ) : (
+          <InlineAlert variant="info" role="alert" data-testid="submission-view-nocontent">
+            {dictSub?.noContent || 'No submitted answers to display.'}
+          </InlineAlert>
+        )}
       </>
     );
   };

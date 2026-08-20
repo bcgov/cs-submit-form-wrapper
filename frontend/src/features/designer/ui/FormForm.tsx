@@ -36,6 +36,7 @@ import {
   publishSobaFormVersion,
 } from '@/src/shared/api/sobaApi';
 import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 function FormForm({ formId }: { formId?: string }) {
   const dict = useDictionary();
@@ -105,7 +106,9 @@ function FormForm({ formId }: { formId?: string }) {
           setIsDirty(false);
         } catch (e: unknown) {
           addNotification({
-            text: `${dict.form.loadFormError || 'Failed to load form:'} ${(e as Error).message}`,
+            text: isSessionExpired(e)
+              ? dict.general.sessionExpired
+              : `${dict.form.loadFormError || 'Failed to load form:'} ${(e as Error).message}`,
             type: 'error',
             consoleError: e,
           });
@@ -115,7 +118,7 @@ function FormForm({ formId }: { formId?: string }) {
       }
       loadForm();
     }
-  }, [formId, token, dict.form.loadFormError, addNotification]);
+  }, [formId, token, dict.form.loadFormError, dict.general.sessionExpired, addNotification]);
 
   const handleNameChange = useCallback((name: string) => {
     setFormName(name);

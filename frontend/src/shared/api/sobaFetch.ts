@@ -1,3 +1,4 @@
+import { ensureFreshToken, forceRefreshToken } from '../auth/tokenRefresh';
 import { getSobaApiBaseUrl } from '../config/runtimeConfig';
 import { getWorkspaceId, setWorkspaceId } from '../workspace/workspaceStore';
 import { notifyWorkspaceResolved } from '../workspace/workspaceSync';
@@ -37,36 +38,87 @@ function buildUrl(path: string, options: SobaFetchOptions): string {
   return `${getSobaApiBaseUrl()}${path}${queryString}`;
 }
 
-/**
- * Single entry point for all SOBA API calls. Injects auth/JSON headers (never a workspace
- * request header) and, after the response, captures the echoed `x-soba-workspace-id`
- * header to update the per-tab workspace store and Redux mirror.
- */
-export async function sobaFetch(path: string, options: SobaFetchOptions = {}): Promise<Response> {
+function send(
+  url: string,
+  options: SobaFetchOptions,
+  token: string | undefined,
+  body: string | undefined,
+): Promise<Response> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...options.headers,
   };
-  if (options.token) {
-    headers.Authorization = `Bearer ${options.token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
-  const hasJsonBody = options.json !== undefined;
-  if (hasJsonBody) {
+  if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const response = await fetch(buildUrl(path, options), {
+  return fetch(url, {
     method: options.method ?? 'GET',
     cache: options.cache ?? 'no-store',
     headers,
-    body: hasJsonBody ? JSON.stringify(options.json) : undefined,
+    body,
   });
+}
 
+/** Thrown instead of sending a call the caller meant to authenticate but no longer can. */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('Session expired');
+    this.name = 'SessionExpiredError';
+  }
+}
+
+export const isSessionExpired = (err: unknown): boolean =>
+  err instanceof Error && err.name === 'SessionExpiredError';
+
+/**
+ * The token to send for an authenticated call. Only an affirmative `no-session` refuses to send:
+ * the submit surface accepts an invalid bearer as anonymous, so a stale token there would silently
+ * file the caller's work as the public user. Without a verdict we send what we have and let the
+ * response decide.
+ */
+async function resolveToken(callerToken: string): Promise<string> {
+  const outcome = await ensureFreshToken();
+  if (outcome.status === 'token') return outcome.token;
+  if (outcome.status === 'no-session') throw new SessionExpiredError();
+  return callerToken;
+}
+
+function captureResolvedWorkspace(response: Response): void {
   const resolved = response.headers.get(WORKSPACE_HEADER);
   if (resolved && resolved !== getWorkspaceId()) {
     setWorkspaceId(resolved);
     notifyWorkspaceResolved(resolved);
   }
+}
+
+/**
+ * Single entry point for all SOBA API calls. Injects auth/JSON headers (never a workspace
+ * request header) and, after the response, captures the echoed `x-soba-workspace-id`
+ * header to update the per-tab workspace store and Redux mirror.
+ *
+ * Authenticated calls refresh the token first, so an idle tab recovers on its next call. Anonymous
+ * (submit-mode) callers pass none and never trigger a refresh.
+ */
+export async function sobaFetch(path: string, options: SobaFetchOptions = {}): Promise<Response> {
+  const url = buildUrl(path, options);
+  const body = options.json !== undefined ? JSON.stringify(options.json) : undefined;
+  const token = options.token ? await resolveToken(options.token) : undefined;
+
+  let response = await send(url, options, token, body);
+
+  // Refresh and replay once; a second 401 is a real answer and goes back to the caller.
+  if (response.status === 401 && token) {
+    const outcome = await forceRefreshToken();
+    if (outcome.status === 'token' && outcome.token !== token) {
+      response = await send(url, options, outcome.token, body);
+    }
+  }
+
+  captureResolvedWorkspace(response);
 
   return response;
 }

@@ -20,6 +20,7 @@ import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { selectActiveWorkspace } from '@/lib/slices/workspaceSlice';
 import { FaFolder, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 const CustomActionButtons = ({
   form,
@@ -107,7 +108,9 @@ function FormList({
         setForms(Array.isArray(data.items) ? data.items : []);
       } catch (err: unknown) {
         if (fetchedWorkspaceRef.current !== ws) return;
-        if (err && typeof err === 'object' && 'message' in err) {
+        if (isSessionExpired(err)) {
+          setError(dict.general.sessionExpired);
+        } else if (err && typeof err === 'object' && 'message' in err) {
           setError((err as { message: string }).message);
         }
       } finally {
@@ -116,7 +119,7 @@ function FormList({
     })();
     // No workspace selected for this tab: forms are workspace-scoped, so we render a
     // "select a workspace" prompt (below) instead of calling the API.
-  }, [authenticated, token, activeWorkspaceId]);
+  }, [authenticated, token, activeWorkspaceId, dict.general.sessionExpired]);
 
   const filteredForms = useMemo(() => {
     if (!searchQuery.trim()) return forms;
