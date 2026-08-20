@@ -75,7 +75,7 @@ crunchy:
       maxConnections: 100
       poolMode: transaction
   pgmonitor:
-    enabled: true
+    enabled: false
     exporter:
       requests:
         cpu: 25m
