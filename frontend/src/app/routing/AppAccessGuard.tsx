@@ -74,12 +74,14 @@ export function AppAccessGuard({
     );
   }
 
+  // Only the first load hides the app. A background reload (a token rotation re-reading /me) must
+  // not swap children for the spinner — unmounting the route would discard a form being filled.
   const showLoading =
-    session.initializing ||
-    (session.authenticated && !session.sessionReady && !session.sessionFailed) ||
-    redirectTarget !== null;
+    !session.sessionLoadedOnce &&
+    (session.initializing ||
+      (session.authenticated && !session.sessionReady && !session.sessionFailed));
 
-  if (showLoading) {
+  if (showLoading || redirectTarget !== null) {
     return <CenteredProgress label={dict.general.loading} minHeight="50vh" />;
   }
 

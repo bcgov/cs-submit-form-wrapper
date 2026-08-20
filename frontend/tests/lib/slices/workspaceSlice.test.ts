@@ -24,6 +24,7 @@ const baseState: WorkspaceState = {
   workspaces: [],
   activeWorkspaceId: null,
   status: 'idle',
+  loadedOnce: false,
   error: null,
   canceledDefaultModal: false,
 };

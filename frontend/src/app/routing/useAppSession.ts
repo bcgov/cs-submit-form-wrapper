@@ -12,7 +12,11 @@ export function useAppSession(): AppSessionSnapshot {
   const { authenticated, token, initializing } = useKeycloak();
   const dispatch = useAppDispatch();
 
-  const { workspaces, status: workspaceStatus } = useAppSelector((state) => state.workspace);
+  const {
+    workspaces,
+    status: workspaceStatus,
+    loadedOnce: workspacesLoadedOnce,
+  } = useAppSelector((state) => state.workspace);
   const { data: currentUser, status: currentUserStatus } = useAppSelector(
     (state) => state.currentUser,
   );
@@ -52,6 +56,9 @@ export function useAppSession(): AppSessionSnapshot {
       authenticated,
       initializing,
       sessionReady,
+      // Both slices keep their data through a refetch, so this stays true while a background
+      // reload runs — the guard uses it to avoid unmounting the route.
+      sessionLoadedOnce: workspacesLoadedOnce && currentUser !== null,
       sessionFailed,
       needsOnboarding,
       canCreateWorkspace: currentUser?.capabilities?.canCreateWorkspace === true,
@@ -61,6 +68,7 @@ export function useAppSession(): AppSessionSnapshot {
     authenticated,
     initializing,
     workspaceStatus,
+    workspacesLoadedOnce,
     currentUserStatus,
     workspaces,
     currentUser,

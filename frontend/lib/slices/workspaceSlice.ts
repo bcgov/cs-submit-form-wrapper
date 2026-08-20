@@ -6,6 +6,8 @@ export interface WorkspaceState {
   workspaces: WorkspaceItem[];
   activeWorkspaceId: string | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  /** Stays true across a refetch, so a background reload is distinguishable from first load. */
+  loadedOnce: boolean;
   error: string | null;
   canceledDefaultModal: boolean;
 }
@@ -15,6 +17,7 @@ const initialState: WorkspaceState = {
   // Hydrate the per-tab selection from sessionStorage (null during SSR).
   activeWorkspaceId: getWorkspaceId(),
   status: 'idle',
+  loadedOnce: false,
   error: null,
   canceledDefaultModal: false,
 };
@@ -74,6 +77,7 @@ const workspaceSlice = createSlice({
       state.workspaces = [];
       state.activeWorkspaceId = null;
       state.status = 'idle';
+      state.loadedOnce = false;
       state.error = null;
     },
     setCanceledDefaultModal(state, action: PayloadAction<boolean>) {
@@ -87,6 +91,7 @@ const workspaceSlice = createSlice({
       })
       .addCase(loadWorkspaces.fulfilled, (state, action) => {
         state.status = 'succeeded';
+        state.loadedOnce = true;
         state.workspaces = action.payload;
         // No auto-pick: the active workspace is established only by a backend response
         // (explicit selection via GET /workspaces/:id, or resource-derived deep links).
