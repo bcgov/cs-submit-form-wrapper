@@ -12,6 +12,7 @@ function makeConfig(): PluginConfigReader {
     getOptional: (_k: string, d?: string) => d,
     getBoolean: (_k: string) => false,
     getNumber: (_k: string) => 0,
+    getOptionalNumber: (_k: string) => undefined,
     getCsv: (_k: string) => [],
   };
 }

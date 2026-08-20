@@ -148,8 +148,12 @@ backend:
     cdogsV2:
       endpoint: ""
       tokenUrl: ""
+      # -- outbound deadline in ms; empty uses the backend default (30000)
+      timeoutMs: ""
     cdogsV3:
       endpoint: ""
+      # -- outbound deadline in ms; empty uses the backend default (30000)
+      timeoutMs: ""
 
   # -- configmap-sso: IDP / SSO config
   sso:

@@ -1,4 +1,13 @@
-import { HttpClient, HttpClientError, joinUrl } from '../../../src/core/http/httpClient';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import {
+  DEFAULT_TIMEOUT_MS,
+  HttpClient,
+  HttpClientError,
+  HttpClientTimeoutError,
+  ROUTE_TIMEOUT_MS,
+  joinUrl,
+} from '../../../src/core/http/httpClient';
 
 const binaryResponse = (body: number[], contentType = 'application/pdf') =>
   ({
@@ -85,6 +94,139 @@ describe('HttpClient', () => {
     expect(err).toBeInstanceOf(HttpClientError);
     expect(err).toMatchObject({ status: 422, body: 'bad template', url: 'http://svc.test/x' });
   });
+});
+
+// Real sockets: undici's timeout behaviour is what's under test.
+describe('HttpClient timeouts', () => {
+  const origFetch = global.fetch;
+  let server: Server;
+  let baseUrl: string;
+
+  afterEach(() => {
+    global.fetch = origFetch;
+  });
+
+  beforeAll(async () => {
+    server = createServer((req, res) => {
+      if (req.url === '/stall-headers') return;
+      if (req.url === '/stall-body') {
+        res.writeHead(200, { 'content-type': 'application/pdf' });
+        res.write('partial');
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/pdf' });
+      res.end('done');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it('aborts a response that never sends headers', async () => {
+    const client = new HttpClient({ baseUrl, timeoutMs: 150 });
+
+    const err = await client.postJsonForBinary('/stall-headers', {}).catch((e) => e);
+
+    expect(err).toBeInstanceOf(HttpClientTimeoutError);
+    expect(err).toMatchObject({ timeoutMs: 150, url: `${baseUrl}/stall-headers` });
+    expect(err.message).toBe('Request timed out after 150ms');
+  });
+
+  it('aborts a response whose body never finishes', async () => {
+    const client = new HttpClient({ baseUrl, timeoutMs: 150 });
+
+    const err = await client.postJsonForBinary('/stall-body', {}).catch((e) => e);
+
+    expect(err).toBeInstanceOf(HttpClientTimeoutError);
+    expect(err.url).toBe(`${baseUrl}/stall-body`);
+    // The body leg reports what was left when it started, not the whole budget.
+    expect(err.timeoutMs).toBeGreaterThan(0);
+    expect(err.timeoutMs).toBeLessThan(150);
+  });
+
+  it('leaves a response that arrives within the deadline alone', async () => {
+    const client = new HttpClient({ baseUrl, timeoutMs: 2000 });
+
+    await expect(client.postJsonForBinary('/ok', {})).resolves.toMatchObject({
+      data: Buffer.from('done'),
+      contentType: 'application/pdf',
+    });
+  });
+
+  it('arms the signal with the configured timeout, and with the default when unset', async () => {
+    const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    } as unknown as Response);
+    global.fetch = fetchMock;
+
+    // Armed from `deadline - Date.now()`, so assert a range: an exact match would flake whenever a
+    // millisecond elapses between the two.
+    const armedFor = (spy: jest.SpyInstance) => spy.mock.calls.at(-1)?.[0] as number;
+
+    const configured = new HttpClient({ baseUrl: 'http://svc.test', timeoutMs: 1234 });
+    await configured.postJsonForBinary('/x', {});
+    expect(armedFor(timeoutSpy)).toBeGreaterThan(1150);
+    expect(armedFor(timeoutSpy)).toBeLessThanOrEqual(1234);
+
+    await new HttpClient({ baseUrl: 'http://svc.test' }).postJsonForBinary('/x', {});
+    expect(armedFor(timeoutSpy)).toBeGreaterThan(DEFAULT_TIMEOUT_MS - 100);
+    expect(armedFor(timeoutSpy)).toBeLessThanOrEqual(DEFAULT_TIMEOUT_MS);
+  });
+
+  it('spends one budget across the token leg and the request', async () => {
+    const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    } as unknown as Response);
+
+    const client = new HttpClient({
+      baseUrl: 'http://svc.test',
+      timeoutMs: 1000,
+      // A slow token leg must come out of the request's budget, not sit alongside it.
+      getToken: async (remainingMs) => {
+        expect(remainingMs).toBeLessThanOrEqual(1000);
+        await new Promise((r) => setTimeout(r, 300));
+        return 'tok';
+      },
+    });
+    await client.postJsonForBinary('/x', {});
+
+    const armed = timeoutSpy.mock.calls.at(-1)?.[0] as number;
+    expect(armed).toBeLessThan(1000 - 250);
+  });
+
+  it('fails fast once the budget is already spent', async () => {
+    const client = new HttpClient({ baseUrl: 'http://svc.test', timeoutMs: 1000 });
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock;
+
+    const spent = Date.now() - 1;
+    const err = await client.postJsonForBinary('/x', {}, spent).catch((e) => e);
+
+    expect(err).toBeInstanceOf(HttpClientTimeoutError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // 2_147_483_648 is the one that matters: AbortSignal.timeout accepts it, then fires in ~1ms.
+  it.each([0, -1, 30.5, NaN, Infinity, 2_147_483_648, ROUTE_TIMEOUT_MS + 1])(
+    'rejects an unusable timeout: %p',
+    (value) => {
+      expect(() => new HttpClient({ baseUrl: 'http://svc.test', timeoutMs: value })).toThrow(
+        'must be a positive integer',
+      );
+    },
+  );
 });
 
 describe('joinUrl', () => {

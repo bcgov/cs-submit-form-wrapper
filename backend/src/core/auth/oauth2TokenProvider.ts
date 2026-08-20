@@ -1,3 +1,4 @@
+import { HttpClientTimeoutError, isTimeoutAbort, resolveTimeoutMs } from '../http/httpClient';
 import { log } from '../logging';
 
 interface CachedToken {
@@ -13,6 +14,8 @@ export interface OAuth2Config {
   refreshBufferMs?: number;
   /** Identifies the caller (e.g. plugin code) in credential-failure logs. */
   label?: string;
+  /** Fallback deadline when the caller passes none; a stalled IdP hangs the caller too. */
+  timeoutMs?: number;
 }
 
 const DEFAULT_REFRESH_BUFFER_MS = 60_000;
@@ -26,33 +29,56 @@ const inFlight = new Map<string, Promise<string>>();
 export class OAuth2TokenProvider {
   private readonly config: OAuth2Config;
   private readonly cacheKey: string;
+  private readonly timeoutMs: number;
 
   constructor(config: OAuth2Config) {
     this.config = config;
     this.cacheKey = `${config.tokenUrl}:${config.clientId}`;
+    this.timeoutMs = resolveTimeoutMs(config.timeoutMs, 'OAuth2 timeoutMs');
   }
 
-  async getToken(): Promise<string> {
+  /** `timeoutMs` is the caller's remaining budget, which bounds only this caller's wait. */
+  async getToken(timeoutMs?: number): Promise<string> {
     const buffer = this.config.refreshBufferMs ?? DEFAULT_REFRESH_BUFFER_MS;
     const cached = cache.get(this.cacheKey);
     if (cached && Date.now() < cached.expiresAt - buffer) {
       return cached.token;
     }
     // Collapse concurrent misses onto a single token request per cache key.
-    const pending = inFlight.get(this.cacheKey);
-    if (pending) return pending;
+    const pending = inFlight.get(this.cacheKey) ?? this.startRequest();
+    // Callers share the request but not the deadline: a joiner must not inherit whatever budget
+    // the first caller happened to have, and its own expiry must not abort a fetch the others
+    // are still waiting on.
+    return timeoutMs === undefined ? pending : this.raceBudget(pending, timeoutMs);
+  }
 
-    const request = this.fetchAndCache().finally(() => inFlight.delete(this.cacheKey));
+  private startRequest(): Promise<string> {
+    const request = this.fetchAndCache(this.timeoutMs).finally(() =>
+      inFlight.delete(this.cacheKey),
+    );
     inFlight.set(this.cacheKey, request);
+    // A caller that gives up early stops awaiting this; keep the rejection handled either way.
+    request.catch(() => undefined);
     return request;
+  }
+
+  private raceBudget(pending: Promise<string>, timeoutMs: number): Promise<string> {
+    let timer: ReturnType<typeof setTimeout>;
+    const budget = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new HttpClientTimeoutError(this.config.tokenUrl, timeoutMs)),
+        timeoutMs,
+      );
+    });
+    return Promise.race([pending, budget]).finally(() => clearTimeout(timer));
   }
 
   clearCache(): void {
     cache.delete(this.cacheKey);
   }
 
-  private async fetchAndCache(): Promise<string> {
-    const res = await fetch(this.config.tokenUrl, {
+  private requestToken(timeoutMs: number): Promise<Response> {
+    return fetch(this.config.tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -60,7 +86,30 @@ export class OAuth2TokenProvider {
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
       }).toString(),
+      signal: AbortSignal.timeout(timeoutMs),
     });
+  }
+
+  private async fetchAndCache(timeoutMs: number): Promise<string> {
+    // The whole exchange is guarded, not just the headers: a token endpoint that answers and then
+    // stalls mid-body would otherwise escape with a raw DOMException.
+    return this.withTimeoutGuard(timeoutMs, () => this.readToken(timeoutMs));
+  }
+
+  private async withTimeoutGuard<T>(timeoutMs: number, op: () => Promise<T>): Promise<T> {
+    try {
+      return await op();
+    } catch (err) {
+      if (isTimeoutAbort(err)) {
+        log.warn({ label: this.config.label, timeoutMs }, 'oauth2 token request timed out');
+        throw new HttpClientTimeoutError(this.config.tokenUrl, timeoutMs);
+      }
+      throw err;
+    }
+  }
+
+  private async readToken(timeoutMs: number): Promise<string> {
+    const res = await this.requestToken(timeoutMs);
 
     if (!res.ok) {
       log.error(

@@ -24,15 +24,19 @@ export class CdogsV2Adapter implements DocumentGenerationAdapter {
   private readonly tokenProvider: OAuth2TokenProvider;
 
   constructor(config: PluginConfigReader) {
+    const timeoutMs = config.getOptionalNumber('TIMEOUT_MS');
     this.tokenProvider = new OAuth2TokenProvider({
       tokenUrl: config.getRequired('TOKEN_URL'),
       clientId: config.getRequired('CLIENT_ID'),
       clientSecret: config.getRequired('CLIENT_SECRET'),
       label: PLUGIN,
+      timeoutMs,
     });
     this.http = new HttpClient({
       baseUrl: joinUrl(config.getRequired('ENDPOINT'), 'v2'),
-      getToken: () => this.tokenProvider.getToken(),
+      // Spends the render's remaining budget, so the token leg can't add a second full timeout.
+      getToken: (remainingMs) => this.tokenProvider.getToken(remainingMs),
+      timeoutMs,
     });
   }
 
@@ -52,14 +56,16 @@ export class CdogsV2Adapter implements DocumentGenerationAdapter {
 
   private async attemptRender(payload: Record<string, unknown>): Promise<DocumentRenderResult> {
     const body = toCdogsRenderBody(payload);
+    // One budget for the attempt and its retry, so a 401 can't double the time the pod holds this.
+    const deadline = this.http.deadline();
     try {
-      return await this.http.postJsonForBinary(RENDER_PATH, body);
+      return await this.http.postJsonForBinary(RENDER_PATH, body, deadline);
     } catch (err) {
       if (!isTokenRejected(err)) throw err;
       // CDOGS rejected our token — drop the cached token and retry once.
       log.warn({ plugin: PLUGIN }, 'CDOGS rejected the access token; refreshing and retrying');
       this.tokenProvider.clearCache();
-      return this.http.postJsonForBinary(RENDER_PATH, body);
+      return this.http.postJsonForBinary(RENDER_PATH, body, deadline);
     }
   }
 
