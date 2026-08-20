@@ -43,19 +43,6 @@ jobs:
           release_name: pg-soba-uat
           ref: v2.1.0
 
-      - name: Install OpenShift CLI
-        uses: redhat-actions/openshift-tools-installer@144527c7d98999f2652264c048c7a9bd103f8a82 # v1
-        with:
-          oc: "4.14"
-
-      - name: Login to OpenShift Cluster
-        uses: redhat-actions/oc-login@5eb45e848b168b6bf6b8fe7f1561003c12e3c99d # v1
-        with:
-          openshift_server_url: ${{ vars.OC_SERVER }}
-          openshift_token: ${{ secrets.OC_TOKEN }}
-          insecure_skip_tls_verify: true
-          namespace: ${{ secrets.OC_NAMESPACE }}
-
       - name: Validate Crunchy resources
         env:
           NAMESPACE: ${{ secrets.OC_NAMESPACE }}
