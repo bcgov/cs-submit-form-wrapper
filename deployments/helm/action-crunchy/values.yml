@@ -65,7 +65,7 @@ crunchy:
         memory: 32Mi
       maxConnections: 10
   pgmonitor:
-    enabled: true
+    enabled: false
     exporter:
       requests:
         cpu: 10m
