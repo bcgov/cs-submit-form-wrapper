@@ -108,6 +108,57 @@ jobs:
           oc -n "$NAMESPACE" get secret "$APPPROXY_SECRET" -o jsonpath='{.data.uri}' >/dev/null
           oc -n "$NAMESPACE" get secret "$APPPROXY_SECRET" -o jsonpath="{.data['pgbouncer-uri']}" >/dev/null
 
+      - name: Harden database privileges
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+          CLUSTER: ${{ steps.crunchy.outputs.cluster }}
+        run: |
+          set -euo pipefail
+
+          JOB_NAME="${CLUSTER}-db-hardening"
+          ADMIN_SECRET="${CLUSTER}-pguser-admin"
+          POSTGRES_IMAGE="$(oc -n "$NAMESPACE" get postgrescluster "$CLUSTER" -o jsonpath='{.spec.image}')"
+
+          oc -n "$NAMESPACE" delete job "$JOB_NAME" --ignore-not-found=true
+
+          cat <<EOF | oc -n "$NAMESPACE" apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: ${JOB_NAME}
+          spec:
+            backoffLimit: 2
+            ttlSecondsAfterFinished: 300
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: db-hardening
+                    image: ${POSTGRES_IMAGE}
+                    imagePullPolicy: IfNotPresent
+                    env:
+                      - name: DATABASE_URI
+                        valueFrom:
+                          secretKeyRef:
+                            name: ${ADMIN_SECRET}
+                            key: uri
+                    command:
+                      - sh
+                      - -ec
+                      - |
+                        psql "\$DATABASE_URI" -v ON_ERROR_STOP=1 <<'SQL'
+                        REVOKE CONNECT, TEMPORARY ON DATABASE app FROM PUBLIC;
+                        REVOKE CONNECT, TEMPORARY ON DATABASE postgres FROM PUBLIC;
+                        REVOKE CONNECT, TEMPORARY ON DATABASE temporal FROM PUBLIC;
+                        REVOKE CONNECT, TEMPORARY ON DATABASE temporal_visibility FROM PUBLIC;
+                        SQL
+          EOF
+
+          if ! oc -n "$NAMESPACE" wait --for=condition=complete "job/${JOB_NAME}" --timeout=5m; then
+            oc -n "$NAMESPACE" logs "job/${JOB_NAME}" || true
+            exit 1
+          fi
+
       - name: Deployment summary
         run: |
           {
