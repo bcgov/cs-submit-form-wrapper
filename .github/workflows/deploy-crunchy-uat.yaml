@@ -151,6 +151,7 @@ jobs:
                         REVOKE CONNECT, TEMPORARY ON DATABASE postgres FROM PUBLIC;
                         REVOKE CONNECT, TEMPORARY ON DATABASE temporal FROM PUBLIC;
                         REVOKE CONNECT, TEMPORARY ON DATABASE temporal_visibility FROM PUBLIC;
+                        REVOKE CREATE, TEMPORARY ON DATABASE app FROM "app-reader";
                         SQL
           EOF
 
