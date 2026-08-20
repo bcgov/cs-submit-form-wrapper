@@ -5,13 +5,13 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "pnpm -r exec npm version ${nextRelease.version} --no-git-tag-version && npm version ${nextRelease.version} --no-git-tag-version"
+        "prepareCmd": "cd frontend && pnpm -r exec npm version ${nextRelease.version} --no-git-tag-version && npm version ${nextRelease.version} --no-git-tag-version && cd ../backend && pnpm -r exec npm version ${nextRelease.version} --no-git-tag-version && npm version ${nextRelease.version} --no-git-tag-version"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["package.json", "backend/package.json", "frontend/package.json"],
+        "assets": ["**/*"],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ]

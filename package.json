@@ -37,7 +37,10 @@
   "devDependencies": {
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/exec": "^6.0.3",
+<<<<<<< HEAD
     "@semantic-release/git": "^10.0.1",
+=======
+>>>>>>> feat/versionfooter
     "semantic-release": "^24.2.1"
   }
 }
