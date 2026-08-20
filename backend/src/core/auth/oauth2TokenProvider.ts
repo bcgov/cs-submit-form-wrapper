@@ -66,7 +66,7 @@ export class OAuth2TokenProvider {
     let timer: ReturnType<typeof setTimeout>;
     const budget = new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new HttpClientTimeoutError(this.config.tokenUrl, timeoutMs)),
+        () => reject(new HttpClientTimeoutError(this.config.tokenUrl, timeoutMs, timeoutMs)),
         timeoutMs,
       );
     });
@@ -102,7 +102,7 @@ export class OAuth2TokenProvider {
     } catch (err) {
       if (isTimeoutAbort(err)) {
         log.warn({ label: this.config.label, timeoutMs }, 'oauth2 token request timed out');
-        throw new HttpClientTimeoutError(this.config.tokenUrl, timeoutMs);
+        throw new HttpClientTimeoutError(this.config.tokenUrl, timeoutMs, timeoutMs);
       }
       throw err;
     }

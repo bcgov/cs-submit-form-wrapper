@@ -7,8 +7,9 @@ import { log } from '../logging';
 export const ROUTE_TIMEOUT_MS = 60_000;
 
 /**
- * Total budget for one operation: token, request and body together. Half the router's limit, so an
- * operation and its one retry still finish before the router gives up on the client.
+ * Total budget for one operation: token, request and body together — a retry shares it rather than
+ * getting its own. Half the router's limit leaves headroom for the rest of the request (auth,
+ * submission read, audit write) to finish before the router gives up on the client.
  */
 export const DEFAULT_TIMEOUT_MS = ROUTE_TIMEOUT_MS / 2;
 
@@ -65,13 +66,23 @@ export const isTimeoutAbort = (err: unknown): boolean =>
 /** Carrier for an outbound request that blew its deadline. */
 export class HttpClientTimeoutError extends Error {
   readonly timeoutMs: number;
+  readonly budgetMs: number;
   readonly url: string;
 
-  constructor(url: string, timeoutMs: number) {
-    // URL stays off the message; that reaches the client in the 503 body.
-    super(`Request timed out after ${timeoutMs}ms`);
+  /**
+   * `timeoutMs` is what this leg actually had; `budgetMs` the whole operation's. They differ once
+   * an earlier leg has spent some of it — reporting only the remainder makes a slow token leg read
+   * as a misconfigured timeout. URL stays off the message; that reaches the client in the 503 body.
+   */
+  constructor(url: string, timeoutMs: number, budgetMs: number) {
+    super(
+      timeoutMs === budgetMs
+        ? `Request timed out after ${timeoutMs}ms`
+        : `Request timed out after ${timeoutMs}ms of a ${budgetMs}ms budget`,
+    );
     this.name = 'HttpClientTimeoutError';
     this.timeoutMs = timeoutMs;
+    this.budgetMs = budgetMs;
     this.url = url;
   }
 }
@@ -157,7 +168,7 @@ export class HttpClient {
   /** Milliseconds left in the budget; throws once it is spent so a later leg fails fast. */
   private remainingMs(deadline: number, url: string): number {
     const remaining = deadline - Date.now();
-    if (remaining <= 0) throw new HttpClientTimeoutError(url, this.timeoutMs);
+    if (remaining <= 0) throw new HttpClientTimeoutError(url, 0, this.timeoutMs);
     return remaining;
   }
 
@@ -183,7 +194,7 @@ export class HttpClient {
     } catch (err) {
       if (isTimeoutAbort(err)) {
         log.warn({ url, armedMs, budgetMs: this.timeoutMs }, 'outbound http request timed out');
-        throw new HttpClientTimeoutError(url, armedMs);
+        throw new HttpClientTimeoutError(url, armedMs, this.timeoutMs);
       }
       throw err;
     }

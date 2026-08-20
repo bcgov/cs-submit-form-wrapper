@@ -132,8 +132,11 @@ describe('HttpClient timeouts', () => {
     const err = await client.postJsonForBinary('/stall-headers', {}).catch((e) => e);
 
     expect(err).toBeInstanceOf(HttpClientTimeoutError);
-    expect(err).toMatchObject({ timeoutMs: 150, url: `${baseUrl}/stall-headers` });
-    expect(err.message).toBe('Request timed out after 150ms');
+    expect(err.url).toBe(`${baseUrl}/stall-headers`);
+    // Armed from `deadline - Date.now()`, so a range: an exact match flakes on a busy runner.
+    expect(err.timeoutMs).toBeGreaterThan(140);
+    expect(err.timeoutMs).toBeLessThanOrEqual(150);
+    expect(err.message).toContain('Request timed out after');
   });
 
   it('aborts a response whose body never finishes', async () => {
