@@ -7,7 +7,7 @@
 # - backend runtime connects through PgBouncer as appproxy
 # - migrations use appproxy
 # - Temporal connects directly as temporal
-# - admin is the only exposed break-glass superuser
+# - admin is the only superuser
 global:
   config:
     dbName: app
