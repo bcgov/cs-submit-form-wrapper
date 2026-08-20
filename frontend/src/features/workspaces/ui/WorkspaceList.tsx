@@ -12,7 +12,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces, setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
@@ -117,13 +117,13 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
       if (!token) return;
 
       if (destination === 'forms') {
-        sessionStorage.setItem('soba.formListWorkspaceId', workspaceId);
+        dispatch(setSelectedWorkspaceId(workspaceId));
         router.push(`/${locale}/forms`);
       } else {
         router.push(`/${locale}/workspace/${workspaceId}`);
       }
     },
-    [token, router, locale],
+    [token, router, locale, dispatch],
   );
 
   const handleAction = useCallback(

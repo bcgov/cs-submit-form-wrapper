@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
@@ -8,6 +8,9 @@ import {
   Form,
   TextField,
   Select,
+  Heading,
+  TagGroup,
+  TagList,
 } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { Modal as CommonModal } from '@/src/components/Modal';
@@ -48,13 +51,19 @@ function FormForm({ formId }: { formId?: string }) {
   const {
     status: workspaceStatus,
     workspaces,
+    writableWorkspaces,
+    selectedWorkspaceId: stateSelectedWorkspaceId,
   } = useAppSelector((state) => state.workspace);
   const { addNotification } = useNotificationStore();
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-  
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
+    stateSelectedWorkspaceId && writableWorkspaces.some((w) => w.id === stateSelectedWorkspaceId)
+      ? stateSelectedWorkspaceId
+      : null,
+  );
+
   let effectiveWorkspaceId = selectedWorkspaceId;
-  if (!formId && !selectedWorkspaceId && workspaces.length === 1) {
-    effectiveWorkspaceId = workspaces[0].id;
+  if (!formId && writableWorkspaces.length === 1) {
+    effectiveWorkspaceId = writableWorkspaces[0].id;
   }
 
   const activeWorkspace = workspaces.find((w) => w.id === effectiveWorkspaceId);
@@ -63,6 +72,7 @@ function FormForm({ formId }: { formId?: string }) {
   const needsDisclaimer = !formId && !!activeWorkspace && !activeWorkspace.disclaimerAccepted;
   const [activeTab, setActiveTab] = useState('designer');
   const [formName, setFormName] = useState('');
+  const [formWorkspaceId, setFormWorkspaceId] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formSchema, setFormSchema] = useState<FormType | null>(null);
   const [currentVersion, setCurrentVersion] = useState<SobaFormVersionType | null>(null);
@@ -77,7 +87,6 @@ function FormForm({ formId }: { formId?: string }) {
   const [isDirty, setIsDirty] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
-
   useEffect(() => {
     if (formId && token) {
       async function loadForm() {
@@ -89,6 +98,7 @@ function FormForm({ formId }: { formId?: string }) {
           ]);
 
           setFormName(form?.name ?? '');
+          setFormWorkspaceId(form?.workspaceId ?? '');
           setFormDesc(form?.description ?? '');
           if (form?.workspaceId) setSelectedWorkspaceId(form.workspaceId);
 
@@ -174,6 +184,13 @@ function FormForm({ formId }: { formId?: string }) {
 
   const isCurrentPublished = currentVersion?.state === 'published';
 
+  const headerText = useMemo(() => {
+    if (formId) {
+      return `${formName || dict.form.createForm || 'Untitled Form'}`;
+    }
+    return dict.form.createForm;
+  }, [formId, formName, dict]);
+
   const createNewVersion = async () => {
     if (isSaving || loading || !token) return;
     if (!formId) return;
@@ -222,7 +239,11 @@ function FormForm({ formId }: { formId?: string }) {
   // CREATE: one-call create (form + empty v1), scoped to the active workspace, then provision.
   const createAndProvisionForm = async (schema: FormType, publish: boolean) => {
     const data: SobaFormType = { name: formName, description: formDesc };
-    const created = await createSobaFormioForm(token as string, data, effectiveWorkspaceId || undefined);
+    const created = await createSobaFormioForm(
+      token as string,
+      data,
+      effectiveWorkspaceId || undefined,
+    );
     const versionId = created.formVersion?.id;
     if (versionId) {
       await saveFormVersionSchema(token as string, versionId, schema);
@@ -276,8 +297,8 @@ function FormForm({ formId }: { formId?: string }) {
   }
 
   // New-form mode requires a workspace to own the form. Once workspaces have loaded and
-  // the user has none, block designer access with a clear prompt instead of a save failure.
-  if (!formId && workspaceStatus === 'succeeded' && workspaces.length === 0) {
+  // the user has none they can create forms in, block designer access with a clear prompt instead of a save failure.
+  if (!formId && workspaceStatus === 'succeeded' && writableWorkspaces.length === 0) {
     return (
       <div className="p-4">
         <InlineAlert variant="info" data-testid="designer-select-workspace">
@@ -324,8 +345,7 @@ function FormForm({ formId }: { formId?: string }) {
 
   const getPublishTitle = (): string => {
     if (isHistoryView) return dict.form.cannotPublishHistory || 'Cannot publish history';
-    if (isCurrentPublished)
-      return dict.form.versionAlreadyPublished || 'Version already published';
+    if (isCurrentPublished) return dict.form.versionAlreadyPublished || 'Version already published';
     if (isDirty) return dict.form.saveChangesBeforePublishing || 'Save changes before publishing';
     return dict.form.publishForm || 'Publish form';
   };
@@ -344,10 +364,10 @@ function FormForm({ formId }: { formId?: string }) {
           isDisabled={isHistoryView || isCurrentPublished}
         />
 
-        {!formId && workspaces.length > 1 && (
+        {!formId && writableWorkspaces.length > 1 && (
           <WorkspaceSelector
             label="Workspace"
-            workspaces={workspaces}
+            workspaces={writableWorkspaces}
             selectedWorkspaceId={effectiveWorkspaceId}
             onChange={(id) => setSelectedWorkspaceId(id as string)}
             size="medium"
@@ -402,11 +422,7 @@ function FormForm({ formId }: { formId?: string }) {
         className={`${styles.floatingActions} shadow-lg p-3 rounded-pill d-flex gap-2 bg-white border`}
       >
         {formId && (
-          <Button
-            variant="secondary"
-            onPress={createNewVersion}
-            isDisabled={isSaving || loading}
-          >
+          <Button variant="secondary" onPress={createNewVersion} isDisabled={isSaving || loading}>
             {getNewVersionLabel()}
           </Button>
         )}
@@ -417,24 +433,19 @@ function FormForm({ formId }: { formId?: string }) {
         >
           {isSaving ? dict.form.saving || 'Saving...' : dict.form.save || 'Save'}
         </Button>
-        <Button variant="tertiary" onPress={() => setShowPreview(true)} isDisabled={isSaving || loading}>
+        <Button
+          variant="tertiary"
+          onPress={() => setShowPreview(true)}
+          isDisabled={isSaving || loading}
+        >
           {dict.form.preview || 'Preview'}
         </Button>
         {formId && (
-          <span
-            className="d-inline-flex"
-            title={getPublishTitle()}
-          >
+          <span className="d-inline-flex" title={getPublishTitle()}>
             <Button
               variant="primary"
               onPress={saveFormPublish}
-              isDisabled={
-                isHistoryView ||
-                isCurrentPublished ||
-                isDirty ||
-                isSaving ||
-                loading
-              }
+              isDisabled={isHistoryView || isCurrentPublished || isDirty || isSaving || loading}
             >
               {dict.form.publish || 'Publish'}
             </Button>
@@ -446,7 +457,22 @@ function FormForm({ formId }: { formId?: string }) {
 
   return (
     <>
-
+      {formId && formWorkspaceId && (
+        <TagGroup>
+          <TagList
+            items={[
+              {
+                color: 'yellow',
+                id: `workspace-tag-${formId}`,
+                textValue: activeWorkspace?.name || formWorkspaceId,
+              },
+            ]}
+          />
+        </TagGroup>
+      )}
+      <Heading level={2} isUnstyled>
+        {headerText}
+      </Heading>
       {isHistoryView && (
         <div className="mb-4">
           <InlineAlert

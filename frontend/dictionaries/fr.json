@@ -28,7 +28,8 @@
     "needWorkspace": "Vous avez besoin d'un espace de travail activé et vous n'avez pas les autorisations pour en créer un. Contactez votre administrateur.",
     "search": "Recherche",
     "loginRequired": "Connexion requise",
-    "reference": "Référence:"
+    "reference": "Référence:",
+    "create": "Créer"
   },
   "dataTable": {
     "emptyMessage": "Aucun élément trouvé.",
@@ -191,7 +192,8 @@
     "formPreview": "Aperçu du formulaire",
     "untitledForm": "Formulaire sans titre",
     "closePreview": "Fermer l'aperçu",
-    "noFormLayout": "Aucune mise en page de formulaire n'a encore été conçue."
+    "noFormLayout": "Aucune mise en page de formulaire n'a encore été conçue.",
+    "createForm": "Créer un Formulaire"
   },
   "submission": {
     "submissions": "Soumissions",

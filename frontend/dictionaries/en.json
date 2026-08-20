@@ -27,7 +27,8 @@
     "needWorkspace": "You require a workspace to be enabled and don't have the permissions to create one. Contact your administrator.",
     "search": "Search",
     "loginRequired": "Login Required",
-    "reference": "Reference:"
+    "reference": "Reference:",
+    "create": "Create"
   },
   "dataTable": {
     "emptyMessage": "No items found.",
@@ -190,7 +191,8 @@
     "formPreview": "Form Preview",
     "untitledForm": "Untitled Form",
     "closePreview": "Close Preview",
-    "noFormLayout": "No form layout designed yet."
+    "noFormLayout": "No form layout designed yet.",
+    "createForm": "Create Form"
   },
   "submission": {
     "submissions": "Submissions",

@@ -133,8 +133,12 @@ export async function fetchRolesMeta(onlyEnabledFeatures = true): Promise<unknow
   return parseJson(response);
 }
 
-export async function fetchWorkspaces(token: string): Promise<WorkspacesResponse> {
-  const response = await sobaFetch('/workspaces', { token });
+export async function fetchWorkspaces(
+  token: string,
+  requiredPermission?: string,
+): Promise<WorkspacesResponse> {
+  const query = requiredPermission ? { requiredPermission } : undefined;
+  const response = await sobaFetch('/workspaces', { token, query });
   return parseJson(response);
 }
 

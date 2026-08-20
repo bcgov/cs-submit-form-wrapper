@@ -32,7 +32,7 @@ export function WorkspaceModal({ canCreateWorkspace }: WorkspaceModalProps) {
         </Button>
       </Heading>
       <div className="mt-3 mx-3">
-        {canCreateWorkspace && <WorkspaceForm />}
+        {canCreateWorkspace && <WorkspaceForm first={true} />}
         {!canCreateWorkspace && <p>{dict.general.needWorkspace}</p>}
       </div>
     </Modal>

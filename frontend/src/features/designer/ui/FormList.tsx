@@ -19,7 +19,8 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
-import { useAppSelector } from '@/lib/store';
+import { useAppSelector, useAppDispatch } from '@/lib/store';
+import { setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { FaFolder, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
@@ -86,28 +87,22 @@ function FormList({
 
   const locale = getLocaleFromPath(pathname);
 
-  const { workspaces } = useAppSelector((state) => state.workspace);
+  const { workspaces, selectedWorkspaceId: stateSelectedWorkspaceId } = useAppSelector(
+    (state) => state.workspace,
+  );
+  const dispatch = useAppDispatch();
 
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem(WORKSPACE_STORAGE_KEY) || null;
-    }
-    return null;
-  });
-
-  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
+  const activeWorkspace = workspaces.find((w) => w.id === stateSelectedWorkspaceId);
   // No accepted workspace disclaimer → block form creation, mirroring the form designer.
   const needsDisclaimer = !!activeWorkspace && !activeWorkspace.disclaimerAccepted;
 
-  const handleWorkspaceChange = useCallback((key: string | number | null) => {
-    const newWs = key ? String(key) : null;
-    setSelectedWorkspaceId(newWs);
-    if (newWs) {
-      sessionStorage.setItem(WORKSPACE_STORAGE_KEY, newWs);
-    } else {
-      sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
-    }
-  }, []);
+  const handleWorkspaceChange = useCallback(
+    (key: string | number | null) => {
+      const newWs = key ? String(key) : null;
+      dispatch(setSelectedWorkspaceId(newWs));
+    },
+    [dispatch],
+  );
 
   // Tracks the workspace whose forms we've already started loading. A ref (not state) dedupes
   // StrictMode's dev double-invoke while still re-fetching when the active workspace changes.
@@ -115,7 +110,7 @@ function FormList({
 
   useEffect(() => {
     if (!authenticated || !token) return;
-    const ws = selectedWorkspaceId || undefined;
+    const ws = stateSelectedWorkspaceId || undefined;
 
     fetchedWorkspaceRef.current = ws;
     void (async () => {
@@ -134,7 +129,7 @@ function FormList({
         if (fetchedWorkspaceRef.current === ws) setLoading(false);
       }
     })();
-  }, [authenticated, token, selectedWorkspaceId]);
+  }, [authenticated, token, stateSelectedWorkspaceId]);
 
   const filteredForms = useMemo(() => {
     if (!searchQuery.trim()) return forms;
@@ -276,23 +271,25 @@ function FormList({
             isDisabled={needsDisclaimer}
             onPress={() => router.push(`/${locale}/designer`)}
           >
-            Create
+            {dict.general.create}
           </DSButton>
         ) : null}
       </ListPageToolbar>
-      <div className={`mb-2 ${styles.workspaceField}`}>
-        <div className="mb-2">{dict.workspaces.workspace}</div>
-        <div>
-          <WorkspaceSelector
-            workspaces={workspaces}
-            selectedWorkspaceId={selectedWorkspaceId}
-            label={dict.header.selectWorkspace}
-            onChange={handleWorkspaceChange}
-            allowAll={true}
-            size="medium"
-          />
+      {workspaces?.length > 1 && (
+        <div className={`mb-2 ${styles.workspaceField}`}>
+          <div className="mb-2">{dict.workspaces.workspace}</div>
+          <div>
+            <WorkspaceSelector
+              workspaces={workspaces}
+              selectedWorkspaceId={stateSelectedWorkspaceId}
+              label={dict.header.selectWorkspace}
+              onChange={handleWorkspaceChange}
+              allowAll={true}
+              size="medium"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {needsDisclaimer ? (
         <InlineAlert
