@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
@@ -70,10 +70,13 @@ function FormForm({ formId }: { formId?: string }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-
+  // Load once per form. `token` is a dep (the load needs one), but a rotation mints a new token for
+  // the same user — reloading on that would blank the builder and drop unsaved edits with isDirty.
+  const loadedFormRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (formId && token) {
+    if (formId && token && loadedFormRef.current !== formId) {
+      loadedFormRef.current = formId;
       async function loadForm() {
         setLoading(true);
         try {

@@ -5,7 +5,6 @@ export function useCurrentUser() {
   const data = useAppSelector((state) => state.currentUser.data);
   const status = useAppSelector((state) => state.currentUser.status);
   const error = useAppSelector((state) => state.currentUser.error);
-  const lastToken = useAppSelector((state) => state.currentUser.lastToken);
 
   const displayName = useMemo(() => {
     return (
@@ -26,6 +25,5 @@ export function useCurrentUser() {
     isLoading: status === 'loading',
     isLoaded: status === 'succeeded',
     hasError: status === 'failed',
-    token: lastToken ?? null,
   };
 }

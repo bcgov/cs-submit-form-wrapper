@@ -10,6 +10,9 @@ import type { RefreshOutcome } from '@/src/shared/auth/tokenRefresh';
 // Keep the Keycloak instance out of Redux state (non-serializable).
 // Store it in a module-level variable instead.
 let kcInstance: Keycloak.KeycloakInstance | null = null;
+// Distinguishes "the session ended" from "not booted yet": both leave kcInstance null, but only the
+// first means a caller's token is dead and must not be sent.
+let sessionEnded = false;
 
 export type KeycloakState = {
   token?: string;
@@ -67,6 +70,7 @@ export const initKeycloak = createAsyncThunk<InitResult, void, { rejectValue: st
 
       // store instance in module-level variable (not in Redux state)
       kcInstance = kc;
+      sessionEnded = false;
 
       if (kc.idTokenParsed) {
         await kc.updateToken(30);
@@ -100,6 +104,7 @@ const slice = createSlice({
     clear(state) {
       // also clear module-level instance
       kcInstance = null;
+      sessionEnded = true;
       state.token = undefined;
       state.idTokenParsed = undefined;
       state.authenticated = false;
@@ -142,6 +147,7 @@ export const login = () => async (dispatch: AppDispatch) => {
         clientId: runtimeConfig.auth.keycloak.clientId,
       });
       kcInstance = kc;
+      sessionEnded = false;
     }
     // prefer a forced login flow
     await kc.init({ onLoad: 'login-required', checkLoginIframe: false, pkceMethod: 'S256' });
@@ -177,6 +183,7 @@ const FORCE_REFRESH = -1;
 const REFRESH_WITHIN_SECONDS = 30;
 
 const UNAVAILABLE: RefreshOutcome = { status: 'unavailable' };
+const NO_SESSION: RefreshOutcome = { status: 'no-session' };
 const held = (kc: Keycloak.KeycloakInstance): RefreshOutcome =>
   kc.token ? { status: 'token', token: kc.token } : UNAVAILABLE;
 
@@ -185,7 +192,7 @@ export const refreshAccessToken =
   (force: boolean) =>
   async (dispatch: AppDispatch): Promise<RefreshOutcome> => {
     const kc: Keycloak.KeycloakInstance | null = kcInstance;
-    if (!kc) return UNAVAILABLE;
+    if (!kc) return sessionEnded ? NO_SESSION : UNAVAILABLE;
     // An anonymous check-sso instance has no refresh token and updateToken would throw. Nothing to
     // refresh and nothing to clear — a public visitor's upload must not tear down the instance.
     if (!kc.refreshToken) return held(kc);
@@ -200,14 +207,14 @@ export const refreshAccessToken =
         dispatch(setIdTokenParsed(kc.idTokenParsed as Keycloak.KeycloakTokenParsed | undefined));
         dispatch(setAuthenticated(!!kc.authenticated));
       }
-      return kc.token ? { status: 'token', token: kc.token } : { status: 'no-session' };
+      return kc.token ? { status: 'token', token: kc.token } : NO_SESSION;
     } catch {
       if (kcInstance !== kc) return UNAVAILABLE;
       // keycloak-js drops its own token only when the refresh token is rejected, so that is the
       // verdict to read. Anything else is a blip: the instance keeps its token and so do we.
       if (!kc.token || !kc.authenticated) {
         dispatch(clear());
-        return { status: 'no-session' };
+        return NO_SESSION;
       }
       return { status: 'token', token: kc.token };
     }

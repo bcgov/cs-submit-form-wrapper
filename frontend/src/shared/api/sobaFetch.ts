@@ -113,6 +113,9 @@ export async function sobaFetch(path: string, options: SobaFetchOptions = {}): P
   // Refresh and replay once; a second 401 is a real answer and goes back to the caller.
   if (response.status === 401 && token) {
     const outcome = await forceRefreshToken();
+    // Same rule as the pre-flight path: an affirmative no-session is reported as one rather than
+    // handed back as a bare 401 the caller would render as "not found" or "failed to load".
+    if (outcome.status === 'no-session') throw new SessionExpiredError();
     if (outcome.status === 'token' && outcome.token !== token) {
       response = await send(url, options, outcome.token, body);
     }

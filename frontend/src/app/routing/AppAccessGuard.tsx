@@ -54,7 +54,9 @@ export function AppAccessGuard({
     dispatch(clearWorkspaceState());
   }, [refresh, dispatch]);
 
-  if (session.sessionFailed && !redirectTarget) {
+  // Same rule as the spinner below: once bootstrapped, a failed background reload must not replace
+  // the route either — the retry lives on the next full load.
+  if (session.sessionFailed && !session.sessionLoadedOnce && !redirectTarget) {
     return (
       <div className="mt-4" role="alert">
         <InlineAlert variant="danger">{dict.general.sessionError}</InlineAlert>

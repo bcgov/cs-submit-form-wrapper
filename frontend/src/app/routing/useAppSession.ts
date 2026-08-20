@@ -17,9 +17,11 @@ export function useAppSession(): AppSessionSnapshot {
     status: workspaceStatus,
     loadedOnce: workspacesLoadedOnce,
   } = useAppSelector((state) => state.workspace);
-  const { data: currentUser, status: currentUserStatus } = useAppSelector(
-    (state) => state.currentUser,
-  );
+  const {
+    data: currentUser,
+    status: currentUserStatus,
+    loadedOnce: currentUserLoadedOnce,
+  } = useAppSelector((state) => state.currentUser);
 
   useEffect(() => {
     if (authenticated && token && workspaceStatus === 'idle') {
@@ -58,7 +60,7 @@ export function useAppSession(): AppSessionSnapshot {
       sessionReady,
       // Both slices keep their data through a refetch, so this stays true while a background
       // reload runs — the guard uses it to avoid unmounting the route.
-      sessionLoadedOnce: workspacesLoadedOnce && currentUser !== null,
+      sessionLoadedOnce: workspacesLoadedOnce && currentUserLoadedOnce,
       sessionFailed,
       needsOnboarding,
       canCreateWorkspace: currentUser?.capabilities?.canCreateWorkspace === true,
@@ -70,6 +72,7 @@ export function useAppSession(): AppSessionSnapshot {
     workspaceStatus,
     workspacesLoadedOnce,
     currentUserStatus,
+    currentUserLoadedOnce,
     workspaces,
     currentUser,
   ]);

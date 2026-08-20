@@ -108,6 +108,23 @@ describe('refreshAccessToken', () => {
     expect(store.getState().keycloak.authenticated).toBe(false);
   });
 
+  // After clear() the instance is gone. That must read as "session over", not "no verdict" — the
+  // latter makes sobaFetch send the caller's dead token, which the submit surface takes as anonymous.
+  it('reports no-session once the session has been cleared', async () => {
+    const store = await storeWithSession();
+    kc.updateToken.mockImplementation(async () => {
+      kc.token = undefined;
+      kc.authenticated = false;
+      throw new Error('rejected');
+    });
+    await store.dispatch(refreshAccessToken(true));
+
+    // A later caller still holding a token from before the clear.
+    const outcome = await store.dispatch(refreshAccessToken(false));
+
+    expect(outcome).toEqual({ status: 'no-session' });
+  });
+
   it('does not touch an anonymous instance that has no refresh token', async () => {
     kc.token = undefined;
     kc.refreshToken = undefined;

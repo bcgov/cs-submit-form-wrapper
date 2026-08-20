@@ -22,6 +22,7 @@ const h = vi.hoisted(() => ({
     currentUser: {
       data: null as Record<string, unknown> | null,
       status: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
+      loadedOnce: false,
     },
   },
 }));
@@ -78,7 +79,7 @@ describe('AppAccessGuard', () => {
       activeWorkspaceId: null,
       error: null,
     };
-    h.state.currentUser = { data: null, status: 'idle' };
+    h.state.currentUser = { data: null, status: 'idle', loadedOnce: false };
   });
 
   it('shows the spinner (not the error) while bootstrap loads are pending', async () => {
@@ -134,6 +135,7 @@ describe('AppAccessGuard', () => {
     h.state.currentUser = {
       data: { capabilities: { canCreateWorkspace: true } },
       status: 'succeeded',
+      loadedOnce: true,
     };
 
     await act(async () => {
@@ -157,6 +159,7 @@ describe('AppAccessGuard', () => {
     h.state.currentUser = {
       data: { capabilities: { canCreateWorkspace: true } },
       status: 'succeeded',
+      loadedOnce: true,
     };
 
     const view = await act(async () => {
@@ -174,7 +177,7 @@ describe('AppAccessGuard', () => {
     expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
   });
 
-  it('still shows the error when a load fails after bootstrap', async () => {
+  it('keeps children mounted when a background load FAILS after bootstrap', async () => {
     h.state.workspace = {
       workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
       status: 'succeeded',
@@ -185,18 +188,22 @@ describe('AppAccessGuard', () => {
     h.state.currentUser = {
       data: { capabilities: { canCreateWorkspace: true } },
       status: 'succeeded',
+      loadedOnce: true,
     };
 
     const view = await act(async () => {
       return render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
     });
 
+    // loadCurrentUser.rejected nulls `data` but leaves loadedOnce true — that is what keeps the
+    // route mounted rather than swapping it for the retry alert.
     h.state.currentUser.status = 'failed';
+    h.state.currentUser.data = null;
     await act(async () => {
       view.rerender(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
     });
 
-    expect(screen.getByTestId('session-error-retry')).toBeInTheDocument();
-    expect(screen.queryByText('visible child')).not.toBeInTheDocument();
+    expect(screen.getByText('visible child')).toBeInTheDocument();
+    expect(screen.queryByTestId('session-error-retry')).not.toBeInTheDocument();
   });
 });
