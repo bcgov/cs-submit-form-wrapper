@@ -17,6 +17,7 @@ export function useAppSession(): AppSessionSnapshot {
     status: workspaceStatus,
     writableStatus,
     loadedOnce: workspacesLoadedOnce,
+    writableLoadedOnce,
   } = useAppSelector((state) => state.workspace);
   const {
     data: currentUser,
@@ -63,8 +64,9 @@ export function useAppSession(): AppSessionSnapshot {
       initializing,
       sessionReady,
       // Both slices keep their data through a refetch, so this stays true while a background
-      // reload runs — the guard uses it to avoid unmounting the route.
-      sessionLoadedOnce: workspacesLoadedOnce && currentUserLoadedOnce,
+      // reload runs — the guard uses it to avoid unmounting the route. Every load that can set
+      // sessionFailed has to be counted here, or its failure is silently swallowed.
+      sessionLoadedOnce: workspacesLoadedOnce && writableLoadedOnce && currentUserLoadedOnce,
       sessionFailed,
       needsOnboarding,
       canCreateWorkspace: currentUser?.capabilities?.canCreateWorkspace === true,
@@ -75,6 +77,7 @@ export function useAppSession(): AppSessionSnapshot {
     initializing,
     workspaceStatus,
     workspacesLoadedOnce,
+    writableLoadedOnce,
     writableStatus,
     currentUserStatus,
     currentUserLoadedOnce,

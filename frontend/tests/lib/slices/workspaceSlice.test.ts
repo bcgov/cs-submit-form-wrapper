@@ -25,6 +25,7 @@ const baseState: WorkspaceState = {
   status: 'idle',
   writableStatus: 'idle',
   loadedOnce: false,
+  writableLoadedOnce: false,
   error: null,
   canceledDefaultModal: false,
   selectedWorkspaceId: null,

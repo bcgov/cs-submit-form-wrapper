@@ -8,6 +8,8 @@ export interface WorkspaceState {
   writableStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   /** Stays true across a refetch, so a background reload is distinguishable from first load. */
   loadedOnce: boolean;
+  /** Same, for the writable list — a failure here counts as a failed session, so it must gate too. */
+  writableLoadedOnce: boolean;
   error: string | null;
   canceledDefaultModal: boolean;
   selectedWorkspaceId: string | null;
@@ -19,6 +21,7 @@ const initialState: WorkspaceState = {
   status: 'idle',
   writableStatus: 'idle',
   loadedOnce: false,
+  writableLoadedOnce: false,
   error: null,
   canceledDefaultModal: false,
   selectedWorkspaceId: null,
@@ -62,6 +65,7 @@ const workspaceSlice = createSlice({
       state.status = 'idle';
       state.writableStatus = 'idle';
       state.loadedOnce = false;
+      state.writableLoadedOnce = false;
       state.error = null;
       state.selectedWorkspaceId = null;
     },
@@ -92,6 +96,7 @@ const workspaceSlice = createSlice({
       })
       .addCase(loadWritableWorkspaces.fulfilled, (state, action) => {
         state.writableStatus = 'succeeded';
+        state.writableLoadedOnce = true;
         state.writableWorkspaces = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(loadWritableWorkspaces.rejected, (state, action) => {

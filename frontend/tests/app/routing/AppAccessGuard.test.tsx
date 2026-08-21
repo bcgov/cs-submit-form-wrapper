@@ -15,7 +15,9 @@ const h = vi.hoisted(() => ({
     workspace: {
       workspaces: [] as Array<Record<string, unknown>>,
       status: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
+      writableStatus: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
       loadedOnce: false,
+      writableLoadedOnce: false,
       activeWorkspaceId: null as string | null,
       error: null as string | null,
     },
@@ -75,7 +77,9 @@ describe('AppAccessGuard', () => {
     h.state.workspace = {
       workspaces: [],
       status: 'idle',
+      writableStatus: 'idle',
       loadedOnce: false,
+      writableLoadedOnce: false,
       activeWorkspaceId: null,
       error: null,
     };
@@ -128,7 +132,9 @@ describe('AppAccessGuard', () => {
     h.state.workspace = {
       workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
       status: 'succeeded',
+      writableStatus: 'succeeded',
       loadedOnce: true,
+      writableLoadedOnce: true,
       activeWorkspaceId: 'ws1',
       error: null,
     };
@@ -147,12 +153,40 @@ describe('AppAccessGuard', () => {
     expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
   });
 
+  // Every load that can set sessionFailed must also gate sessionLoadedOnce, or its failure is
+  // swallowed and the app renders degraded with no retry.
+  it('shows the error when only the writable-workspaces bootstrap fails', async () => {
+    h.state.workspace = {
+      workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
+      status: 'succeeded',
+      writableStatus: 'failed',
+      loadedOnce: true,
+      writableLoadedOnce: false,
+      activeWorkspaceId: 'ws1',
+      error: null,
+    };
+    h.state.currentUser = {
+      data: { capabilities: { canCreateWorkspace: true } },
+      status: 'succeeded',
+      loadedOnce: true,
+    };
+
+    await act(async () => {
+      render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
+    });
+
+    expect(screen.getByTestId('session-error-retry')).toBeInTheDocument();
+    expect(screen.queryByText('visible child')).not.toBeInTheDocument();
+  });
+
   // Swapping children for the spinner unmounts the route: a form being filled loses its answers.
   it('keeps children mounted when a background load runs after bootstrap', async () => {
     h.state.workspace = {
       workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
       status: 'succeeded',
+      writableStatus: 'succeeded',
       loadedOnce: true,
+      writableLoadedOnce: true,
       activeWorkspaceId: 'ws1',
       error: null,
     };
@@ -181,7 +215,9 @@ describe('AppAccessGuard', () => {
     h.state.workspace = {
       workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
       status: 'succeeded',
+      writableStatus: 'succeeded',
       loadedOnce: true,
+      writableLoadedOnce: true,
       activeWorkspaceId: 'ws1',
       error: null,
     };
