@@ -55,21 +55,25 @@ function FormForm({ formId }: { formId?: string }) {
     selectedWorkspaceId: stateSelectedWorkspaceId,
   } = useAppSelector((state) => state.workspace);
   const { addNotification } = useNotificationStore();
+  // A new form can only go to a workspace the user can create in whose disclaimer is accepted
+  // (the backend rejects the rest), so those are the only ones ever offered.
+  const creatableWorkspaces = useMemo(
+    () => writableWorkspaces.filter((w) => w.disclaimerAccepted),
+    [writableWorkspaces],
+  );
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
-    stateSelectedWorkspaceId && writableWorkspaces.some((w) => w.id === stateSelectedWorkspaceId)
+    stateSelectedWorkspaceId && creatableWorkspaces.some((w) => w.id === stateSelectedWorkspaceId)
       ? stateSelectedWorkspaceId
       : null,
   );
 
   let effectiveWorkspaceId = selectedWorkspaceId;
-  if (!formId && writableWorkspaces.length === 1) {
-    effectiveWorkspaceId = writableWorkspaces[0].id;
+  if (!formId && creatableWorkspaces.length === 1) {
+    effectiveWorkspaceId = creatableWorkspaces[0].id;
   }
 
   const activeWorkspace = workspaces.find((w) => w.id === effectiveWorkspaceId);
   const canManageWorkspace = !!activeWorkspace && isWorkspaceManageRole(activeWorkspace.role);
-  // A new form can't be created until the workspace disclaimer is accepted (backend gate).
-  const needsDisclaimer = !formId && !!activeWorkspace && !activeWorkspace.disclaimerAccepted;
   const [activeTab, setActiveTab] = useState('designer');
   const [formName, setFormName] = useState('');
   const [formWorkspaceId, setFormWorkspaceId] = useState('');
@@ -296,13 +300,25 @@ function FormForm({ formId }: { formId?: string }) {
     return <div className="p-5 text-center">{dict.general.notAuthenticated}</div>;
   }
 
-  // New-form mode requires a workspace to own the form. Once workspaces have loaded and
-  // the user has none they can create forms in, block designer access with a clear prompt instead of a save failure.
-  if (!formId && workspaceStatus === 'succeeded' && writableWorkspaces.length === 0) {
+  // New-form mode requires a workspace to own the form. Once workspaces have loaded and none
+  // qualifies, block designer access with a clear prompt instead of a save failure. Having the
+  // permission but no accepted disclaimer is actionable, so it gets its own message.
+  if (!formId && workspaceStatus === 'succeeded' && creatableWorkspaces.length === 0) {
+    const blocked = writableWorkspaces.length
+      ? {
+          variant: 'warning' as const,
+          testId: 'disclaimer-required-alert',
+          text: dict.form.disclaimerRequired,
+        }
+      : {
+          variant: 'info' as const,
+          testId: 'designer-select-workspace',
+          text: dict.form.noActiveWorkspace,
+        };
     return (
       <div className="p-4">
-        <InlineAlert variant="info" data-testid="designer-select-workspace">
-          {dict.form.noActiveWorkspace}
+        <InlineAlert variant={blocked.variant} data-testid={blocked.testId}>
+          {blocked.text}
         </InlineAlert>
       </div>
     );
@@ -364,10 +380,10 @@ function FormForm({ formId }: { formId?: string }) {
           isDisabled={isHistoryView || isCurrentPublished}
         />
 
-        {!formId && writableWorkspaces.length > 1 && (
+        {!formId && creatableWorkspaces.length > 1 && (
           <WorkspaceSelector
             label="Workspace"
-            workspaces={writableWorkspaces}
+            workspaces={creatableWorkspaces}
             selectedWorkspaceId={effectiveWorkspaceId}
             onChange={(id) => setSelectedWorkspaceId(id as string)}
             size="medium"
@@ -399,17 +415,6 @@ function FormForm({ formId }: { formId?: string }) {
           token={token ?? undefined}
           canManage={canManageWorkspace}
         />
-
-        {needsDisclaimer && (
-          <InlineAlert
-            variant="warning"
-            title={
-              dict.form.disclaimerRequired ||
-              'Accept the workspace disclaimer in workspace Settings before creating a form.'
-            }
-            data-testid="disclaimer-required-alert"
-          />
-        )}
       </Form>
 
       {/* Form Builder */}
@@ -429,7 +434,7 @@ function FormForm({ formId }: { formId?: string }) {
         <Button
           variant="primary"
           onPress={saveFormDraft}
-          isDisabled={isHistoryView || isCurrentPublished || isSaving || loading || needsDisclaimer}
+          isDisabled={isHistoryView || isCurrentPublished || isSaving || loading}
         >
           {isSaving ? dict.form.saving || 'Saving...' : dict.form.save || 'Save'}
         </Button>

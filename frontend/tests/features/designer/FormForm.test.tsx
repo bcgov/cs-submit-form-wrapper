@@ -24,13 +24,15 @@ vi.mock('@/app/[lang]/Providers', () => ({
   }),
 }));
 
+type Workspace = { id: string; disclaimerAccepted: boolean };
+
 const { mockDispatch, mockWorkspaceState } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
   mockWorkspaceState: {
     selectedWorkspaceId: 'ws1' as string | null,
     status: 'succeeded' as string,
-    workspaces: [{ id: 'ws1' }] as { id: string }[],
-    writableWorkspaces: [{ id: 'ws1' }] as { id: string }[],
+    workspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
+    writableWorkspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
   },
 }));
 vi.mock('@/lib/store', () => ({
@@ -67,8 +69,8 @@ describe('FormForm', () => {
     vi.clearAllMocks();
     mockWorkspaceState.selectedWorkspaceId = 'ws1';
     mockWorkspaceState.status = 'succeeded';
-    mockWorkspaceState.workspaces = [{ id: 'ws1' }];
-    mockWorkspaceState.writableWorkspaces = [{ id: 'ws1' }];
+    mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: true }];
+    mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: true }];
   });
 
   it('renders designer tab content when authenticated and not initializing', async () => {
@@ -83,6 +85,16 @@ describe('FormForm', () => {
     mockWorkspaceState.writableWorkspaces = [];
     render(<FormForm />);
     expect(screen.getByTestId('designer-select-workspace')).toBeInTheDocument();
+    expect(screen.queryByTestId('form-designer')).not.toBeInTheDocument();
+  });
+
+  // Create permission without an accepted disclaimer is actionable, so it gets its own message.
+  it('blocks new-form designer access when no workspace has an accepted disclaimer', async () => {
+    mockWorkspaceState.selectedWorkspaceId = null;
+    mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: false }];
+    mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: false }];
+    render(<FormForm />);
+    expect(screen.getByTestId('disclaimer-required-alert')).toBeInTheDocument();
     expect(screen.queryByTestId('form-designer')).not.toBeInTheDocument();
   });
 });

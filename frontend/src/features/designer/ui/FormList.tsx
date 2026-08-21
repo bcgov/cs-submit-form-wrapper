@@ -85,14 +85,21 @@ function FormList({
 
   const locale = getLocaleFromPath(pathname);
 
-  const { workspaces, selectedWorkspaceId: stateSelectedWorkspaceId } = useAppSelector(
-    (state) => state.workspace,
-  );
+  const {
+    workspaces,
+    writableWorkspaces,
+    selectedWorkspaceId: stateSelectedWorkspaceId,
+  } = useAppSelector((state) => state.workspace);
   const dispatch = useAppDispatch();
 
-  const activeWorkspace = workspaces.find((w) => w.id === stateSelectedWorkspaceId);
-  // No accepted workspace disclaimer → block form creation, mirroring the form designer.
-  const needsDisclaimer = !!activeWorkspace && !activeWorkspace.disclaimerAccepted;
+  // The picker filters this list only; a new form is targeted in the designer. So creation
+  // depends on having any workspace the user can create in with its disclaimer accepted.
+  const canCreate = useMemo(
+    () => writableWorkspaces.some((w) => w.disclaimerAccepted),
+    [writableWorkspaces],
+  );
+  // Create permission somewhere but no disclaimer accepted yet — the case worth prompting on.
+  const needsDisclaimer = writableWorkspaces.length > 0 && !canCreate;
 
   const handleWorkspaceChange = useCallback(
     (key: string | number | null) => {
@@ -266,7 +273,7 @@ function FormList({
           <DSButton
             variant="primary"
             data-testid="create-form-button"
-            isDisabled={needsDisclaimer}
+            isDisabled={!canCreate}
             onPress={() => router.push(`/${locale}/designer`)}
           >
             {dict.general.create}

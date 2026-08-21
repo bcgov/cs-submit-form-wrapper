@@ -77,8 +77,12 @@ vi.mock('@/src/shared/api/sobaApi', () => ({
 
 const { mockWorkspaceState } = vi.hoisted(() => ({
   mockWorkspaceState: {
-    activeWorkspaceId: 'ws1' as string | null,
+    selectedWorkspaceId: null as string | null,
     workspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Array<{
+      id: string;
+      disclaimerAccepted: boolean;
+    }>,
+    writableWorkspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Array<{
       id: string;
       disclaimerAccepted: boolean;
     }>,
@@ -95,8 +99,66 @@ import FormList from '@/src/features/designer/ui/FormList';
 describe('FormList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockWorkspaceState.activeWorkspaceId = 'ws1';
+    mockWorkspaceState.selectedWorkspaceId = null;
     mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: true }];
+    mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: true }];
+  });
+
+  // The sole workspace is never "selected" (the picker only renders for two or more), so the
+  // gate has to read the workspaces a form could actually be created in.
+  it('warns and disables Create when the only workspace has no accepted disclaimer', async () => {
+    mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: false }];
+    mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: false }];
+    await act(async () => {
+      render(<FormList />);
+    });
+    expect(screen.getByTestId('forms-disclaimer-required-alert')).toBeInTheDocument();
+    expect(screen.getByTestId('create-form-button')).toBeDisabled();
+  });
+
+  it('allows Create while showing all workspaces when one of them is accepted', async () => {
+    mockWorkspaceState.workspaces = [
+      { id: 'ws1', disclaimerAccepted: false },
+      { id: 'ws2', disclaimerAccepted: true },
+    ];
+    mockWorkspaceState.writableWorkspaces = [
+      { id: 'ws1', disclaimerAccepted: false },
+      { id: 'ws2', disclaimerAccepted: true },
+    ];
+    await act(async () => {
+      render(<FormList />);
+    });
+    expect(screen.queryByTestId('forms-disclaimer-required-alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('create-form-button')).not.toBeDisabled();
+  });
+
+  // The picker scopes the list, not the new form's workspace, so it must not gate Create.
+  it('keeps Create enabled when the selected workspace is unaccepted but another is not', async () => {
+    mockWorkspaceState.selectedWorkspaceId = 'ws1';
+    mockWorkspaceState.workspaces = [
+      { id: 'ws1', disclaimerAccepted: false },
+      { id: 'ws2', disclaimerAccepted: true },
+    ];
+    mockWorkspaceState.writableWorkspaces = [
+      { id: 'ws1', disclaimerAccepted: false },
+      { id: 'ws2', disclaimerAccepted: true },
+    ];
+    await act(async () => {
+      render(<FormList />);
+    });
+    expect(screen.queryByTestId('forms-disclaimer-required-alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('create-form-button')).not.toBeDisabled();
+  });
+
+  // Read-only membership is not a creation target, so it must not enable Create either.
+  it('disables Create when the user has no workspace they can create in', async () => {
+    mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: true }];
+    mockWorkspaceState.writableWorkspaces = [];
+    await act(async () => {
+      render(<FormList />);
+    });
+    expect(screen.queryByTestId('forms-disclaimer-required-alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('create-form-button')).toBeDisabled();
   });
 
   it('renders the header and search input', async () => {
