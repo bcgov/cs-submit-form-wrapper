@@ -18,10 +18,6 @@ crunchy:
   instances:
     name: db
     replicas: 1
-    metadata:
-      annotations:
-        prometheus.io/scrape: 'true'
-        prometheus.io/port: '9187'
     dataVolumeClaimSpec:
       # NOTE: PVCs can only grow, never shrink. The live pg-soba cluster (shared by dev +
       # all PR envs in this namespace) was provisioned at 5Gi pgdata / 512Mi wal, so any
@@ -66,11 +62,7 @@ crunchy:
         memory: 32Mi
       maxConnections: 10
   pgmonitor:
-    enabled: true
-    exporter:
-      requests:
-        cpu: 10m
-        memory: 32Mi
+    enabled: false
   users:
     - name: '{{ .Values.global.config.dbName }}'
       databases:
