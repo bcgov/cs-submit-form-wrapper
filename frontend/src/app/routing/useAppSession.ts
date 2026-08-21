@@ -41,9 +41,11 @@ export function useAppSession(): AppSessionSnapshot {
   }, [authenticated, token, currentUserStatus, dispatch]);
 
   return useMemo(() => {
+    // The same three loads throughout: one that can fail the session has to be waited for too.
     const sessionReady = authenticated
       ? !initializing &&
         workspaceStatus === 'succeeded' &&
+        writableStatus === 'succeeded' &&
         currentUserStatus === 'succeeded'
       : !initializing;
 
@@ -63,9 +65,8 @@ export function useAppSession(): AppSessionSnapshot {
       authenticated,
       initializing,
       sessionReady,
-      // Both slices keep their data through a refetch, so this stays true while a background
-      // reload runs — the guard uses it to avoid unmounting the route. Every load that can set
-      // sessionFailed has to be counted here, or its failure is silently swallowed.
+      // Data survives a refetch, so this stays true through a background reload; the guard uses it
+      // to avoid unmounting the route. Miss a load here and its failure never reaches the user.
       sessionLoadedOnce: workspacesLoadedOnce && writableLoadedOnce && currentUserLoadedOnce,
       sessionFailed,
       needsOnboarding,

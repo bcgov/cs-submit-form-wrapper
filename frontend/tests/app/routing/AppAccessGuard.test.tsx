@@ -153,6 +153,30 @@ describe('AppAccessGuard', () => {
     expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
   });
 
+  it('waits for the writable-workspaces load before rendering children', async () => {
+    h.state.workspace = {
+      workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
+      status: 'succeeded',
+      writableStatus: 'loading',
+      loadedOnce: true,
+      writableLoadedOnce: false,
+      activeWorkspaceId: 'ws1',
+      error: null,
+    };
+    h.state.currentUser = {
+      data: { capabilities: { canCreateWorkspace: true } },
+      status: 'succeeded',
+      loadedOnce: true,
+    };
+
+    await act(async () => {
+      render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
+    });
+
+    expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
+    expect(screen.queryByText('visible child')).not.toBeInTheDocument();
+  });
+
   // Every load that can set sessionFailed must also gate sessionLoadedOnce, or its failure is
   // swallowed and the app renders degraded with no retry.
   it('shows the error when only the writable-workspaces bootstrap fails', async () => {
