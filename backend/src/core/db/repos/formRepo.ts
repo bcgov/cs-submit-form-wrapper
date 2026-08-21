@@ -66,10 +66,11 @@ interface UpdateFormInput {
 export const listFormsForWorkspace = async (
   input: ListFormsForWorkspaceInput,
 ): Promise<{ items: FormListRow[]; hasMore: boolean }> => {
-  const whereClauses = [isNull(forms.deletedAt)];
-  if (input.workspaceIds.length > 0) {
-    whereClauses.push(inArray(forms.workspaceId, input.workspaceIds));
+  // An empty scope means the actor holds the permission in no workspace, never "all workspaces".
+  if (input.workspaceIds.length === 0) {
+    return { items: [], hasMore: false };
   }
+  const whereClauses = [inArray(forms.workspaceId, input.workspaceIds), isNull(forms.deletedAt)];
 
   if (input.status) {
     whereClauses.push(eq(forms.status, input.status));

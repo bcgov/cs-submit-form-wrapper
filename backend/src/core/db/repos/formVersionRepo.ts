@@ -130,10 +130,14 @@ export const getFormVersionById = async (workspaceId: string, formVersionId: str
 export const listFormVersionsForWorkspace = async (
   input: ListFormVersionsInput,
 ): Promise<{ items: FormVersionListRow[]; hasMore: boolean }> => {
-  const whereClauses = [isNull(formVersions.deletedAt)];
-  if (input.workspaceIds.length > 0) {
-    whereClauses.push(inArray(formVersions.workspaceId, input.workspaceIds));
+  // An empty scope means the actor holds the permission in no workspace, never "all workspaces".
+  if (input.workspaceIds.length === 0) {
+    return { items: [], hasMore: false };
   }
+  const whereClauses = [
+    inArray(formVersions.workspaceId, input.workspaceIds),
+    isNull(formVersions.deletedAt),
+  ];
 
   if (input.formId) {
     whereClauses.push(eq(formVersions.formId, input.formId));
