@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or, sql, inArray } from 'drizzle-orm';
+import { and, desc, eq, exists, lt, or, sql, inArray } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { db } from '../client';
 import {
@@ -17,7 +17,13 @@ import { membershipKey } from '../../integrations/cache/cacheKeys';
 import { profileHelpers } from '../../auth/jwtClaims';
 import { ForbiddenError } from '../../errors';
 import type { NormalizedProfile, IdpAttributes } from '../../auth/jwtClaims';
-import { WorkspaceMembershipRole } from '../codes';
+import {
+  GroupMemberKind,
+  Permissions,
+  WorkspaceGroupMembershipStatus,
+  WorkspaceGroupRoleStatus,
+  WorkspaceMembershipRole,
+} from '../codes';
 
 /** Second int for `pg_advisory_xact_lock`; must not collide with workspaceRepo / sobaAdminRepo lock ids. */
 const ADV_LOCK_FIND_OR_CREATE_IDENTITY = 2_147_483_622;
@@ -235,11 +241,11 @@ export const listWorkspacesForUser = async (
     );
   }
   if (input.requiredPermission) {
+    // Correlated to the actor's own membership row above, not just any member of the workspace.
     whereClauses.push(
-      inArray(
-        workspaces.id,
+      exists(
         db
-          .select({ workspaceId: workspaceGroupMemberships.workspaceId })
+          .select({ permissionCode: rolePermissions.permissionCode })
           .from(workspaceGroupMemberships)
           .innerJoin(
             workspaceGroupRoles,
@@ -248,13 +254,12 @@ export const listWorkspacesForUser = async (
           .innerJoin(rolePermissions, eq(rolePermissions.roleCode, workspaceGroupRoles.roleCode))
           .where(
             and(
-              eq(workspaceGroupMemberships.memberKind, 'user'),
-              eq(workspaceGroupMemberships.status, 'active'),
-              eq(workspaceGroupRoles.status, 'active'),
-              or(
-                eq(rolePermissions.permissionCode, input.requiredPermission),
-                eq(rolePermissions.permissionCode, '*'),
-              ),
+              eq(workspaceGroupMemberships.workspaceMembershipId, workspaceMemberships.id),
+              eq(workspaceGroupMemberships.workspaceId, workspaceMemberships.workspaceId),
+              eq(workspaceGroupMemberships.memberKind, GroupMemberKind.user),
+              eq(workspaceGroupMemberships.status, WorkspaceGroupMembershipStatus.active),
+              eq(workspaceGroupRoles.status, WorkspaceGroupRoleStatus.active),
+              inArray(rolePermissions.permissionCode, [input.requiredPermission, Permissions.all]),
             ),
           ),
       ),
