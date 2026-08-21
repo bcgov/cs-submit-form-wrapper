@@ -48,12 +48,9 @@ function FormForm({ formId }: { formId?: string }) {
   const lang = params.lang as string;
 
   const { authenticated, token, initializing } = useKeycloak();
-  const {
-    status: workspaceStatus,
-    workspaces,
-    writableWorkspaces,
-    selectedWorkspaceId: stateSelectedWorkspaceId,
-  } = useAppSelector((state) => state.workspace);
+  const { status: workspaceStatus, workspaces, writableWorkspaces } = useAppSelector(
+    (state) => state.workspace,
+  );
   const { addNotification } = useNotificationStore();
   // A new form can only go to a workspace the user can create in whose disclaimer is accepted
   // (the backend rejects the rest), so those are the only ones ever offered.
@@ -61,18 +58,11 @@ function FormForm({ formId }: { formId?: string }) {
     () => writableWorkspaces.filter((w) => w.disclaimerAccepted),
     [writableWorkspaces],
   );
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
-    stateSelectedWorkspaceId && creatableWorkspaces.some((w) => w.id === stateSelectedWorkspaceId)
-      ? stateSelectedWorkspaceId
-      : null,
-  );
+  // Not seeded from the forms-list filter: that scopes what you are looking at, not where a
+  // new form belongs. Edit mode sets this from the loaded form below.
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
 
-  let effectiveWorkspaceId = selectedWorkspaceId;
-  if (!formId && creatableWorkspaces.length === 1) {
-    effectiveWorkspaceId = creatableWorkspaces[0].id;
-  }
-
-  const activeWorkspace = workspaces.find((w) => w.id === effectiveWorkspaceId);
+  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
   const canManageWorkspace = !!activeWorkspace && isWorkspaceManageRole(activeWorkspace.role);
   const [activeTab, setActiveTab] = useState('designer');
   const [formName, setFormName] = useState('');
@@ -246,7 +236,7 @@ function FormForm({ formId }: { formId?: string }) {
     const created = await createSobaFormioForm(
       token as string,
       data,
-      effectiveWorkspaceId || undefined,
+      selectedWorkspaceId || undefined,
     );
     const versionId = created.formVersion?.id;
     if (versionId) {
@@ -260,9 +250,9 @@ function FormForm({ formId }: { formId?: string }) {
 
   const saveForm = async (publish: boolean = false) => {
     if (isSaving || loading) return;
-    // Creating a form is workspace-scoped: without an selected workspace the backend
+    // Creating a form is workspace-scoped: without a selected workspace the backend
     // rejects the request with a generic error, so surface a clear message instead.
-    if (!formId && !effectiveWorkspaceId) {
+    if (!formId && !selectedWorkspaceId) {
       addNotification({ text: dict.form.noActiveWorkspaceError, type: 'error' });
       return;
     }
@@ -380,11 +370,11 @@ function FormForm({ formId }: { formId?: string }) {
           isDisabled={isHistoryView || isCurrentPublished}
         />
 
-        {!formId && creatableWorkspaces.length > 1 && (
+        {!formId && creatableWorkspaces.length > 0 && (
           <WorkspaceSelector
-            label="Workspace"
+            label={dict.workspaces.workspace}
             workspaces={creatableWorkspaces}
-            selectedWorkspaceId={effectiveWorkspaceId}
+            selectedWorkspaceId={selectedWorkspaceId}
             onChange={(id) => setSelectedWorkspaceId(id as string)}
             size="medium"
           />
@@ -410,8 +400,8 @@ function FormForm({ formId }: { formId?: string }) {
         )}
 
         <FormSubmitterAudience
-          key={effectiveWorkspaceId ?? 'none'}
-          workspaceId={effectiveWorkspaceId}
+          key={selectedWorkspaceId ?? 'none'}
+          workspaceId={selectedWorkspaceId}
           token={token ?? undefined}
           canManage={canManageWorkspace}
         />

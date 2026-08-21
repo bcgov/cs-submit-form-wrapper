@@ -117,6 +117,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
       if (!token) return;
 
       if (destination === 'forms') {
+        // Opening a workspace's forms is an explicit scope choice, so it seeds the list filter.
         dispatch(setSelectedWorkspaceId(workspaceId));
         router.push(`/${locale}/forms`);
       } else {

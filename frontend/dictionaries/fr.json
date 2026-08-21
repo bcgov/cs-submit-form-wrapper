@@ -19,8 +19,6 @@
     "sessionError": "Nous n'avons pas pu charger votre session. Veuillez réessayer.",
     "tryAgain": "Réessayer",
     "comingSoon": "Cette fonctionnalité sera bientôt disponible.",
-    "selectWorkspace": "Sélectionnez un espace de travail pour afficher les formulaires.",
-    "workspaceSwitchError": "Échec du changement d'espace de travail.",
     "access": "Accès",
     "needHelp": "Besoin d'aide?",
     "teamsChannel": "Canal Teams",
@@ -56,6 +54,7 @@
   "workspaces": {
     "tableHeading": "Espaces de travail",
     "workspace": "Espace de travail",
+    "allWorkspaces": "Tous les espaces de travail",
     "manageHeading": "Gérer l'espace de travail",
     "createHeading": "Créer un espace de travail",
     "settingsTab": "Paramètres",
@@ -70,25 +69,19 @@
     "loadError": "Échec du chargement de l'espace de travail.",
     "manageForbidden": "Seuls les propriétaires ou administrateurs peuvent gérer cet espace de travail.",
     "createForbidden": "Seuls les utilisateurs du fournisseur d'identité du gouvernement de la C.-B. peuvent créer des espaces de travail.",
-    "defaultWorkspaceFormLabel": "Définir comme espace de travail par défaut",
     "disclaimerLabel": "J'accepte l'avis de non-responsabilité et la déclaration de responsabilité",
     "empty": "Aucun espace de travail ne correspond à vos critères.",
-    "active": "Actif",
     "columns": {
       "name": "Nom",
       "actions": "Actions",
-      "roles": "Rôles",
-      "default": "Par défaut"
+      "roles": "Rôles"
     },
     "actions": {
       "manage": "Gérer",
       "forms": "Formulaires"
     },
-    "defaultWorkspaceLabel": "Définir {name} comme espace de travail par défaut",
-    "defaultWorkspaceError": "Échec de la mise à jour de l'espace de travail par défaut.",
     "modalTitle": "Configuration de l'espace de travail par défaut",
     "defaultWorkspaceIntro": "Vous vous êtes connecté à Common Hosted Forms Service 2 pour la première fois. Veuillez configurer vos options d'espace de travail par défaut. Cette opération ne doit être effectuée qu'une seule fois. Merci.",
-    "defNameLabel": "Nom de l'espace de travail par défaut",
     "yourOrgReq": "Votre organisation",
     "useCase": "Cas d'utilisation",
     "disclaimer": "Il est de votre responsabilité de respecter les lois sur la vie privée régissant la collecte, l'utilisation et la divulgation des informations personnelles identifiables. L'accès à cet outil de conception de formulaires ne confère pas implicitement la permission de collecter, utiliser ou divulguer des informations personnelles identifiables. Il est de votre responsabilité d'obtenir le consentement pour collecter des informations comme requis par la loi. Si vous utilisez BCeID ou la carte des services de la C.-B. comme options d'accès au formulaire, vous DEVEZ informer l'équipe de gestion des informations sur l'identité (IDIM) par courriel (IDIM.Consulting@gov.bc.ca) de votre intention d'utiliser BCeID ou la carte des services de la C.-B. pour vérifier les identités de vos soumissionnaires de formulaires. Il est de votre responsabilité de remplir ces exigences d'intégration supplémentaires avant de collecter des données. Avant de publier ou de distribuer votre formulaire, vous êtes tenu de discuter de l'intention du formulaire avec votre responsable à la protection des renseignements personnels au sein de votre ministère et de compléter les évaluations requises.",
@@ -101,7 +94,6 @@
     "skipToMain": "Aller au contenu principal",
     "designer": "Générateur de Formulaire",
     "selectLanguage": "Choisir la langue",
-    "selectWorkspace": "Sélectionner un espace de travail",
     "bcgovTitle": "Gouvernement de la Colombie-Britannique",
     "primaryNavAria": "Principal",
     "languages": {

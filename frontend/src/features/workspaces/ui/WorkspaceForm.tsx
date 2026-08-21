@@ -19,7 +19,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces, loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { createWorkspace, selectWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
@@ -171,7 +171,12 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         });
       }
 
-      await dispatch(loadWorkspaces(token));
+      // The writable list carries the disclaimer flag that gates form creation, so it goes
+      // stale on the same edits as the full list and has to be refreshed alongside it.
+      await Promise.all([
+        dispatch(loadWorkspaces(token)),
+        dispatch(loadWritableWorkspaces(token)),
+      ]);
       router.push(`/${locale}/workspaces`);
     } catch (error) {
       addNotification({

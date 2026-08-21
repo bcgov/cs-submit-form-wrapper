@@ -90,6 +90,16 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/en/workspace',
 }));
 
+// Stub the loaders so a dispatch can be attributed to one list or the other.
+vi.mock('@/lib/slices/workspaceSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/slices/workspaceSlice')>();
+  return {
+    ...actual,
+    loadWorkspaces: () => ({ type: 'test/loadWorkspaces' }),
+    loadWritableWorkspaces: () => ({ type: 'test/loadWritableWorkspaces' }),
+  };
+});
+
 vi.mock('@/lib/store', () => ({
   useAppDispatch: () => mockDispatch,
   useAppSelector: (fn: (s: unknown) => unknown) =>
@@ -289,6 +299,22 @@ describe('WorkspaceForm', () => {
         useCase: 'testUseCase',
         org: 'testOrg',
       });
+    });
+  });
+
+  // The writable list carries the disclaimer flag that gates form creation. Refreshing only the
+  // full list leaves the designer offering a workspace whose disclaimer was just revoked.
+  it('refreshes both workspace lists after saving', async () => {
+    await act(async () => {
+      render(<WorkspaceForm workspaceId="ws2" />);
+    });
+    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'test/loadWorkspaces' });
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'test/loadWritableWorkspaces' });
     });
   });
 });

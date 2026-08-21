@@ -121,6 +121,18 @@ describe('WorkspaceList', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms'));
   });
 
+  // Opening a workspace's forms is an explicit scope choice, unlike landing on the list directly.
+  it('seeds the forms-list workspace filter with the chosen workspace', async () => {
+    await act(async () => {
+      render(<WorkspaceList />);
+    });
+    await userEvent.click(screen.getByTestId('workspace-link-ws2'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms'));
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'workspace/setSelectedWorkspaceId', payload: 'ws2' }),
+    );
+  });
+
   it('navigates to manage page on Manage action', async () => {
     let container: HTMLElement | null = null;
     await act(async () => {

@@ -280,21 +280,16 @@ function FormList({
           </DSButton>
         ) : null}
       </ListPageToolbar>
-      {workspaces.length > 1 && (
-        <div className={`mb-2 ${styles.workspaceField}`}>
-          <div className="mb-2">{dict.workspaces.workspace}</div>
-          <div>
-            <WorkspaceSelector
-              workspaces={workspaces}
-              selectedWorkspaceId={stateSelectedWorkspaceId}
-              label={dict.header.selectWorkspace}
-              onChange={handleWorkspaceChange}
-              allowAll={true}
-              size="medium"
-            />
-          </div>
-        </div>
-      )}
+      <div className={`mb-2 ${styles.workspaceField}`}>
+        <WorkspaceSelector
+          workspaces={workspaces}
+          selectedWorkspaceId={stateSelectedWorkspaceId}
+          label={dict.workspaces.workspace}
+          onChange={handleWorkspaceChange}
+          allLabel={dict.workspaces.allWorkspaces}
+          size="medium"
+        />
+      </div>
 
       {needsDisclaimer ? (
         <InlineAlert

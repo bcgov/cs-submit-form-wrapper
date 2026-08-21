@@ -34,6 +34,8 @@ export const loadWorkspaces = createAsyncThunk(
   },
 );
 
+// Future: fold this into loadWorkspaces once the API returns a per-workspace capability flag.
+// Two lists over the same data drift apart unless every mutation refreshes both by hand.
 export const loadWritableWorkspaces = createAsyncThunk(
   'workspace/loadWritableWorkspaces',
   async (token: string, { rejectWithValue }) => {

@@ -28,6 +28,7 @@ vi.mock('@/app/[lang]/Providers', () => ({
     },
     workspaces: {
       workspace: 'Workspace',
+      allWorkspaces: 'All Workspaces',
     },
     submission: {
       formList: {

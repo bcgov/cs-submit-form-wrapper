@@ -10,13 +10,14 @@ export function WorkspaceSelector({
   label,
   onChange,
   size = 'small',
-  allowAll = false,
+  allLabel,
 }: Readonly<{
   workspaces: WorkspaceSelectorItem[];
   selectedWorkspaceId: string | null;
   label: string;
   size?: 'small' | 'medium';
-  allowAll?: boolean;
+  /** When set, prepends an option covering every workspace, which selects null. */
+  allLabel?: string;
   onChange: (key: string | number | null) => void;
 }>) {
   return (
@@ -25,12 +26,11 @@ export function WorkspaceSelector({
       id="workspace-select"
       data-testid="workspace-select"
       label={label}
-      aria-label={label}
       className="mr-2"
-      selectedKey={selectedWorkspaceId || (allowAll ? 'all' : null)}
+      selectedKey={selectedWorkspaceId || (allLabel ? 'all' : null)}
       onSelectionChange={(key) => onChange(key === 'all' ? null : key)}
       items={[
-        ...(allowAll ? [{ id: 'all', label: 'All Workspaces' }] : []),
+        ...(allLabel ? [{ id: 'all', label: allLabel }] : []),
         ...workspaces.map((ws) => ({ id: ws.id, label: `${ws.name} (${ws.kind})` })),
       ]}
     />
