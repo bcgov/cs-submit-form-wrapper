@@ -1,9 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import {
-  fetchCurrentUser,
-  patchCurrentUser,
-  type CurrentUserResponse,
-} from '@/src/shared/api/sobaApi';
+import { fetchCurrentUser, type CurrentUserResponse } from '@/src/shared/api/sobaApi';
 
 export type CurrentUserState = {
   data: CurrentUserResponse | null;
@@ -28,20 +24,6 @@ export const loadCurrentUser = createAsyncThunk<
     return await fetchCurrentUser(token);
   } catch (err: unknown) {
     return rejectWithValue((err as { message?: string })?.message ?? 'Failed to load current user');
-  }
-});
-
-export const updateDefaultWorkspace = createAsyncThunk<
-  CurrentUserResponse,
-  { token: string; defaultWorkspaceId: string | null },
-  { rejectValue: string }
->('currentUser/updateDefaultWorkspace', async ({ token, defaultWorkspaceId }, { rejectWithValue }) => {
-  try {
-    return await patchCurrentUser(token, { preferences: { defaultWorkspaceId } });
-  } catch (err: unknown) {
-    return rejectWithValue(
-      (err as { message?: string })?.message ?? 'Failed to update default workspace',
-    );
   }
 });
 
@@ -71,14 +53,6 @@ const currentUserSlice = createSlice({
       .addCase(loadCurrentUser.rejected, (state, action) => {
         state.status = 'failed';
         state.data = null;
-        state.error = action.payload ?? action.error.message;
-      })
-      .addCase(updateDefaultWorkspace.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.data = action.payload;
-        state.error = undefined;
-      })
-      .addCase(updateDefaultWorkspace.rejected, (state, action) => {
         state.error = action.payload ?? action.error.message;
       });
   },

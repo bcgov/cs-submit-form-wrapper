@@ -17,6 +17,7 @@ export class WorkspacesApiService {
       cursor?: string;
       kind?: string;
       status?: string;
+      requiredPermission?: string;
       sort?: CursorSort;
     },
   ) {
@@ -33,6 +34,7 @@ export class WorkspacesApiService {
       afterUpdatedAt,
       kind: query.kind,
       status: query.status,
+      requiredPermission: query.requiredPermission,
     });
     const lastItem = items[items.length - 1];
     const nextCursor = buildNextCursor(

@@ -2,12 +2,14 @@ export type SobaFormType = {
   name: string;
   description: string;
   formEngineCode?: string;
+  workspaceId?: string;
 };
 
 export type CreateSobaFormioFormResponse = {
   createdAt: Date;
   description: string;
   id: string;
+  workspaceId: string;
   name: string;
   status: string;
   updatedAt: Date;
@@ -17,6 +19,7 @@ export type CreateSobaFormioFormResponse = {
 
 export type SobaResponseFormType = {
   id: string;
+  workspaceId: string;
   name: string;
   description: string;
   formEngineCode?: string;

@@ -1,7 +1,7 @@
 import express from 'express';
 import { validateRequest } from '../shared/validation';
 import {
-  workspaceFromQuery,
+  workspaceFromBody,
   workspaceListScope,
   workspaceFromResource,
 } from '../../middleware/workspaceContext';
@@ -57,15 +57,15 @@ const formFromBodyResource = workspaceFromResource({ kind: 'form', idFrom: 'body
 router.get(
   FORMS_PATH,
   validateRequest({ query: ListFormsQuerySchema }),
-  workspaceListScope({ anchorOrder: ['formId', 'workspaceId'] }),
+  workspaceListScope({ anchorOrder: ['formId', 'workspaceId'], allowEmpty: true }),
   requireFormPermissions([Permissions.form_read]),
   listForms,
 );
-// Membership-only (workspace resolved from the query); the disclaimer gate lives in the service.
+// Membership-only (workspace resolved from the body); the disclaimer gate lives in the service.
 router.post(
   FORMS_PATH,
   validateRequest({ body: CreateFormBodySchema }),
-  workspaceFromQuery,
+  workspaceFromBody,
   createForm,
 );
 // Schema-shaping utility; actor-only (no workspace context).
@@ -91,7 +91,7 @@ router.patch(
 router.get(
   FORM_VERSIONS_PATH,
   validateRequest({ query: ListFormVersionsQuerySchema }),
-  workspaceListScope({ anchorOrder: ['formVersionId', 'formId', 'workspaceId'] }),
+  workspaceListScope({ anchorOrder: ['formVersionId', 'formId', 'workspaceId'], allowEmpty: true }),
   requireFormPermissions([Permissions.form_read]),
   listFormVersions,
 );

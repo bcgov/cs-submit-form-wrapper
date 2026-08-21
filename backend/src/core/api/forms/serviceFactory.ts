@@ -49,6 +49,7 @@ interface UpdateFormInput {
 
 const toFormDto = (item: {
   id: string;
+  workspaceId: string;
   name: string;
   description: string | null;
   status: string;
@@ -58,6 +59,7 @@ const toFormDto = (item: {
   updatedBy: string | null;
 }) => ({
   id: item.id,
+  workspaceId: item.workspaceId,
   name: item.name,
   description: item.description,
   status: item.status,
@@ -69,6 +71,7 @@ const toFormDto = (item: {
 
 const toFormListItemDto = (item: {
   id: string;
+  workspaceId: string;
   name: string;
   status: string;
   createdAt: Date;
@@ -77,6 +80,7 @@ const toFormListItemDto = (item: {
   updatedBy: string | null;
 }) => ({
   id: item.id,
+  workspaceId: item.workspaceId,
   name: item.name,
   status: item.status,
   createdAt: item.createdAt.toISOString(),

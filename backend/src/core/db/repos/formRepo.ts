@@ -20,6 +20,7 @@ export interface ListFormsForWorkspaceInput {
 
 export interface FormListRow {
   id: string;
+  workspaceId: string;
   name: string;
   status: string;
   createdAt: Date;
@@ -65,6 +66,7 @@ interface UpdateFormInput {
 export const listFormsForWorkspace = async (
   input: ListFormsForWorkspaceInput,
 ): Promise<{ items: FormListRow[]; hasMore: boolean }> => {
+  // An empty scope means the actor holds the permission in no workspace, never "all workspaces".
   if (input.workspaceIds.length === 0) {
     return { items: [], hasMore: false };
   }
@@ -99,6 +101,7 @@ export const listFormsForWorkspace = async (
   const rows = await db
     .select({
       id: forms.id,
+      workspaceId: forms.workspaceId,
       name: forms.name,
       status: forms.status,
       createdAt: forms.createdAt,

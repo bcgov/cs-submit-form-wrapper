@@ -4,8 +4,6 @@ import React, { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { I18nProvider } from 'react-aria-components';
 import makeStore from '@/lib/store';
-import { setActiveWorkspaceId } from '@/lib/slices/workspaceSlice';
-import { setWorkspaceResolvedListener } from '@/src/shared/workspace/workspaceSync';
 import { getDictionary } from '@/app/[lang]/dictionaries';
 import { NotificationToast } from '@/app/ui/base/NotificationToast';
 
@@ -23,15 +21,6 @@ export default function AppProviders({
   children: React.ReactNode;
 }) {
   const store = useMemo(() => makeStore(), []);
-
-  // sobaFetch can't import the store (would create an import cycle), so it notifies
-  // through a registry. Mirror the backend-resolved workspace into Redux here.
-  useEffect(() => {
-    setWorkspaceResolvedListener((workspaceId) => {
-      store.dispatch(setActiveWorkspaceId(workspaceId));
-    });
-    return () => setWorkspaceResolvedListener(null);
-  }, [store]);
 
   // The root layout renders a static `<html lang="en">` (it sits above the
   // `[lang]` segment and can't know the locale). Keep the document language in

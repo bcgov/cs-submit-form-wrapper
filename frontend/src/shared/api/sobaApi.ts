@@ -1,8 +1,6 @@
 import type { FeaturesMetaPayload } from '@/src/shared/config/featuresMeta';
 import { isFeaturesMetaPayload } from '@/src/shared/config/featuresMeta';
 import { getSobaApiBaseUrl } from '../config/runtimeConfig';
-import { setWorkspaceId } from '../workspace/workspaceStore';
-import { notifyWorkspaceResolved } from '../workspace/workspaceSync';
 import { parseJson } from './sobaHelpers';
 import { sobaFetch } from './sobaFetch';
 
@@ -135,23 +133,18 @@ export async function fetchRolesMeta(onlyEnabledFeatures = true): Promise<unknow
   return parseJson(response);
 }
 
-export async function fetchWorkspaces(token: string): Promise<WorkspacesResponse> {
-  const response = await sobaFetch('/workspaces', { token });
+export async function fetchWorkspaces(
+  token: string,
+  requiredPermission?: string,
+): Promise<WorkspacesResponse> {
+  const query = requiredPermission ? { requiredPermission } : undefined;
+  const response = await sobaFetch('/workspaces', { token, query });
   return parseJson(response);
 }
 
-/**
- * Read a specific workspace by id. Used by the workspace chooser/listing to establish the
- * tab's workspace: the backend verifies membership and echoes x-soba-workspace-id, which
- * sobaFetch captures to set the per-tab workspace and Redux mirror.
- */
 export async function selectWorkspace(token: string, id: string): Promise<WorkspaceItem> {
   const response = await sobaFetch(`/workspaces/${id}`, { token });
   const workspace = await parseJson<WorkspaceItem>(response);
-  // Persist from the verified response body. Header capture in sobaFetch is best-effort
-  // (cross-origin responses may omit readable custom headers); the JSON body is always available.
-  setWorkspaceId(workspace.id);
-  notifyWorkspaceResolved(workspace.id);
   return workspace;
 }
 

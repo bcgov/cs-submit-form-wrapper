@@ -18,11 +18,14 @@ export async function createSobaFormioForm(
 ): Promise<CreateSobaFormioFormResponse> {
   data.formEngineCode = 'formio-v5';
 
+  if (workspaceId) {
+    data.workspaceId = workspaceId;
+  }
+
   const response = await sobaFetch('/design/forms', {
     token,
     method: 'POST',
     json: data,
-    workspaceId,
   });
   return parseJson(response);
 }
@@ -60,6 +63,7 @@ export async function getSobaForm(token: string, id: string): Promise<SobaRespon
 /** Compact form row for the designer/submit list. */
 export type SobaFormSummary = {
   id: string;
+  workspaceId: string;
   name: string;
   status: string;
   createdAt: string;
@@ -72,10 +76,10 @@ export async function getSobaForms(
   token: string,
   workspaceId?: string,
 ): Promise<{ items: SobaFormSummary[] }> {
+  const query = { limit: 100, workspaceId };
   const response = await sobaFetch('/design/forms', {
     token,
-    workspaceId,
-    query: { limit: 100 },
+    query,
   });
   return parseJson(response);
 }
@@ -91,9 +95,11 @@ export async function getSobaSubmissions(
       query[key] = String(value);
     }
   }
+  if (workspaceId) {
+    query.workspaceId = workspaceId;
+  }
   const response = await sobaFetch('/design/submissions', {
     token,
-    workspaceId,
     query,
   });
   return parseJson(response);
