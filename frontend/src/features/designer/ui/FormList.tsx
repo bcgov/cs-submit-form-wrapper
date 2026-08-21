@@ -25,8 +25,6 @@ import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { FaFolder, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
 
-const WORKSPACE_STORAGE_KEY = 'soba.formListWorkspaceId';
-
 const CustomActionButtons = ({
   form,
   onAction,

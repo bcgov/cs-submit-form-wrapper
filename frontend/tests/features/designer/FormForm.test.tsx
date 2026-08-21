@@ -27,9 +27,10 @@ vi.mock('@/app/[lang]/Providers', () => ({
 const { mockDispatch, mockWorkspaceState } = vi.hoisted(() => ({
   mockDispatch: vi.fn(),
   mockWorkspaceState: {
-    activeWorkspaceId: 'ws1' as string | null,
+    selectedWorkspaceId: 'ws1' as string | null,
     status: 'succeeded' as string,
     workspaces: [{ id: 'ws1' }] as { id: string }[],
+    writableWorkspaces: [{ id: 'ws1' }] as { id: string }[],
   },
 }));
 vi.mock('@/lib/store', () => ({
@@ -64,9 +65,10 @@ import FormForm from '@/src/features/designer/ui/FormForm';
 describe('FormForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockWorkspaceState.activeWorkspaceId = 'ws1';
+    mockWorkspaceState.selectedWorkspaceId = 'ws1';
     mockWorkspaceState.status = 'succeeded';
     mockWorkspaceState.workspaces = [{ id: 'ws1' }];
+    mockWorkspaceState.writableWorkspaces = [{ id: 'ws1' }];
   });
 
   it('renders designer tab content when authenticated and not initializing', async () => {
@@ -76,8 +78,9 @@ describe('FormForm', () => {
   });
 
   it('blocks new-form designer access when the user has no workspaces', async () => {
-    mockWorkspaceState.activeWorkspaceId = null;
+    mockWorkspaceState.selectedWorkspaceId = null;
     mockWorkspaceState.workspaces = [];
+    mockWorkspaceState.writableWorkspaces = [];
     render(<FormForm />);
     expect(screen.getByTestId('designer-select-workspace')).toBeInTheDocument();
     expect(screen.queryByTestId('form-designer')).not.toBeInTheDocument();
