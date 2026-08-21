@@ -176,7 +176,7 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
-    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     expect(mockSelectWorkspace).toHaveBeenCalledWith('token', 'ws2');
   });
 
@@ -267,7 +267,7 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
-    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     const nameInput = screen.getByRole('textbox');
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, 'Renamed');
@@ -288,7 +288,7 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
-    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -308,7 +308,7 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
-    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
