@@ -10,11 +10,11 @@ export default function LandingPage() {
   return (
     <div className="ml-5">
       <Heading level={2} isUnstyled className="mt-5">
-        {dict.general.welcomeTo} {dict.general.title}
+        {dict.general.welcomeTo} {dict.general.titleAsService}
       </Heading>
       <p className="mt-5">{dict.general.description}</p>
       <Heading level={5} isUnstyled className="mt-5">
-        {dict.general.access} {dict.general.title}
+        {dict.general.access} {dict.general.acronym}
       </Heading>
       <div className="mt-5">
         <LoginButton
@@ -28,11 +28,7 @@ export default function LandingPage() {
       </Heading>
       <div className="mt-5">
         {dict.general.teamsChannel}:&nbsp;
-        <Link
-          href={TEAMS_LINK}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <Link href={TEAMS_LINK} target="_blank" rel="noopener noreferrer">
           {dict.general.teamsChannelLink}
         </Link>
       </div>

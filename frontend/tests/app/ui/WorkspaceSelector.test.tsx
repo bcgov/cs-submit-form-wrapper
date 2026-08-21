@@ -8,11 +8,11 @@ const workspaces = [
 ];
 
 describe('WorkspaceSelector', () => {
-  it('renders the active workspace label and aria-label', () => {
+  it('renders the selected workspace and the other options', () => {
     render(
       <WorkspaceSelector
         workspaces={workspaces}
-        activeWorkspaceId="ws1"
+        selectedWorkspaceId="ws1"
         label="Select Workspace"
         onChange={() => {}}
       />,
@@ -22,5 +22,28 @@ describe('WorkspaceSelector', () => {
     expect(screen.getAllByText('Alpha (team)').length).toBeGreaterThan(0);
     // The other workspace is present as a selectable option.
     expect(screen.getAllByText('Beta (personal)').length).toBeGreaterThan(0);
+  });
+
+  it('offers the all-workspaces option only when given a label for it', () => {
+    const { rerender } = render(
+      <WorkspaceSelector
+        workspaces={workspaces}
+        selectedWorkspaceId={null}
+        label="Select Workspace"
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.queryByText('Every Workspace')).not.toBeInTheDocument();
+
+    rerender(
+      <WorkspaceSelector
+        workspaces={workspaces}
+        selectedWorkspaceId={null}
+        label="Select Workspace"
+        allLabel="Every Workspace"
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getAllByText('Every Workspace').length).toBeGreaterThan(0);
   });
 });

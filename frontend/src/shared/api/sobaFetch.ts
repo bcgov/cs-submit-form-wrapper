@@ -1,9 +1,5 @@
 import { ensureFreshToken, forceRefreshToken } from '../auth/tokenRefresh';
 import { getSobaApiBaseUrl } from '../config/runtimeConfig';
-import { getWorkspaceId, setWorkspaceId } from '../workspace/workspaceStore';
-import { notifyWorkspaceResolved } from '../workspace/workspaceSync';
-
-export const WORKSPACE_HEADER = 'x-soba-workspace-id';
 
 export type SobaFetchOptions = {
   /** Bearer token; when present an Authorization header is sent. */
@@ -11,12 +7,6 @@ export type SobaFetchOptions = {
   method?: string;
   /** JSON body; serialized and sent with a Content-Type: application/json header. */
   json?: unknown;
-  /**
-   * Workspace id for workspace-scoped calls (lists/creates). Sent as the `workspaceId`
-   * query param read from per-tab storage by the caller. Resource calls omit this and
-   * let the backend derive the workspace from the resource.
-   */
-  workspaceId?: string;
   /** Additional query params. */
   query?: Record<string, string | number | boolean | undefined | null>;
   headers?: Record<string, string>;
@@ -29,9 +19,6 @@ function buildUrl(path: string, options: SobaFetchOptions): string {
     for (const [key, value] of Object.entries(options.query)) {
       if (value !== undefined && value !== null) params.set(key, String(value));
     }
-  }
-  if (options.workspaceId) {
-    params.set('workspaceId', options.workspaceId);
   }
   const qs = params.toString();
   const queryString = qs ? `?${qs}` : '';
@@ -87,18 +74,8 @@ async function resolveToken(callerToken: string): Promise<string> {
   return callerToken;
 }
 
-function captureResolvedWorkspace(response: Response): void {
-  const resolved = response.headers.get(WORKSPACE_HEADER);
-  if (resolved && resolved !== getWorkspaceId()) {
-    setWorkspaceId(resolved);
-    notifyWorkspaceResolved(resolved);
-  }
-}
-
 /**
- * Single entry point for all SOBA API calls. Injects auth/JSON headers (never a workspace
- * request header) and, after the response, captures the echoed `x-soba-workspace-id`
- * header to update the per-tab workspace store and Redux mirror.
+ * Single entry point for all SOBA API calls. Injects auth/JSON headers.
  *
  * Authenticated calls refresh the token first, so an idle tab recovers on its next call. Anonymous
  * (submit-mode) callers pass none and never trigger a refresh.
@@ -108,7 +85,7 @@ export async function sobaFetch(path: string, options: SobaFetchOptions = {}): P
   const body = options.json !== undefined ? JSON.stringify(options.json) : undefined;
   const token = options.token ? await resolveToken(options.token) : undefined;
 
-  let response = await send(url, options, token, body);
+  const response = await send(url, options, token, body);
 
   // Refresh and replay once; a second 401 is a real answer and goes back to the caller.
   if (response.status === 401 && token) {
@@ -117,11 +94,9 @@ export async function sobaFetch(path: string, options: SobaFetchOptions = {}): P
     // handed back as a bare 401 the caller would render as "not found" or "failed to load".
     if (outcome.status === 'no-session') throw new SessionExpiredError();
     if (outcome.status === 'token' && outcome.token !== token) {
-      response = await send(url, options, outcome.token, body);
+      return send(url, options, outcome.token, body);
     }
   }
-
-  captureResolvedWorkspace(response);
 
   return response;
 }

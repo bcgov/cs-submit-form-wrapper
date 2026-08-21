@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
-import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces, loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
 import { needsWorkspaceOnboarding } from '@/src/features/onboarding/workspaceOnboarding';
 import type { AppSessionSnapshot } from './appRoutePolicy';
 
@@ -15,6 +15,7 @@ export function useAppSession(): AppSessionSnapshot {
   const {
     workspaces,
     status: workspaceStatus,
+    writableStatus,
     loadedOnce: workspacesLoadedOnce,
   } = useAppSelector((state) => state.workspace);
   const {
@@ -27,7 +28,10 @@ export function useAppSession(): AppSessionSnapshot {
     if (authenticated && token && workspaceStatus === 'idle') {
       dispatch(loadWorkspaces(token));
     }
-  }, [authenticated, token, workspaceStatus, dispatch]);
+    if (authenticated && token && writableStatus === 'idle') {
+      dispatch(loadWritableWorkspaces(token));
+    }
+  }, [authenticated, token, workspaceStatus, writableStatus, dispatch]);
 
   useEffect(() => {
     if (authenticated && token && currentUserStatus === 'idle') {
@@ -43,7 +47,7 @@ export function useAppSession(): AppSessionSnapshot {
       : !initializing;
 
     const sessionFailed =
-      authenticated && (workspaceStatus === 'failed' || currentUserStatus === 'failed');
+      authenticated && (workspaceStatus === 'failed' || writableStatus === 'failed' || currentUserStatus === 'failed');
 
     const needsOnboarding = needsWorkspaceOnboarding({
       authenticated,
@@ -71,6 +75,7 @@ export function useAppSession(): AppSessionSnapshot {
     initializing,
     workspaceStatus,
     workspacesLoadedOnce,
+    writableStatus,
     currentUserStatus,
     currentUserLoadedOnce,
     workspaces,

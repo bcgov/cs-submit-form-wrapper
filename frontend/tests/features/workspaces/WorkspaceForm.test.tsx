@@ -52,16 +52,16 @@ vi.mock('@/app/[lang]/Providers', () => ({
 
 vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@bcgov/design-system-react-components')>();
-  
+
   type SelectItem = { id: string | number; label: string };
-  
+
   return {
     ...actual,
-    Select: ({ 
-      'data-testid': testId, 
-      value, 
-      onChange, 
-      items 
+    Select: ({
+      'data-testid': testId,
+      value,
+      onChange,
+      items,
     }: {
       'data-testid'?: string;
       value?: string | number | null;
@@ -76,18 +76,29 @@ vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
       >
         <option value="">Select...</option>
         {items?.map((item) => (
-          <option key={item.id} value={item.id}>{item.label}</option>
+          <option key={item.id} value={item.id}>
+            {item.label}
+          </option>
         ))}
       </select>
     ),
   };
 });
 
-
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/en/workspace',
 }));
+
+// Stub the loaders so a dispatch can be attributed to one list or the other.
+vi.mock('@/lib/slices/workspaceSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/slices/workspaceSlice')>();
+  return {
+    ...actual,
+    loadWorkspaces: () => ({ type: 'test/loadWorkspaces' }),
+    loadWritableWorkspaces: () => ({ type: 'test/loadWritableWorkspaces' }),
+  };
+});
 
 vi.mock('@/lib/store', () => ({
   useAppDispatch: () => mockDispatch,
@@ -165,7 +176,7 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
-    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     expect(mockSelectWorkspace).toHaveBeenCalledWith('token', 'ws2');
   });
 
@@ -185,7 +196,6 @@ describe('WorkspaceForm', () => {
     await userEvent.type(screen.getByRole('textbox'), 'New Team');
     await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
     await userEvent.selectOptions(screen.getByTestId('workspace-use-case'), 'testUseCase');
-    await userEvent.click(screen.getByTestId('workspace-default-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => {
@@ -257,7 +267,7 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
-    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     const nameInput = screen.getByRole('textbox');
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, 'Renamed');
@@ -278,7 +288,7 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
-    await waitFor(() => expect(screen.getByDisplayValue('Team Workspace')).toBeInTheDocument());
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -289,6 +299,22 @@ describe('WorkspaceForm', () => {
         useCase: 'testUseCase',
         org: 'testOrg',
       });
+    });
+  });
+
+  // The writable list carries the disclaimer flag that gates form creation. Refreshing only the
+  // full list leaves the designer offering a workspace whose disclaimer was just revoked.
+  it('refreshes both workspace lists after saving', async () => {
+    await act(async () => {
+      render(<WorkspaceForm workspaceId="ws2" />);
+    });
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'test/loadWorkspaces' });
+      expect(mockDispatch).toHaveBeenCalledWith({ type: 'test/loadWritableWorkspaces' });
     });
   });
 });

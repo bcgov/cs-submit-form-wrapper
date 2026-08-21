@@ -4,9 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { I18nProvider } from 'react-aria-components';
 import makeStore from '@/lib/store';
-import { setActiveWorkspaceId } from '@/lib/slices/workspaceSlice';
 import { refreshAccessToken } from '@/lib/slices/keycloakSlice';
-import { setWorkspaceResolvedListener } from '@/src/shared/workspace/workspaceSync';
 import { setTokenRefresher } from '@/src/shared/auth/tokenRefresh';
 import { getDictionary } from '@/app/[lang]/dictionaries';
 import { NotificationToast } from '@/app/ui/base/NotificationToast';
@@ -26,16 +24,8 @@ export default function AppProviders({
 }) {
   const store = useMemo(() => makeStore(), []);
 
-  // sobaFetch can't import the store (would create an import cycle), so it notifies
-  // through a registry. Mirror the backend-resolved workspace into Redux here.
-  useEffect(() => {
-    setWorkspaceResolvedListener((workspaceId) => {
-      store.dispatch(setActiveWorkspaceId(workspaceId));
-    });
-    return () => setWorkspaceResolvedListener(null);
-  }, [store]);
-
-  // Same cycle problem: refresh here, where the store is, so the new token reaches Redux.
+  // sobaFetch can't import the slice (that would close an import cycle), so it reaches Keycloak
+  // through a registry. Refresh here, where the store is, so the new token reaches Redux.
   useEffect(() => {
     setTokenRefresher((force) => store.dispatch(refreshAccessToken(force)));
     return () => setTokenRefresher(null);

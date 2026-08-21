@@ -6,7 +6,6 @@ import {
   workspaceIdQueryField,
   formIdQueryField,
   formVersionIdQueryField,
-  requireAtLeastOneQueryField,
   WorkspaceScopedQuerySchema,
 } from '../shared/schema';
 
@@ -14,6 +13,7 @@ extendZodWithOpenApi(z);
 
 export const CreateFormBodySchema = z
   .object({
+    workspaceId: z.string().min(1),
     name: z.string().trim().min(1),
     description: z.string().optional(),
     formEngineCode: z.string().trim().min(1).optional(),
@@ -79,8 +79,8 @@ export const NormalizeSchemaResponseSchema = z
   })
   .openapi('Forms_NormalizeSchemaResponse');
 
-export const ListFormsQuerySchema = requireAtLeastOneQueryField(
-  z.object({
+export const ListFormsQuerySchema = z
+  .object({
     workspaceId: workspaceIdQueryField.optional(),
     formId: formIdQueryField,
     limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -88,14 +88,13 @@ export const ListFormsQuerySchema = requireAtLeastOneQueryField(
     q: z.string().trim().min(1).optional(),
     status: z.string().trim().min(1).optional(),
     sort: CursorSortSchema.default('id:desc'),
-  }),
-  ['workspaceId', 'formId'],
-  'At least one of workspaceId or formId is required',
-).openapi('Forms_ListFormsQuery');
+  })
+  .openapi('Forms_ListFormsQuery');
 
 export const FormListItemSchema = z
   .object({
     id: z.string(),
+    workspaceId: z.string(),
     name: z.string(),
     status: z.string(),
     createdAt: z.string(),
@@ -107,6 +106,7 @@ export const FormListItemSchema = z
 export const FormResponseSchema = z
   .object({
     id: z.string(),
+    workspaceId: z.string(),
     name: z.string(),
     description: z.string().nullable(),
     status: z.string(),
@@ -157,8 +157,8 @@ export const ListFormsResponseSchema = z
   })
   .openapi('Forms_ListFormsResponse');
 
-export const ListFormVersionsQuerySchema = requireAtLeastOneQueryField(
-  z.object({
+export const ListFormVersionsQuerySchema = z
+  .object({
     workspaceId: workspaceIdQueryField.optional(),
     formId: formIdQueryField,
     formVersionId: formVersionIdQueryField,
@@ -166,10 +166,8 @@ export const ListFormVersionsQuerySchema = requireAtLeastOneQueryField(
     cursor: z.string().min(1).optional(),
     state: z.string().trim().min(1).optional(),
     sort: CursorSortSchema.default('id:desc'),
-  }),
-  ['workspaceId', 'formId', 'formVersionId'],
-  'At least one of workspaceId, formId, or formVersionId is required',
-).openapi('Forms_ListFormVersionsQuery');
+  })
+  .openapi('Forms_ListFormVersionsQuery');
 
 export const FormVersionListItemSchema = z
   .object({

@@ -3,22 +3,22 @@
   "general": {
     "login": "Login",
     "logout": "Logout",
-    "title": "Common Hosted Forms Service 2",
-    "description": "Create and publish forms, and receive submissions with the Common Hosted Forms Service.",
+    "title": "Common Hosted Forms",
+    "titleAsService": "Common Hosted Forms Service",
+    "acronym": "CHEFS",
+    "description": "Welcome to the Common Hosted Form Service (CHEFS) where you can create and publish forms, receive and review submissions, and integrate with your line of business systems.",
     "notAuthenticated": "You are not authenticated. Please login to access this section.",
     "home": "Home",
     "forms": "Forms",
     "formDesigner": "Form Designer",
     "feedback": "Feedback",
     "help": "Help",
-    "welcomeTo": "Welcome to",
+    "welcomeTo": "Welcome to the",
     "loading": "Loading…",
     "sessionError": "We couldn't load your session. Please try again.",
     "sessionExpired": "Your session has ended. Please sign in again.",
     "tryAgain": "Try again",
     "comingSoon": "This feature is coming soon.",
-    "selectWorkspace": "Select a workspace to view forms.",
-    "workspaceSwitchError": "Failed to switch workspace.",
     "access": "Access",
     "needHelp": "Need help?",
     "teamsChannel": "Teams Channel",
@@ -26,7 +26,8 @@
     "needWorkspace": "You require a workspace to be enabled and don't have the permissions to create one. Contact your administrator.",
     "search": "Search",
     "loginRequired": "Login Required",
-    "reference": "Reference:"
+    "reference": "Reference:",
+    "create": "Create"
   },
   "dataTable": {
     "emptyMessage": "No items found.",
@@ -53,6 +54,7 @@
   "workspaces": {
     "tableHeading": "Workspaces",
     "workspace": "Workspace",
+    "allWorkspaces": "All Workspaces",
     "manageHeading": "Manage Workspace",
     "createHeading": "Create Workspace",
     "settingsTab": "Settings",
@@ -67,25 +69,19 @@
     "loadError": "Failed to load workspace.",
     "manageForbidden": "Only workspace owners or admins can manage this workspace.",
     "createForbidden": "Only BC Government identity provider users can create workspaces.",
-    "defaultWorkspaceFormLabel": "Set as default workspace",
     "disclaimerLabel": "I agree to the disclaimer and statement of responsibility",
     "empty": "No workspaces found matching your criteria.",
-    "active": "Active",
     "columns": {
       "name": "Name",
       "actions": "Actions",
-      "roles": "Roles",
-      "default": "Default"
+      "roles": "Roles"
     },
     "actions": {
       "manage": "Manage",
       "forms": "Forms"
     },
-    "defaultWorkspaceLabel": "Set {name} as default workspace",
-    "defaultWorkspaceError": "Failed to update default workspace.",
     "modalTitle": "Default Workspace Setup",
     "defaultWorkspaceIntro": "You have logged into Common Hosted Form Service 2 for the first time. Please setup your default workspace options. This only has to be done once. Thank you.",
-    "defNameLabel": "Default Workspace Name",
     "yourOrgReq": "Your organization",
     "useCase": "Use Case",
     "disclaimer": "It is your responsibility to comply with Privacy laws governing the collection, use and disclosure of personally identifiable information. Access to this form designer tool does not inherently grant permission to collect, use or disclose any personally identifiable information. It is your responsibility to obtain consent to collect information as required by law. If you use BCeID or BC Services Card as form access options, you MUST notify the Identity Information Management (IDIM) team by email (IDIM.Consulting@gov.bc.ca) your intent to leverage BCeID or BC Services Card to verify the identities of your form submitters. It is your responsibility to complete theses additional onboarding requirements before collecting data. Before publishing or distributing your form you are required to discuss the intention of the form with your Ministry Privacy Officer  and to complete assessments as required.",
@@ -98,7 +94,6 @@
     "skipToMain": "Skip to main content",
     "designer": "Designer",
     "selectLanguage": "Select Language",
-    "selectWorkspace": "Select Workspace",
     "bcgovTitle": "Government of British Columbia",
     "primaryNavAria": "Primary",
     "languages": {
@@ -189,7 +184,8 @@
     "formPreview": "Form Preview",
     "untitledForm": "Untitled Form",
     "closePreview": "Close Preview",
-    "noFormLayout": "No form layout designed yet."
+    "noFormLayout": "No form layout designed yet.",
+    "createForm": "Create Form"
   },
   "submission": {
     "submissions": "Submissions",

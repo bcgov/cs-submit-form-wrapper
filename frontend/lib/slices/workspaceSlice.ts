@@ -1,40 +1,28 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { fetchWorkspaces, selectWorkspace, WorkspaceItem } from '@/src/shared/api/sobaApi';
-import { getWorkspaceId, clearWorkspaceId } from '@/src/shared/workspace/workspaceStore';
+import { fetchWorkspaces, WorkspaceItem } from '@/src/shared/api/sobaApi';
 
 export interface WorkspaceState {
   workspaces: WorkspaceItem[];
-  activeWorkspaceId: string | null;
+  writableWorkspaces: WorkspaceItem[];
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  writableStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   /** Stays true across a refetch, so a background reload is distinguishable from first load. */
   loadedOnce: boolean;
   error: string | null;
   canceledDefaultModal: boolean;
+  selectedWorkspaceId: string | null;
 }
 
 const initialState: WorkspaceState = {
   workspaces: [],
-  // Hydrate the per-tab selection from sessionStorage (null during SSR).
-  activeWorkspaceId: getWorkspaceId(),
+  writableWorkspaces: [],
   status: 'idle',
+  writableStatus: 'idle',
   loadedOnce: false,
   error: null,
   canceledDefaultModal: false,
+  selectedWorkspaceId: null,
 };
-
-/** When this tab has no active workspace yet, pick one to establish via the backend. */
-export function pickWorkspaceToEstablish(
-  workspaces: WorkspaceItem[],
-  defaultWorkspaceId?: string | null,
-): WorkspaceItem | null {
-  if (workspaces.length === 0) return null;
-  if (defaultWorkspaceId) {
-    const preferred = workspaces.find((w) => w.id === defaultWorkspaceId);
-    if (preferred) return preferred;
-  }
-  if (workspaces.length === 1) return workspaces[0];
-  return workspaces.find((w) => w.kind === 'personal') ?? null;
-}
 
 export const loadWorkspaces = createAsyncThunk(
   'workspace/loadWorkspaces',
@@ -49,15 +37,16 @@ export const loadWorkspaces = createAsyncThunk(
   },
 );
 
-/** Verify membership via GET /workspaces/:id and persist the tab's active workspace. */
-export const selectActiveWorkspace = createAsyncThunk(
-  'workspace/selectActiveWorkspace',
-  async ({ token, workspaceId }: { token: string; workspaceId: string }, { rejectWithValue }) => {
+// Future: fold this into loadWorkspaces once the API returns a per-workspace capability flag.
+// Two lists over the same data drift apart unless every mutation refreshes both by hand.
+export const loadWritableWorkspaces = createAsyncThunk(
+  'workspace/loadWritableWorkspaces',
+  async (token: string, { rejectWithValue }) => {
     try {
-      const workspace = await selectWorkspace(token, workspaceId);
-      return workspace.id;
+      const response = await fetchWorkspaces(token, 'design_create');
+      return response.items;
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to select workspace';
+      const message = error instanceof Error ? error.message : 'Failed to load writable workspaces';
       return rejectWithValue(message);
     }
   },
@@ -67,21 +56,20 @@ const workspaceSlice = createSlice({
   name: 'workspace',
   initialState,
   reducers: {
-    // Mirror of the per-tab store. Dispatched by sobaFetch when the backend echoes the
-    // resolved workspace; the source of truth for the value is the backend response.
-    setActiveWorkspaceId(state, action: PayloadAction<string>) {
-      state.activeWorkspaceId = action.payload;
-    },
     clearWorkspaceState(state) {
-      clearWorkspaceId();
       state.workspaces = [];
-      state.activeWorkspaceId = null;
+      state.writableWorkspaces = [];
       state.status = 'idle';
+      state.writableStatus = 'idle';
       state.loadedOnce = false;
       state.error = null;
+      state.selectedWorkspaceId = null;
     },
     setCanceledDefaultModal(state, action: PayloadAction<boolean>) {
       state.canceledDefaultModal = action.payload;
+    },
+    setSelectedWorkspaceId(state, action: PayloadAction<string | null>) {
+      state.selectedWorkspaceId = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -92,28 +80,28 @@ const workspaceSlice = createSlice({
       .addCase(loadWorkspaces.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.loadedOnce = true;
-        state.workspaces = action.payload;
-        // No auto-pick: the active workspace is established only by a backend response
-        // (explicit selection via GET /workspaces/:id, or resource-derived deep links).
-        // If the stored selection is no longer a workspace the user belongs to, drop it.
-        if (
-          state.activeWorkspaceId &&
-          !state.workspaces.some((w) => w.id === state.activeWorkspaceId)
-        ) {
-          clearWorkspaceId();
-          state.activeWorkspaceId = null;
-        }
+        // parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
+        state.workspaces = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(loadWorkspaces.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload as string;
       })
-      .addCase(selectActiveWorkspace.fulfilled, (state, action) => {
-        state.activeWorkspaceId = action.payload;
+      .addCase(loadWritableWorkspaces.pending, (state) => {
+        state.writableStatus = 'loading';
+      })
+      .addCase(loadWritableWorkspaces.fulfilled, (state, action) => {
+        state.writableStatus = 'succeeded';
+        state.writableWorkspaces = Array.isArray(action.payload) ? action.payload : [];
+      })
+      .addCase(loadWritableWorkspaces.rejected, (state, action) => {
+        state.writableStatus = 'failed';
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { setActiveWorkspaceId, clearWorkspaceState, setCanceledDefaultModal } = workspaceSlice.actions;
+export const { clearWorkspaceState, setCanceledDefaultModal, setSelectedWorkspaceId } =
+  workspaceSlice.actions;
 
 export default workspaceSlice.reducer;

@@ -19,8 +19,8 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces, setCanceledDefaultModal } from '@/lib/slices/workspaceSlice';
-import { loadCurrentUser, updateDefaultWorkspace } from '@/lib/slices/currentUserSlice';
+import { loadWorkspaces, loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
+import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { createWorkspace, selectWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
 import { isWorkspaceManageRole } from '../workspaceRoles';
@@ -45,8 +45,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     (state) => state.currentUser,
   );
 
-  const savedDefaultId = currentUser?.preferences?.defaultWorkspaceId ?? null;
-
   const [name, setName] = useState('');
   const [loadedName, setLoadedName] = useState('');
   const [org, setOrg] = useState('');
@@ -55,18 +53,9 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   const [loadedUseCase, setLoadedUseCase] = useState('');
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [loadedDisclaimer, setLoadedDisclaimer] = useState(false);
-  const [defaultTouched, setDefaultTouched] = useState(first || false);
-  const [isDefaultChoice, setIsDefaultChoice] = useState(first || false);
   const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('settings');
-
-  let savedDefaultMatches = false;
-  if (!isCreate) {
-    savedDefaultMatches = savedDefaultId === workspaceId;
-  }
-
-  const isDefault = defaultTouched ? isDefaultChoice : savedDefaultMatches;
 
   const valid = useMemo(() => {
     return name.trim().length > 0 && useCase !== '' && org !== '';
@@ -143,11 +132,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per workspace id
   }, [token, workspaceId, isCreate]);
 
-  const handleDefaultChange = useCallback((selected: boolean) => {
-    setDefaultTouched(true);
-    setIsDefaultChoice(selected);
-  }, []);
-
   const handleUseCaseChange = useCallback((newUseCase: Key | null) => {
     setUseCase(newUseCase?.toString() ?? '');
   }, []);
@@ -157,12 +141,8 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   }, []);
 
   const handleCancel = useCallback(() => {
-    if (first) {
-      dispatch(setCanceledDefaultModal(true));
-      return;
-    }
     router.push(`/${locale}/workspaces`);
-  }, [router, locale, dispatch, first]);
+  }, [router, locale]);
 
   const handleSave = useCallback(async () => {
     const trimmedName = name.trim();
@@ -175,16 +155,13 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
 
     setSaving(true);
     try {
-      let savedId = workspaceId ?? null;
-
       if (isCreate) {
-        const created = await createWorkspace(token, {
+        await createWorkspace(token, {
           name: trimmedName,
           disclaimerAccepted,
           useCase,
           org,
         });
-        savedId = created.id;
       } else if (needsUpdate) {
         await updateWorkspace(token, workspaceId, {
           name: trimmedName,
@@ -194,28 +171,12 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         });
       }
 
-      // Only change the stored default when the user's intent is explicit. An untouched
-      // switch must preserve the existing default — otherwise creating a second
-      // (non-default) workspace would clear the first one's default.
-      let nextDefaultId: string | null;
-      if (isDefault) {
-        nextDefaultId = savedId;
-      } else if (!isCreate && savedDefaultMatches) {
-        // The user turned the switch off on the workspace that is currently the default.
-        nextDefaultId = null;
-      } else {
-        nextDefaultId = savedDefaultId;
-      }
-      if (nextDefaultId !== savedDefaultId) {
-        await dispatch(
-          updateDefaultWorkspace({
-            token,
-            defaultWorkspaceId: nextDefaultId,
-          }),
-        ).unwrap();
-      }
-
-      await dispatch(loadWorkspaces(token));
+      // The writable list carries the disclaimer flag that gates form creation, so it goes
+      // stale on the same edits as the full list and has to be refreshed alongside it.
+      await Promise.all([
+        dispatch(loadWorkspaces(token)),
+        dispatch(loadWritableWorkspaces(token)),
+      ]);
       router.push(`/${locale}/workspaces`);
     } catch (error) {
       addNotification({
@@ -236,9 +197,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     loadedName,
     disclaimerAccepted,
     loadedDisclaimer,
-    isDefault,
-    savedDefaultMatches,
-    savedDefaultId,
     dispatch,
     router,
     locale,
@@ -259,7 +217,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
 
   const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
   const saveLabel = isCreate ? dictWorkspaces.create : dictWorkspaces.save;
-  const defaultLabel = dictWorkspaces.defaultWorkspaceFormLabel;
 
   const settingsForm = (
     <Form
@@ -270,7 +227,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
       className={styles.fieldStack}
     >
       <TextField
-        label={first ? dictWorkspaces.defNameLabel : dictWorkspaces.nameLabel}
+        label={dictWorkspaces.nameLabel}
         value={name}
         onChange={setName}
         isRequired
@@ -297,17 +254,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         value={useCase}
         onChange={handleUseCaseChange}
       />
-      {!first && (
-        <Checkbox
-          isSelected={isDefault}
-          onChange={handleDefaultChange}
-          isDisabled={saving}
-          aria-label={defaultLabel}
-          data-testid="workspace-default-switch"
-        >
-          {defaultLabel}
-        </Checkbox>
-      )}
       <InlineAlert
         description={dictWorkspaces.disclaimer}
         title={dictWorkspaces.disclaimerTitle}

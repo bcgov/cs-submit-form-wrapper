@@ -1,22 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { sobaFetch, SessionExpiredError } from '@/src/shared/api/sobaFetch';
-import {
-  getWorkspaceId,
-  setWorkspaceId,
-  clearWorkspaceId,
-} from '@/src/shared/workspace/workspaceStore';
-import { setWorkspaceResolvedListener } from '@/src/shared/workspace/workspaceSync';
 import { setTokenRefresher, type RefreshOutcome } from '@/src/shared/auth/tokenRefresh';
 
 const token = (value: string): RefreshOutcome => ({ status: 'token', token: value });
 
-function mockResponse(workspaceHeader: string | null, status = 200) {
+function mockResponse(status = 200) {
   return {
     ok: status < 400,
     status,
     headers: {
-      get: (key: string) =>
-        key.toLowerCase() === 'x-soba-workspace-id' ? workspaceHeader : null,
+      get: () => null,
     },
     json: async () => ({}),
   } as unknown as Response;
@@ -27,8 +20,6 @@ const authHeader = (call: unknown[]) =>
 
 describe('sobaFetch', () => {
   beforeEach(() => {
-    clearWorkspaceId();
-    setWorkspaceResolvedListener(null);
     setTokenRefresher(null);
   });
 
@@ -36,48 +27,23 @@ describe('sobaFetch', () => {
     vi.unstubAllGlobals();
   });
 
-  it('sends Authorization and a workspaceId query param, never a workspace request header', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+  it('sends Authorization and a workspaceId query param', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
 
-    await sobaFetch('/forms', { token: 'tok', workspaceId: 'wsX' });
+    await sobaFetch('/forms', { token: 'tok', query: { workspaceId: 'wsX' } });
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain('/forms?workspaceId=wsX');
     expect(init.headers.Authorization).toBe('Bearer tok');
     expect(init.headers.Accept).toBe('application/json');
-    expect(Object.keys(init.headers)).not.toContain('x-soba-workspace-id');
-  });
-
-  it('captures the echoed x-soba-workspace-id header into the store and notifies listeners', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse('wsEcho'));
-    vi.stubGlobal('fetch', fetchMock);
-    const seen: string[] = [];
-    setWorkspaceResolvedListener((id) => seen.push(id));
-
-    await sobaFetch('/forms/abc', { token: 'tok' });
-
-    expect(getWorkspaceId()).toBe('wsEcho');
-    expect(seen).toEqual(['wsEcho']);
-  });
-
-  it('does not re-notify when the echoed workspace already matches the store', async () => {
-    setWorkspaceId('wsSame');
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse('wsSame'));
-    vi.stubGlobal('fetch', fetchMock);
-    const seen: string[] = [];
-    setWorkspaceResolvedListener((id) => seen.push(id));
-
-    await sobaFetch('/forms/abc', { token: 'tok' });
-
-    expect(seen).toEqual([]);
   });
 
   it('serializes a JSON body with a Content-Type header', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
 
-    await sobaFetch('/forms', { token: 'tok', method: 'POST', json: { a: 1 }, workspaceId: 'wsX' });
+    await sobaFetch('/forms', { token: 'tok', method: 'POST', json: { a: 1 }, query: {workspaceId: 'wsX'} });
 
     const [, init] = fetchMock.mock.calls[0];
     expect(init.method).toBe('POST');
@@ -86,7 +52,7 @@ describe('sobaFetch', () => {
   });
 
   it('sends the refreshed token, not the one the caller passed', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
     setTokenRefresher(async () => token('fresh'));
 
@@ -96,7 +62,7 @@ describe('sobaFetch', () => {
   });
 
   it('refuses to send when a registered refresher reports no session', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
     setTokenRefresher(async () => ({ status: 'no-session' }));
 
@@ -109,7 +75,7 @@ describe('sobaFetch', () => {
   });
 
   it('sends the caller token when the refresh reached no verdict', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
     // A slow or failed refresh is not evidence the session ended; failing the call here would sign
     // people out of healthy sessions.
@@ -121,7 +87,7 @@ describe('sobaFetch', () => {
   });
 
   it('uses the caller token when no refresher is registered', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
 
     await sobaFetch('/forms', { token: 'caller' });
@@ -130,7 +96,7 @@ describe('sobaFetch', () => {
   });
 
   it('never refreshes for an anonymous call', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
     const refresher = vi.fn().mockResolvedValue(token('fresh'));
     setTokenRefresher(refresher);
@@ -144,8 +110,8 @@ describe('sobaFetch', () => {
   it('forces a refresh on a 401 and replays the request once', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(mockResponse(null, 401))
-      .mockResolvedValueOnce(mockResponse(null));
+      .mockResolvedValueOnce(mockResponse(401))
+      .mockResolvedValueOnce(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
     const refresher = vi
       .fn()
@@ -165,7 +131,7 @@ describe('sobaFetch', () => {
   });
 
   it('returns the 401 without replaying when the forced refresh yields the same token', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null, 401));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(401));
     vi.stubGlobal('fetch', fetchMock);
     setTokenRefresher(async () => token('same'));
 
@@ -176,7 +142,7 @@ describe('sobaFetch', () => {
   });
 
   it('does not replay an anonymous 401', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null, 401));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(401));
     vi.stubGlobal('fetch', fetchMock);
     const refresher = vi.fn().mockResolvedValue(token('fresh'));
     setTokenRefresher(refresher);
@@ -188,7 +154,7 @@ describe('sobaFetch', () => {
   });
 
   it('replays at most once when the 401 persists', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null, 401));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(401));
     vi.stubGlobal('fetch', fetchMock);
     const refresher = vi
       .fn()
@@ -204,7 +170,7 @@ describe('sobaFetch', () => {
   });
 
   it('shares one refresh across concurrent calls', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(mockResponse(null));
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
     const refresher = vi.fn().mockResolvedValue(token('fresh'));
     setTokenRefresher(refresher);

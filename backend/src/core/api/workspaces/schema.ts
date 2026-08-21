@@ -25,6 +25,7 @@ export const ListWorkspacesQuerySchema = z
     cursor: z.string().min(1).optional(),
     kind: z.string().trim().min(1).optional(),
     status: z.string().trim().min(1).optional(),
+    requiredPermission: z.string().trim().min(1).optional(),
     sort: CursorSortSchema.default('id:desc'),
   })
   .openapi('Workspaces_ListWorkspacesQuery');

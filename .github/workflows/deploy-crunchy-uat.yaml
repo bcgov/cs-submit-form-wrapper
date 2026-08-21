@@ -1,0 +1,168 @@
+# Manual UAT Crunchy PostgreSQL deployment.
+#
+# This workflow manages only the UAT Crunchy cluster lifecycle. Normal UAT app
+# UAT app deployments should consume the existing Crunchy-generated secrets and run
+# application migrations separately.
+name: Deploy Crunchy UAT
+
+run-name: Deploy UAT Crunchy Postgres
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/deploy-crunchy-uat.yaml"
+      - "deployments/helm/action-crunchy/values-uat.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openshift-uat-crunchy
+  cancel-in-progress: false
+
+jobs:
+  deploy-crunchy-uat:
+    name: Deploy UAT Crunchy Postgres
+    environment:
+      name: uat
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      release: ${{ steps.crunchy.outputs.release }}
+      cluster: ${{ steps.crunchy.outputs.cluster }}
+    steps:
+      - name: Deploy Crunchy
+        id: crunchy
+        uses: bcgov/action-crunchy@7ee9c0bdec27f5251a8239373f51db1e01c7c4d9 # v2.1.0
+        with:
+          oc_namespace: ${{ secrets.OC_NAMESPACE }}
+          oc_token: ${{ secrets.OC_TOKEN }}
+          oc_server: ${{ vars.OC_SERVER }}
+          values_file: deployments/helm/action-crunchy/values-uat.yml
+          release_name: pg-soba-uat
+          ref: v2.1.0
+
+      - name: Validate Crunchy resources
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+          CLUSTER: ${{ steps.crunchy.outputs.cluster }}
+        run: |
+          set -euo pipefail
+
+          EXPECTED_REPLICAS=3
+          READY_REPLICAS="0"
+          for attempt in $(seq 1 90); do
+            READY_REPLICAS="$(oc -n "$NAMESPACE" get postgrescluster "$CLUSTER" -o jsonpath='{.status.instances[0].readyReplicas}' 2>/dev/null || true)"
+            if [ "$READY_REPLICAS" = "$EXPECTED_REPLICAS" ]; then
+              echo "Crunchy cluster ${CLUSTER} has ${EXPECTED_REPLICAS} ready Postgres replicas."
+              break
+            fi
+
+            echo "Attempt ${attempt}: expected ${EXPECTED_REPLICAS} ready Postgres replicas for ${CLUSTER}, got ${READY_REPLICAS:-0}; waiting 10 seconds"
+            sleep 10
+          done
+
+          if [ "$READY_REPLICAS" != "$EXPECTED_REPLICAS" ]; then
+            echo "::error::Expected ${EXPECTED_REPLICAS} ready Postgres replicas for ${CLUSTER}, got ${READY_REPLICAS:-0}"
+            oc -n "$NAMESPACE" get postgrescluster "$CLUSTER" -o yaml || true
+            oc -n "$NAMESPACE" get pods -l "postgres-operator.crunchydata.com/cluster=${CLUSTER}" || true
+            exit 1
+          fi
+
+          for secret in \
+            "${CLUSTER}-pguser-appproxy" \
+            "${CLUSTER}-pguser-admin" \
+            "${CLUSTER}-pguser-app-reader" \
+            "${CLUSTER}-pguser-temporal"; do
+            for attempt in $(seq 1 30); do
+              if oc -n "$NAMESPACE" get secret "$secret" >/dev/null 2>&1; then
+                echo "Found expected secret ${secret}."
+                break
+              fi
+
+              if [ "$attempt" = "30" ]; then
+                echo "::error::Expected secret ${secret} was not created."
+                exit 1
+              fi
+
+              echo "Attempt ${attempt}: expected secret ${secret} not found; waiting 10 seconds"
+              sleep 10
+            done
+          done
+
+          APPPROXY_SECRET="${CLUSTER}-pguser-appproxy"
+          oc -n "$NAMESPACE" get secret "$APPPROXY_SECRET" -o jsonpath='{.data.uri}' >/dev/null
+          oc -n "$NAMESPACE" get secret "$APPPROXY_SECRET" -o jsonpath="{.data['pgbouncer-uri']}" >/dev/null
+
+      - name: Harden database privileges
+        env:
+          NAMESPACE: ${{ secrets.OC_NAMESPACE }}
+          CLUSTER: ${{ steps.crunchy.outputs.cluster }}
+        run: |
+          set -euo pipefail
+
+          JOB_NAME="${CLUSTER}-db-hardening"
+          ADMIN_SECRET="${CLUSTER}-pguser-admin"
+          POSTGRES_IMAGE="$(oc -n "$NAMESPACE" get postgrescluster "$CLUSTER" -o jsonpath='{.spec.image}')"
+
+          oc -n "$NAMESPACE" delete job "$JOB_NAME" --ignore-not-found=true
+
+          cat <<EOF | oc -n "$NAMESPACE" apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: ${JOB_NAME}
+          spec:
+            backoffLimit: 2
+            ttlSecondsAfterFinished: 300
+            template:
+              metadata:
+                labels:
+                  postgres-operator.crunchydata.com/cluster: ${CLUSTER}
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: db-hardening
+                    image: ${POSTGRES_IMAGE}
+                    imagePullPolicy: IfNotPresent
+                    env:
+                      - name: DATABASE_URI
+                        valueFrom:
+                          secretKeyRef:
+                            name: ${ADMIN_SECRET}
+                            key: uri
+                    command:
+                      - sh
+                      - -ec
+                      - |
+                        psql "\$DATABASE_URI" -v ON_ERROR_STOP=1 <<'SQL'
+                        REVOKE CONNECT, TEMPORARY ON DATABASE app FROM PUBLIC;
+                        REVOKE CONNECT, TEMPORARY ON DATABASE postgres FROM PUBLIC;
+                        REVOKE CONNECT, TEMPORARY ON DATABASE temporal FROM PUBLIC;
+                        REVOKE CONNECT, TEMPORARY ON DATABASE temporal_visibility FROM PUBLIC;
+                        REVOKE CREATE, TEMPORARY ON DATABASE app FROM "app-reader";
+                        SQL
+          EOF
+
+          if ! oc -n "$NAMESPACE" wait --for=condition=complete "job/${JOB_NAME}" --timeout=5m; then
+            oc -n "$NAMESPACE" logs "job/${JOB_NAME}" || true
+            exit 1
+          fi
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## UAT Crunchy Postgres"
+            echo ""
+            echo "- Helm release: ${{ steps.crunchy.outputs.release }}"
+            echo "- Crunchy cluster: ${{ steps.crunchy.outputs.cluster }}"
+            echo "- Values file: deployments/helm/action-crunchy/values-uat.yml"
+            echo ""
+            echo "Expected pguser secrets:"
+            echo ""
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-appproxy"
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-admin"
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-app-reader"
+            echo "- ${{ steps.crunchy.outputs.cluster }}-pguser-temporal"
+          } >> "$GITHUB_STEP_SUMMARY"
