@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../client';
 import {
   rolePermissions,
@@ -71,20 +71,47 @@ export const getWorkspaceIdsWithAllPermissions = async (
   actorId: string,
   required: readonly string[],
 ): Promise<string[]> => {
+  const activeMembership = and(
+    eq(workspaceMemberships.userId, actorId),
+    eq(workspaceMemberships.status, WorkspaceMembershipStatus.active),
+  );
+
+  // No required codes: every active membership qualifies.
+  if (required.length === 0) {
+    const rows = await db
+      .select({ workspaceId: workspaceMemberships.workspaceId })
+      .from(workspaceMemberships)
+      .where(activeMembership);
+    return rows.map((row) => row.workspaceId);
+  }
+
+  // A workspace qualifies on the wildcard, or on all required codes across the actor's groups.
+  const requiredCodes = [...required];
   const rows = await db
     .select({ workspaceId: workspaceMemberships.workspaceId })
     .from(workspaceMemberships)
-    .where(
+    .innerJoin(
+      workspaceGroupMemberships,
       and(
-        eq(workspaceMemberships.userId, actorId),
-        eq(workspaceMemberships.status, WorkspaceMembershipStatus.active),
+        eq(workspaceGroupMemberships.workspaceMembershipId, workspaceMemberships.id),
+        eq(workspaceGroupMemberships.workspaceId, workspaceMemberships.workspaceId),
+        eq(workspaceGroupMemberships.memberKind, GroupMemberKind.user),
+        eq(workspaceGroupMemberships.status, WorkspaceGroupMembershipStatus.active),
       ),
+    )
+    .innerJoin(
+      workspaceGroupRoles,
+      and(
+        eq(workspaceGroupRoles.groupId, workspaceGroupMemberships.groupId),
+        eq(workspaceGroupRoles.status, WorkspaceGroupRoleStatus.active),
+      ),
+    )
+    .innerJoin(rolePermissions, eq(rolePermissions.roleCode, workspaceGroupRoles.roleCode))
+    .where(activeMembership)
+    .groupBy(workspaceMemberships.workspaceId)
+    .having(
+      sql`bool_or(${eq(rolePermissions.permissionCode, Permissions.all)}) or count(distinct ${rolePermissions.permissionCode}) filter (where ${inArray(rolePermissions.permissionCode, requiredCodes)}) = ${requiredCodes.length}`,
     );
 
-  const allowed = [];
-  for (const row of rows) {
-    const perms = await resolveFormPermissions(actorId, row.workspaceId);
-    if (hasAllPermissions(perms, required)) allowed.push(row.workspaceId);
-  }
-  return allowed;
+  return rows.map((row) => row.workspaceId);
 };
