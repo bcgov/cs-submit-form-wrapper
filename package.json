@@ -27,8 +27,7 @@
     "dev:services:up": "docker compose -f .devcontainer/docker-compose.yml up -d --wait",
     "dev:db:up": "pnpm dev:services:up && pnpm db:init",
     "clean:workspace": "bash scripts/clean-workspace.sh",
-    "clean:workspace:full": "bash scripts/clean-workspace.sh --full -y",
-    "release": "semantic-release"
+    "clean:workspace:full": "bash scripts/clean-workspace.sh --full -y"
   },
   "keywords": [],
   "author": "",
