@@ -90,6 +90,22 @@ describe('workspaceSlice', () => {
     expect(next.writableWorkspaces).toHaveLength(1);
   });
 
+  // parseJson casts the body without checking, so a malformed 200 must not put a non-array
+  // into state — every consumer calls .filter/.some/.length on these straight away.
+  it('keeps the lists as arrays when the response has no items', () => {
+    const loaded = workspaceReducer(baseState, {
+      type: loadWorkspaces.fulfilled.type,
+      payload: undefined,
+    });
+    expect(loaded.workspaces).toEqual([]);
+
+    const writable = workspaceReducer(baseState, {
+      type: loadWritableWorkspaces.fulfilled.type,
+      payload: undefined,
+    });
+    expect(writable.writableWorkspaces).toEqual([]);
+  });
+
   it('handles loadWritableWorkspaces.rejected', () => {
     const next = workspaceReducer(baseState, {
       type: loadWritableWorkspaces.rejected.type,

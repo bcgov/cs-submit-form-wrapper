@@ -73,7 +73,8 @@ const workspaceSlice = createSlice({
       })
       .addCase(loadWorkspaces.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.workspaces = action.payload;
+        // parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
+        state.workspaces = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(loadWorkspaces.rejected, (state, action) => {
         state.status = 'failed';
@@ -84,7 +85,7 @@ const workspaceSlice = createSlice({
       })
       .addCase(loadWritableWorkspaces.fulfilled, (state, action) => {
         state.writableStatus = 'succeeded';
-        state.writableWorkspaces = action.payload;
+        state.writableWorkspaces = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(loadWritableWorkspaces.rejected, (state, action) => {
         state.writableStatus = 'failed';

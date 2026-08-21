@@ -280,7 +280,7 @@ function FormList({
           </DSButton>
         ) : null}
       </ListPageToolbar>
-      {workspaces?.length > 1 && (
+      {workspaces.length > 1 && (
         <div className={`mb-2 ${styles.workspaceField}`}>
           <div className="mb-2">{dict.workspaces.workspace}</div>
           <div>
