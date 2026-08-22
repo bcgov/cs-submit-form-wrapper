@@ -280,4 +280,13 @@ export class FormioEngineAdapter implements FormEngineAdapter {
     delete cleaned.metadata;
     return cleaned;
   }
+
+  /** Delete a Form.io submission by form ref + submission ref (compensation / cleanup). */
+  async deleteSubmission(engineFormRef: string, engineRef: string): Promise<void> {
+    const client = await getAuthenticatedFormioClient(this.pluginConfig);
+    if (!client) {
+      throw new Error('Form.io admin client unavailable; cannot delete submission');
+    }
+    await client.deleteSubmission(engineFormRef, engineRef);
+  }
 }

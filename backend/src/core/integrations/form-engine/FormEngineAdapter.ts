@@ -53,6 +53,8 @@ export interface FormEngineAdapter {
     engineFormRef: string,
     engineRef: string,
   ): Promise<Record<string, unknown> | null>;
+  /** Delete a submission document by form ref + submission ref (compensation / cleanup). */
+  deleteSubmission?(engineFormRef: string, engineRef: string): Promise<void>;
   /**
    * Normalize a schema (imported file or exported design) into a clean, portable,
    * builder-ready form definition for this engine. Pure transform — no engine call.

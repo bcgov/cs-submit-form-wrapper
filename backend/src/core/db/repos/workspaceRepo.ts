@@ -59,10 +59,8 @@ export const getWorkspaceById = async (workspaceId: string): Promise<{ id: strin
   return rows[0] ?? null;
 };
 
-type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
 const bootstrapWorkspaceOwner = async (
-  tx: DbTx,
+  tx: DbOrTx,
   workspaceId: string,
   userId: string,
   displayLabel: string | null,
@@ -124,20 +122,21 @@ export const createTeamWorkspace = async (
   org: string,
   useCase: string,
   disclaimerAccepted = false,
+  tx?: DbOrTx,
 ) => {
   if (await workspaceNameExistsForKind(WorkspaceKind.team, name)) {
     throw new ConflictError(WORKSPACE_NAME_TAKEN);
   }
-  return db.transaction(async (tx) => {
-    const userRow = await tx
+  const run = async (d: DbOrTx) => {
+    const workspaceId = uuidv7();
+    const userRow = await d
       .select({ displayLabel: appUsers.displayLabel })
       .from(appUsers)
       .where(eq(appUsers.id, userId))
       .limit(1);
     const displayLabel = userRow[0]?.displayLabel ?? null;
 
-    const workspaceId = uuidv7();
-    await tx.insert(workspaces).values({
+    await d.insert(workspaces).values({
       id: workspaceId,
       kind: WorkspaceKind.team,
       name,
@@ -149,7 +148,7 @@ export const createTeamWorkspace = async (
     });
 
     await bootstrapWorkspaceOwner(
-      tx,
+      d,
       workspaceId,
       userId,
       displayLabel,
@@ -157,7 +156,7 @@ export const createTeamWorkspace = async (
     );
 
     if (disclaimerAccepted) {
-      await tx.insert(workspaceDisclaimerAcceptances).values({
+      await d.insert(workspaceDisclaimerAcceptances).values({
         workspaceId,
         acceptedByUserId: userId,
         acceptedAt: new Date(),
@@ -167,7 +166,11 @@ export const createTeamWorkspace = async (
     }
 
     return workspaceId;
-  });
+  };
+
+  // Joins the caller's transaction when given one, so the caller can commit this alongside its own
+  // writes. Opens its own otherwise.
+  return tx ? run(tx) : db.transaction(run);
 };
 
 /** True once the workspace's disclaimer has been accepted (gates form creation). */
