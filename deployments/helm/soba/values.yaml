@@ -73,6 +73,13 @@ backend:
     enabled: true
     activeDeadlineSeconds: 300
 
+  # -- per-environment feature status, rendered into the migration Job (which runs the seed).
+  # Each key becomes FEATURE_<CODE>_STATUS. "" leaves the migration's value alone; otherwise any
+  # feature_status code (enabled, disabled, experimental, deprecated), quoted. Anything else fails
+  # the render. dev-data must stay off in production.
+  features:
+    dev-data: ""
+
   # -- configmap-app: general application config
   config:
     logLevel: info

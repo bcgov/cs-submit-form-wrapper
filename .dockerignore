@@ -17,6 +17,7 @@
 
 # Local env (images use .env.example only)
 **/.env
+**/.devdata-*
 **/.env.local
 **/.env.*.local
 

@@ -86,6 +86,7 @@ The repo is a **[pnpm](https://pnpm.io) workspace** (faster installs, shared sto
 | `pnpm db:migrate`                                  | Run pending DB migrations (backend)                             |
 | `pnpm db:seed`                                     | Seed DB (run after migrate)                                     |
 | `pnpm db:init`                                     | Migrate then seed (full DB setup)                               |
+| `pnpm db:dev-data`                                 | Build/remove development data ([guide](backend/src/features/dev-data/README.md)) |
 | `pnpm lint:frontend` / `pnpm lint:backend`         | Lint one app                                                    |
 | `pnpm lint:fix:frontend` / `pnpm lint:fix:backend` | Lint fix one app                                                |
 | `pnpm check`                                       | Type/style checks for both apps                                 |
@@ -181,8 +182,28 @@ The devcontainer **initialize** and **post-create** steps copy from example file
 | `pnpm check`                   | Type-check + lint (run before PR)                            |
 | `pnpm temporal-worker`         | Run Temporal worker once (`tsx temporal-worker.ts`)          |
 | `pnpm temporal-worker:dev`     | Run Temporal worker with watch                               |
+| `pnpm db:dev-data`             | Build/remove a development data set (see below)              |
 
 Tests live under `backend/tests/`. See [In Detail — Testing](#testing) for approach and supertest usage.
+
+### Development data
+
+`pnpm db:dev-data --seed --username <idir-username>` builds a disposable set of workspaces, forms,
+submissions, users, and groups, in Postgres and in the form engine, sized to exercise list paging
+(`--size small|medium|large`, default `large`). `--purge` removes it again. Generated workspaces,
+forms, groups and users are named with a `[dev] ` prefix. Run it after `pnpm db:init`.
+
+Gated on the `dev-data` feature, which the migration inserts disabled. Set
+`FEATURE_DEV_DATA_STATUS=enabled` and run `pnpm db:seed`; deployments set it per environment
+through `backend.features` in the Helm values. Left disabled in production.
+
+`FEATURE_<CODE>_STATUS` works for any backend feature: empty leaves the migrated status alone, and
+any `feature_status` code (`enabled`, `disabled`, `experimental`, `deprecated`) overrides it. Only
+`db:seed` reads it; everything else reads the stored status, so a change to the variable takes
+effect on the next seed and not before.
+
+See [`backend/src/features/dev-data/README.md`](backend/src/features/dev-data/README.md) for what
+gets built and for the gitignored owner file that seeds a fresh database without signing in first.
 
 ### Temporal
 

@@ -6,6 +6,9 @@
 !.env.example
 !.env.*.example
 
+# Dev data owner file: a developer's real app_user + user_identity (see backend/src/features/dev-data)
+.devdata-owner
+
 # Personal shell config (copy from .devcontainer/bashrc.example to ~/.bashrc in the container)
 .bashrc
 .bashrc.local
