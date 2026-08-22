@@ -36,7 +36,7 @@ export function unmatchedFlagNames(source: EnvSource, codes: string[]): string[]
   return Object.keys(source)
     .filter((key) => key.startsWith(PREFIX) && key.endsWith(SUFFIX))
     .filter((key) => !codes.map(featureEnvName).includes(key))
-    .sort();
+    .sort((a, b) => a.localeCompare(b));
 }
 
 /**

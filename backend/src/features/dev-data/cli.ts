@@ -2,7 +2,6 @@
 import { env } from '../../core/config/env';
 env.loadEnv();
 
-import { writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
 import { pool } from '../../core/db/client';
@@ -44,7 +43,6 @@ Options:
                           forms, submissions, and users: ${SIZE_NAMES.map((n) => `${n}=${SIZES[n]}`).join(', ')}.
   --skip-anonymous        Attribute the public user's submissions to the target user instead.
   --dry-run               With --purge, report what would be removed and stop.
-  --out <path>            Write the manifest JSON to a file.
   --help                  Show this message.
 
 Choosing the owner:
@@ -69,7 +67,6 @@ interface CliOptions {
   ownerFilePath: string;
   includeAnonymous: boolean;
   dryRun: boolean;
-  out?: string;
 }
 
 class UsageError extends Error {}
@@ -77,7 +74,8 @@ class UsageError extends Error {}
 function resolveAction(flags: Partial<Record<Action, boolean>>): Action {
   const chosen = ACTIONS.filter((name) => flags[name]);
   if (chosen.length !== 1) {
-    throw new UsageError(`Choose exactly one of ${ACTIONS.map((a) => `--${a}`).join(', ')}`);
+    const names = ACTIONS.map((a) => `--${a}`).join(', ');
+    throw new UsageError(`Choose exactly one of ${names}`);
   }
   return chosen[0];
 }
@@ -105,7 +103,6 @@ function parseArgv(argv: string[]) {
         size: { type: 'string' },
         'skip-anonymous': { type: 'boolean', default: false },
         'dry-run': { type: 'boolean', default: false },
-        out: { type: 'string' },
         help: { type: 'boolean', default: false },
       },
     });
@@ -137,7 +134,6 @@ function parse(argv: string[]): CliOptions {
     ownerFilePath: values['owner-file'] ?? DEFAULT_OWNER_FILE,
     includeAnonymous: !values['skip-anonymous'],
     dryRun: values['dry-run'] ?? false,
-    out: values.out,
   };
 }
 
@@ -180,9 +176,10 @@ function reportManifest(manifest: DevDataManifest): void {
   console.log(`  paging forms       ${manifest.anchors.pagingForms ?? '-'}`);
   console.log(`  paging members     ${manifest.anchors.pagingMembers ?? '-'}`);
   const submissions = manifest.anchors.pagingSubmissions;
-  console.log(
-    `  paging submissions ${submissions ? `${submissions.workspaceId} form ${submissions.formId}` : '-'}`,
-  );
+  const submissionsAnchor = submissions
+    ? `${submissions.workspaceId} form ${submissions.formId}`
+    : '-';
+  console.log(`  paging submissions ${submissionsAnchor}`);
 }
 
 /**
@@ -195,7 +192,9 @@ async function resolveOwner(options: CliOptions): Promise<ResolvedUser> {
 
   if (owner && (!username || ownerFileMatches(owner, username))) {
     const resolved = await ensureOwner(owner);
-    console.log(`Owner ${resolved.displayLabel ?? resolved.id} (from ${options.ownerFilePath})`);
+    // The file path identifies the owner; the summary below names them once, and the IdP
+    // username does not belong in anything that might end up in a server log.
+    console.log(`Owner from ${options.ownerFilePath}`);
     return resolved;
   }
   if (!username) {
@@ -224,11 +223,6 @@ async function runSeed(options: CliOptions, owner: ResolvedUser): Promise<void> 
     includeAnonymousSubmissions: options.includeAnonymous,
   });
   reportManifest(manifest);
-
-  if (options.out) {
-    await writeFile(options.out, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
-    console.log(`Manifest written to ${options.out}`);
-  }
 }
 
 async function run(options: CliOptions): Promise<void> {

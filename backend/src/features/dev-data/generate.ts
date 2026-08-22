@@ -379,10 +379,9 @@ function buildAnchors(
   return {
     pagingForms: idFor('pagingForms')?.id ?? null,
     pagingMembers: idFor('pagingMembers')?.id ?? null,
-    pagingSubmissions:
-      submissions && submissions.forms[0]
-        ? { workspaceId: submissions.id, formId: submissions.forms[0].id }
-        : null,
+    pagingSubmissions: submissions?.forms[0]
+      ? { workspaceId: submissions.id, formId: submissions.forms[0].id }
+      : null,
   };
 }
 

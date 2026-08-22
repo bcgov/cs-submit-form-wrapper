@@ -13,6 +13,7 @@ import { db } from '../../core/db/client';
 import { appUsers, userIdentities } from '../../core/db/schema';
 import { findOrCreateUserByIdentity } from '../../core/db/repos/membershipRepo';
 import { ConflictError, ValidationError } from '../../core/errors';
+import { resolveProjectPath } from './paths';
 import { DEV_SUBJECT_PREFIX } from './plan';
 import { resolveTargetUser, type ResolvedUser, type UserRef } from './resolveUser';
 
@@ -76,14 +77,19 @@ export async function buildOwnerFile(ref: UserRef): Promise<OwnerFile> {
 
 export async function writeOwnerFile(path: string, owner: OwnerFile): Promise<void> {
   // 0600: the file holds a real subject, name, and email.
-  await writeFile(path, `${JSON.stringify(owner, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  const target = resolveProjectPath(path);
+  await writeFile(target, `${JSON.stringify(owner, null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
 }
 
 /** Null when the file is absent. A malformed file is an error, not a silent fallback. */
 export async function readOwnerFile(path: string): Promise<OwnerFile | null> {
+  const target = resolveProjectPath(path);
   let raw: string;
   try {
-    raw = await readFile(path, 'utf8');
+    raw = await readFile(target, 'utf8');
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw err;
@@ -118,7 +124,7 @@ export async function ensureOwner(owner: OwnerFile): Promise<ResolvedUser> {
     );
   }
 
-  const profile: NormalizedProfile = { ...(owner.profile ?? {}) };
+  const profile: NormalizedProfile = { ...owner.profile };
   if (owner.displayLabel && !profile.displayLabel) {
     profile.displayLabel = owner.displayLabel;
   }

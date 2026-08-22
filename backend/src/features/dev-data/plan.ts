@@ -474,7 +474,7 @@ export function buildPlan(size: SizeName = DEFAULT_SIZE): DevDataPlan {
 
 /** Workflow state the submission ends in. */
 export function plannedSubmissionState(submission: PlannedSubmission): string {
-  const last = submission.events[submission.events.length - 1];
+  const last = submission.events.at(-1);
   if (last === 'submitted') return 'submitted';
   if (last === 'saved') return 'draft';
   return 'opened';

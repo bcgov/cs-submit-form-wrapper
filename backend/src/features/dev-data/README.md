@@ -54,8 +54,8 @@ pnpm db:dev-data --reset --username <idir-username>  # purge, then build
 pnpm db:dev-data --help
 ```
 
-`--out <path>` writes the manifest (ids of everything created) to a file, for an integration test to
-read. `--skip-anonymous` attributes the public user's submissions to the target user instead, so the
+`--owner-file` must point inside the project; a path that escapes it is refused.
+`--skip-anonymous` attributes the public user's submissions to the target user instead, so the
 row counts the paging anchors depend on stay the same. `--purge --dry-run` reports what would be
 removed without touching anything. Seed, purge and reset all echo the target database first.
 
