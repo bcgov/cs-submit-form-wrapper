@@ -195,3 +195,26 @@ valkey alias Service, which they share — so it exists whenever any is on redis
 {{- define "soba.usesValkey" -}}
 {{- if or (eq .Values.backend.config.cacheDefaultCode "cache-redis") (eq .Values.backend.config.messagebusDefaultCode "messagebus-redis") (eq .Values.backend.config.eventStreamDefaultCode "eventstream-redis") -}}true{{- end -}}
 {{- end }}
+
+{{/*
+Feature status env vars for the backend, consumed by the seed step.
+
+Must stay inline: the only consumer is a pre-install/pre-upgrade hook Job, and Helm creates hook
+resources before ConfigMaps.
+
+Name normalization matches featureEnvName() in backend/src/core/db/featureFlags.ts. An unrecognised
+value fails the render, so a typo or an unquoted YAML boolean cannot pass as "no opinion". The
+status list mirrors active rows in soba.feature_status; keep the two in step.
+*/}}
+{{- define "soba.featureEnv" -}}
+{{- $valid := list "enabled" "disabled" "experimental" "deprecated" -}}
+{{- range $code, $value := .Values.backend.features }}
+{{- $status := "" }}
+{{- if $value }}{{ $status = toString $value }}{{ else if kindIs "bool" $value }}{{ $status = toString $value }}{{ end }}
+{{- if and $status (not (has $status $valid)) }}
+{{- fail (printf "backend.features.%s: %s is not a feature status. Use one of: %s (quoted)." $code $status (join ", " $valid)) }}
+{{- end }}
+- name: FEATURE_{{ regexReplaceAll "[^A-Z0-9]" (upper $code) "_" }}_STATUS
+  value: {{ $status | quote }}
+{{- end }}
+{{- end }}
