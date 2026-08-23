@@ -11,6 +11,9 @@ data:
   CORS_ORIGIN: {{ .Values.backend.config.corsOrigin | default $frontendOrigins | quote }}
   {{- $backendApiBase := printf "https://%s/api/v1" (include "soba.backendHost" .) }}
   SOBA_API_BASE_URL: {{ .Values.backend.config.sobaApiBaseUrl | default $backendApiBase | quote }}
+  {{- if .Values.backend.config.appVersion }}
+  APP_VERSION: {{ .Values.backend.config.appVersion | quote }}
+  {{- end }}
   {{- if .Values.backend.config.gitSha }}
   GIT_SHA: {{ .Values.backend.config.gitSha | quote }}
   {{- end }}

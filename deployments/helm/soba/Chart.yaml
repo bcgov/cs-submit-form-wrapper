@@ -3,4 +3,4 @@ name: soba
 description: SOBA application — backend, frontend, and Form.io with MongoDB
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
+appVersion: "2.0.0-beta.0"
