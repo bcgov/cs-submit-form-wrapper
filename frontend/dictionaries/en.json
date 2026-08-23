@@ -26,7 +26,8 @@
     "search": "Search",
     "loginRequired": "Login Required",
     "reference": "Reference:",
-    "create": "Create"
+    "create": "Create",
+    "version": "Version"
   },
   "dataTable": {
     "emptyMessage": "No items found.",
