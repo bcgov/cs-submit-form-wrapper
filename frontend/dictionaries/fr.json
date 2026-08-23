@@ -28,7 +28,8 @@
     "search": "Recherche",
     "loginRequired": "Connexion requise",
     "reference": "Référence:",
-    "create": "Créer"
+    "create": "Créer",
+    "version": "Version"
   },
   "dataTable": {
     "emptyMessage": "Aucun élément trouvé.",

@@ -1,11 +1,7 @@
 import type { NextConfig } from 'next';
 import { join } from 'path';
-import packageJson from './package.json';
 
 const nextConfig: NextConfig = {
-  env: {
-    NEXT_PUBLIC_APP_VERSION: packageJson.version,
-  },
   output: 'standalone',
   // Overridable so a second local dev server (forms/submit-mode) can build into its
   // own dir instead of racing the designer server on .next. Unset in Docker → .next.

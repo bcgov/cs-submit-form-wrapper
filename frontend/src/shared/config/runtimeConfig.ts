@@ -15,6 +15,8 @@ export type FrontendRuntimeConfig = {
   build: {
     name: string;
     version: string;
+    /** Absent on backends that predate the field; the footer degrades to a bare version. */
+    gitSha?: string;
   };
 };
 
@@ -40,6 +42,8 @@ export function getBootstrapApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_SOBA_API_BASE_URL || DEFAULT_SOBA_API_BASE_URL;
 }
 
+// Browser-scoped: a page load starts empty. Not for Server Components, where this would last the
+// pod's lifetime. See loadBuildMeta.
 let cachedConfig: FrontendRuntimeConfig | null = null;
 let configPromise: Promise<FrontendRuntimeConfig> | null = null;
 
@@ -50,7 +54,9 @@ export function isRuntimeConfigPayload(config: unknown): config is FrontendRunti
     parsed.auth?.keycloak?.url &&
     parsed.auth.keycloak.realm &&
     parsed.auth.keycloak.clientId &&
-    parsed.api?.baseUrl
+    parsed.api?.baseUrl &&
+    parsed.build?.name &&
+    parsed.build.version
   );
 }
 
@@ -88,5 +94,39 @@ export async function loadFrontendRuntimeConfig(): Promise<FrontendRuntimeConfig
 }
 
 export function getSobaApiBaseUrl(): string {
+  // api.baseUrl is the browser-facing route, so it is wrong on the server: in-cluster it is the
+  // public ingress, and under Docker Compose it resolves to the frontend container itself.
+  if (typeof window === 'undefined') return getBootstrapApiBaseUrl();
   return cachedConfig?.api.baseUrl ?? getBootstrapApiBaseUrl();
+}
+
+/**
+ * Build info for server-side display, read fresh each render. Frontend and backend Deployments
+ * roll independently, so anything memoised here would report the previous release until the pod
+ * restarts. Null when the backend is unreachable or the shape is wrong.
+ */
+export async function loadBuildMeta(): Promise<FrontendRuntimeConfig['build'] | null> {
+  try {
+    const response = await fetch(`${getBootstrapApiBaseUrl()}/meta/build`, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as Partial<FrontendRuntimeConfig['build']>;
+    if (!payload?.name || !payload.version) return null;
+    return { name: payload.name, version: payload.version, gitSha: payload.gitSha };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Semver string for display: `2.0.0-beta.1+abc1234`. Versions that already carry build metadata
+ * (PR deployments send `+pr.<number>.<sha>`) are left alone; semver allows only one `+`.
+ */
+export function formatAppVersion(build: FrontendRuntimeConfig['build']): string {
+  if (build.version.includes('+')) return build.version;
+  const sha = build.gitSha && build.gitSha !== 'unknown' ? build.gitSha : null;
+  return sha ? `${build.version}+${sha}` : build.version;
 }

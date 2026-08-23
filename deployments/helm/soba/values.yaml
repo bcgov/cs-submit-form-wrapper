@@ -82,6 +82,9 @@ backend:
     # Base URL for this API (returned in /api/v1/meta/frontend-config). Defaults to backend public URL when unset.
     sobaApiBaseUrl: ""
     # Build meta (returned in /api/v1/meta/build). Set from CI (e.g. workflow override).
+    # appVersion is what /meta reports: the package.json version plus build metadata
+    # (e.g. 2.0.0-beta.0+pr.114.a1b2c3d). Unset falls back to the version baked into the image.
+    appVersion: ""
     gitSha: ""
     gitTag: ""
     imageTag: ""

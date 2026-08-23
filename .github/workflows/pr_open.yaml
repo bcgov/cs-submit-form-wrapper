@@ -191,6 +191,7 @@ jobs:
           NAMESPACE: ${{ secrets.OC_NAMESPACE }}
           RELEASE: soba-${{ needs.set-vars.outputs.JOB_NAME }}
           TAG: sha-${{ needs.build.outputs.short_sha }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
           DOMAIN: ${{ vars.OC_DOMAIN }}
           PR_NUM: ${{ needs.set-vars.outputs.PR_NUM }}
           SLOT: ${{ needs.set-vars.outputs.SLOT }}
@@ -199,11 +200,26 @@ jobs:
           set -euo pipefail
           REPO_LC=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
 
+          # Version /meta reports, e.g. 2.0.0-beta.0+pr.114.a1b2c3d. Empty if unreadable: the
+          # chart then omits APP_VERSION and the backend falls back to package.json.
+          BASE_VERSION=$(jq -r '.version // empty' backend/package.json 2>/dev/null || echo "")
+          APP_VERSION=""
+          if [[ "$BASE_VERSION" =~ ^[0-9A-Za-z.-]+$ ]]; then
+            APP_VERSION="${BASE_VERSION}+pr.${PR_NUM}.${SHORT_SHA}"
+          else
+            echo "::warning::Could not read a usable version from backend/package.json; APP_VERSION unset."
+          fi
+
           cat > /tmp/values-override.yaml <<OVERRIDE
           backend:
             image:
               repository: "ghcr.io/${REPO_LC}/backend"
               tag: "${TAG}"
+            config:
+              appVersion: "${APP_VERSION}"
+              gitSha: "${SHORT_SHA}"
+              gitTag: "${TAG}"
+              imageTag: "${TAG}"
           frontend:
             image:
               repository: "ghcr.io/${REPO_LC}/frontend"
