@@ -42,6 +42,8 @@ export function getBootstrapApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_SOBA_API_BASE_URL || DEFAULT_SOBA_API_BASE_URL;
 }
 
+// Browser-scoped: a page load starts empty. Not for Server Components, where this would last the
+// pod's lifetime. See loadBuildMeta.
 let cachedConfig: FrontendRuntimeConfig | null = null;
 let configPromise: Promise<FrontendRuntimeConfig> | null = null;
 
@@ -96,6 +98,27 @@ export function getSobaApiBaseUrl(): string {
   // public ingress, and under Docker Compose it resolves to the frontend container itself.
   if (typeof window === 'undefined') return getBootstrapApiBaseUrl();
   return cachedConfig?.api.baseUrl ?? getBootstrapApiBaseUrl();
+}
+
+/**
+ * Build info for server-side display, read fresh each render. Frontend and backend Deployments
+ * roll independently, so anything memoised here would report the previous release until the pod
+ * restarts. Null when the backend is unreachable or the shape is wrong.
+ */
+export async function loadBuildMeta(): Promise<FrontendRuntimeConfig['build'] | null> {
+  try {
+    const response = await fetch(`${getBootstrapApiBaseUrl()}/meta/build`, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as Partial<FrontendRuntimeConfig['build']>;
+    if (!payload?.name || !payload.version) return null;
+    return { name: payload.name, version: payload.version, gitSha: payload.gitSha };
+  } catch {
+    return null;
+  }
 }
 
 /**
