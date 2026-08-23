@@ -6,6 +6,7 @@ import { Footer } from '../ui/Footer';
 import { SideNav } from '../ui/SideNav';
 import shellStyles from '../ui/AppShell.module.css';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
+import { formatAppVersion, loadFrontendRuntimeConfig } from '@/src/shared/config/runtimeConfig';
 import { createIsFeatureAllowed, FEATURE_CODES } from '@/src/shared/featureFlags/flags';
 import { getHeaderNavigationItems, getOverlayNavigationItems } from '@/src/app/plugins/registry';
 import { AppAccessGuard } from '@/src/app/routing/AppAccessGuard';
@@ -23,7 +24,13 @@ export default async function RootLayout({
   const locale =
     dictionary.locale === 'en' || dictionary.locale === 'fr' ? dictionary.locale : 'en';
 
-  const featuresMeta = await loadFeaturesMeta();
+  // The version is display-only, so a failed lookup drops it instead of failing the render.
+  const [featuresMeta, appVersion] = await Promise.all([
+    loadFeaturesMeta(),
+    loadFrontendRuntimeConfig()
+      .then((config) => formatAppVersion(config.build))
+      .catch(() => undefined),
+  ]);
   const isFeatureAllowed = createIsFeatureAllowed(featuresMeta);
   const headerNavItems = getHeaderNavigationItems(locale, dictionary, isFeatureAllowed);
   const overlayNavItems = getOverlayNavigationItems(locale, dictionary, isFeatureAllowed);
@@ -50,7 +57,11 @@ export default async function RootLayout({
           </AppAccessGuard>
         </main>
       </div>
-      <Footer hideAcknowledgement={true} contact={React.createElement('span', null, '')} />
+      <Footer
+        hideAcknowledgement={true}
+        contact={React.createElement('span', null, '')}
+        version={appVersion}
+      />
     </DictionaryProvider>
   );
 }

@@ -15,6 +15,8 @@ export type FrontendRuntimeConfig = {
   build: {
     name: string;
     version: string;
+    /** Absent on backends that predate the field; the footer degrades to a bare version. */
+    gitSha?: string;
   };
 };
 
@@ -50,7 +52,9 @@ export function isRuntimeConfigPayload(config: unknown): config is FrontendRunti
     parsed.auth?.keycloak?.url &&
     parsed.auth.keycloak.realm &&
     parsed.auth.keycloak.clientId &&
-    parsed.api?.baseUrl
+    parsed.api?.baseUrl &&
+    parsed.build?.name &&
+    parsed.build.version
   );
 }
 
@@ -88,5 +92,18 @@ export async function loadFrontendRuntimeConfig(): Promise<FrontendRuntimeConfig
 }
 
 export function getSobaApiBaseUrl(): string {
+  // api.baseUrl is the browser-facing route, so it is wrong on the server: in-cluster it is the
+  // public ingress, and under Docker Compose it resolves to the frontend container itself.
+  if (typeof window === 'undefined') return getBootstrapApiBaseUrl();
   return cachedConfig?.api.baseUrl ?? getBootstrapApiBaseUrl();
+}
+
+/**
+ * Semver string for display: `2.0.0-beta.1+abc1234`. Versions that already carry build metadata
+ * (PR deployments send `+pr.<number>.<sha>`) are left alone; semver allows only one `+`.
+ */
+export function formatAppVersion(build: FrontendRuntimeConfig['build']): string {
+  if (build.version.includes('+')) return build.version;
+  const sha = build.gitSha && build.gitSha !== 'unknown' ? build.gitSha : null;
+  return sha ? `${build.version}+${sha}` : build.version;
 }

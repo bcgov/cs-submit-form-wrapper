@@ -82,6 +82,7 @@ export const FrontendConfigMetaResponseSchema = z
     build: z.object({
       name: z.string(),
       version: z.string(),
+      gitSha: z.string(),
     }),
   })
   .openapi('Meta_FrontendConfigResponse');

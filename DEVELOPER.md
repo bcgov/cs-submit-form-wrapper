@@ -428,8 +428,8 @@ Auth-related env: `IDP_PLUGINS`, `IDP_PLUGIN_DEFAULT_*`, and per-IdP `PLUGIN_<ID
 
 ### Runtime config (frontend)
 
-- **Load:** `loadFrontendRuntimeConfig()` fetches `GET {baseUrl}/meta/frontend-config`; baseUrl comes from `NEXT_PUBLIC_SOBA_API_BASE_URL` until config is loaded. Called from Keycloak init (so the first client-side auth step triggers the fetch). Result is cached in memory; subsequent calls return the cache.
-- **Shape:** Config includes `auth.keycloak` (url, realm, clientId, pkceMethod), `api.baseUrl`, `build` (name, version). Use `getSobaApiBaseUrl()` for API calls; use config.auth in Keycloak constructor.
+- **Load:** `loadFrontendRuntimeConfig()` fetches `GET {baseUrl}/meta/frontend-config`; baseUrl comes from `NEXT_PUBLIC_SOBA_API_BASE_URL` until config is loaded. Called from the locale layout server-side (for the footer version) and from Keycloak init client-side. Result is cached in memory; subsequent calls return the cache.
+- **Shape:** Config includes `auth.keycloak` (url, realm, clientId, pkceMethod), `api.baseUrl`, `build` (name, version, gitSha). Use `getSobaApiBaseUrl()` for API calls; use config.auth in Keycloak constructor. `getSobaApiBaseUrl()` returns the internal URL on the server — `api.baseUrl` is the browser-facing route and is not reachable from inside the cluster.
 
 ### Auth flow (frontend)
 
