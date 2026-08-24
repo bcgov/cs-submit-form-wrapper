@@ -13,7 +13,6 @@ import {
 } from '@bcgov/design-system-react-components';
 import { FormSubmitterAudience } from '@/src/features/designer/ui/FormSubmitterAudience';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
-import { ListPageLayout } from '@/src/components/ListPageLayout';
 import { DsPageHeading } from '@/app/ui/DsPageHeading';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
@@ -292,7 +291,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   );
 
   return (
-    <ListPageLayout>
+    <>
       {!first && <DsPageHeading id="workspace-form-heading">{heading}</DsPageHeading>}
       {first && <p>{dictWorkspaces.defaultWorkspaceIntro}</p>}
       {isCreate ? (
@@ -320,7 +319,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
           </Tab>
         </Tabs>
       )}
-    </ListPageLayout>
+    </>
   );
 }
 

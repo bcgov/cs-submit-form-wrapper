@@ -1,0 +1,22 @@
+.page {
+  max-width: var(--page-max-width, 75rem);
+  padding: var(--layout-padding-xlarge) var(--layout-padding-large);
+}
+
+/* Reserved on every page, empty or not, so a page with a tag and a page without keep their titles
+   on the same line. Tall enough for the largest tag size. */
+.eyebrow {
+  min-height: calc(var(--layout-padding-xlarge) + 2 * var(--layout-border-width-small));
+  margin-bottom: var(--layout-margin-small);
+}
+
+/* h2's size, so the correct heading level does not change how the page looks. */
+.heading {
+  margin: 0 0 var(--layout-margin-medium);
+  font-size: var(--typography-font-size-h2);
+}
+
+.description {
+  margin: 0 0 var(--layout-margin-large);
+  color: var(--app-text-muted);
+}

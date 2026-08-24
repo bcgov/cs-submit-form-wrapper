@@ -8,9 +8,8 @@ import {
   TagGroup,
 } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
-import { ListPageLayout, ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
+import { ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
 import { ListPageSearchField } from '@/src/components/ListPageSearchField';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
@@ -263,8 +262,7 @@ function FormList({
   }
 
   return (
-    <ListPageLayout>
-      <DsPageHeading id="forms-heading">{dict.general.forms}</DsPageHeading>
+    <>
       <ListPageToolbar align={designModeEnabled ? 'between' : 'end'}>
         <ListPageSearchField
           value={searchQuery}
@@ -322,7 +320,7 @@ function FormList({
         pageSizeOptions={[5, 10, 25, 50]}
         keyExtractor={(form) => form.id}
       />
-    </ListPageLayout>
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 import { getDictionary, resolveLocale } from '../dictionaries';
 import WorkspaceFormLoader from '@/src/features/workspaces/ui/WorkspaceFormLoader';
+import { PageLayout } from '@/src/components/PageLayout';
 
 type PageProps = {
   params: Promise<{ lang: string }>;
@@ -17,8 +18,8 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default function Page() {
   return (
-    <section aria-labelledby="workspace-form-heading">
+    <PageLayout headingId="workspace-form-heading">
       <WorkspaceFormLoader />
-    </section>
+    </PageLayout>
   );
 }

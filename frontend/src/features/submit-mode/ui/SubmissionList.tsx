@@ -8,8 +8,6 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaSubmissions } from '@/src/shared/api/sobaApiDesign';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { DataTable, Column } from '@/src/components/DataTable';
-import { ListPageLayout } from '@/src/components/ListPageLayout';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { WorkflowStateBadge } from './WorkflowStateBadge';
 
@@ -104,10 +102,7 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
   ];
 
   return (
-    <ListPageLayout>
-      <DsPageHeading id="submissions-heading">
-        {dict.submission?.submissions || 'Submissions'}
-      </DsPageHeading>
+    <>
       <DataTable<SubmissionListItem>
         data={paginatedSubmissions}
         columns={columns}
@@ -126,6 +121,6 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
           setCurrentPage(1);
         }}
       />
-    </ListPageLayout>
+    </>
   );
 }

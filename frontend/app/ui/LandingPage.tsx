@@ -8,11 +8,8 @@ export default function LandingPage() {
   const dict = useDictionary();
 
   return (
-    <div className="ml-5">
-      <Heading level={2} isUnstyled className="mt-5">
-        {dict.general.welcomeTo} {dict.general.titleAsService}
-      </Heading>
-      <p className="mt-5">{dict.general.description}</p>
+    <div>
+      <p>{dict.general.description}</p>
       <Heading level={5} isUnstyled className="mt-5">
         {dict.general.access} {dict.general.acronym}
       </Heading>

@@ -1,4 +1,4 @@
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
+import { PageLayout } from '@/src/components/PageLayout';
 import StartSubmission from '@/src/features/submit-mode/ui/StartSubmission';
 import { getDictionary, resolveLocale } from '../../dictionaries';
 import { notFound } from 'next/navigation';
@@ -31,11 +31,11 @@ export default async function Page({ params }: PageProps) {
   const locale = resolveLocale(lang);
   const dict = await getDictionary(locale);
   return (
-    <section className="p-4" aria-labelledby="formio-v5-render-heading">
-      <DsPageHeading id="formio-v5-render-heading">
-        {dict.formioV5.formRender.pageTitle}
-      </DsPageHeading>
+    <PageLayout
+      headingId="formio-v5-render-heading"
+      heading={dict.formioV5.formRender.pageTitle}
+    >
       <StartSubmission />
-    </section>
+    </PageLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
 import { createIsFeatureAllowed, FEATURE_CODES } from '@/src/shared/featureFlags/flags';
+import { PageLayout } from '@/src/components/PageLayout';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +25,7 @@ export default async function MetaPage() {
   const rows = [...featuresMeta.features].sort((a, b) => a.code.localeCompare(b.code));
 
   return (
-    <section aria-labelledby="meta-heading">
-      <h1 id="meta-heading">Frontend feature support</h1>
+    <PageLayout headingId="meta-heading" heading="Frontend feature support" width="narrow">
       <p>
         This frontend&apos;s allowlist (<code>NEXT_PUBLIC_SOBA_FEATURES_ALLOWED</code>):{' '}
         <strong>
@@ -58,6 +58,6 @@ export default async function MetaPage() {
           ))}
         </tbody>
       </table>
-    </section>
+    </PageLayout>
   );
 }

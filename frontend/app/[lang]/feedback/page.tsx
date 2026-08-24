@@ -1,5 +1,5 @@
 import { getDictionary, resolveLocale } from '../dictionaries';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
+import { PageLayout } from '@/src/components/PageLayout';
 
 type PageProps = {
   params: Promise<{ lang: string }>;
@@ -20,11 +20,10 @@ export default async function Page({ params }: PageProps) {
   const dict = await getDictionary(locale);
 
   return (
-    <section className="p-4" aria-labelledby="feedback-heading">
-      <DsPageHeading id="feedback-heading">{dict.general.feedback}</DsPageHeading>
-      <p className="mt-3 text-muted" data-testid="feedback-coming-soon">
+    <PageLayout headingId="feedback-heading" heading={dict.general.feedback} width="narrow">
+      <p className="text-muted" data-testid="feedback-coming-soon">
         {dict.general.comingSoon}
       </p>
-    </section>
+    </PageLayout>
   );
 }

@@ -1,15 +1,3 @@
-.container {
-  width: 100%;
-  padding: 1.5rem 1rem;
-}
-
-@media (min-width: 992px) {
-  .container {
-    padding-left: 3rem;
-    padding-right: 3rem;
-  }
-}
-
 .toolbar {
   display: flex;
   justify-content: space-between;

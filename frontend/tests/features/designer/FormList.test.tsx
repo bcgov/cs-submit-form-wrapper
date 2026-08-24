@@ -162,11 +162,10 @@ describe('FormList', () => {
     expect(screen.getByTestId('create-form-button')).toBeDisabled();
   });
 
-  it('renders the header and search input', async () => {
+  it('renders the search input', async () => {
     await act(async () => {
       render(<FormList />);
     });
-    expect(screen.getByRole('heading', { name: 'Forms' })).toBeInTheDocument();
     // DS TextField puts data-testid on its wrapper; query the input by its
     // accessible label instead.
     const input = screen

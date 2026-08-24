@@ -1,5 +1,6 @@
 import { getDictionary, resolveLocale } from '../dictionaries';
 import FormList from '@/src/features/designer/ui/FormList';
+import { PageLayout } from '@/src/components/PageLayout';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
 import { createIsFeatureAllowed, FEATURE_CODES } from '@/src/shared/featureFlags/flags';
 
@@ -17,16 +18,19 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default async function Page() {
+export default async function Page({ params }: PageProps) {
+  const param = await params;
+  const locale = resolveLocale(param.lang);
+  const dict = await getDictionary(locale);
   const featuresMeta = await loadFeaturesMeta();
   const isFeatureAllowed = createIsFeatureAllowed(featuresMeta);
 
   return (
-    <section aria-labelledby="forms-heading">
+    <PageLayout headingId="forms-heading" heading={dict.general.forms}>
       <FormList
         designModeEnabled={isFeatureAllowed(FEATURE_CODES.DESIGN_MODE)}
         submitModeEnabled={isFeatureAllowed(FEATURE_CODES.SUBMIT_MODE)}
       />
-    </section>
+    </PageLayout>
   );
 }

@@ -51,7 +51,7 @@ export default async function RootLayout({
               showWorkspaces={showWorkspaces}
             />
           </aside>
-          <main id="main-content" tabIndex={-1} className={`p-5 ${shellStyles.main}`}>
+          <main id="main-content" tabIndex={-1} className={shellStyles.main}>
             <AppAccessGuard locale={locale} workspacesEnabled={showWorkspaces}>
               {children}
             </AppAccessGuard>
