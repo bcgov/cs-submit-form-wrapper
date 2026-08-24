@@ -5,6 +5,7 @@ const readySession = {
   authenticated: true,
   initializing: false,
   sessionReady: true,
+  sessionLoadedOnce: true,
   sessionFailed: false,
   needsOnboarding: false,
   canCreateWorkspace: false,

@@ -18,6 +18,7 @@ import { buildExportFilename } from '@/src/features/designer/exportFilename';
 
 // Import Types
 import type { FormBuilder as FormioBuilderInstance } from '@formio/js';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 /**
  * We use a type assertion on the dynamic import to ensure
@@ -106,9 +107,7 @@ const FormDesigner: React.FC<DesignerProps> = ({
           default: false,
         },
         // Only shown when there is at least one enabled bcgov component (currently BC File Upload).
-        ...(bcgovEnabled
-          ? { bcgov: { title: 'BC Gov', weight: 5, default: false } }
-          : {}),
+        ...(bcgovEnabled ? { bcgov: { title: 'BC Gov', weight: 5, default: false } } : {}),
         premium: false,
       },
     }),
@@ -154,10 +153,25 @@ const FormDesigner: React.FC<DesignerProps> = ({
       a.download = buildExportFilename(formName, versionNo, state, isDirty);
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      addNotification({ text: dict.form.invalidJson || 'Invalid JSON format.', type: 'error' });
+    } catch (err) {
+      addNotification({
+        text: isSessionExpired(err)
+          ? dict.general.sessionExpired
+          : dict.form.invalidJson || 'Invalid JSON format.',
+        type: 'error',
+      });
     }
-  }, [token, formName, versionNo, state, isDirty, stableForm, addNotification, dict.form.invalidJson]);
+  }, [
+    token,
+    formName,
+    versionNo,
+    state,
+    isDirty,
+    stableForm,
+    addNotification,
+    dict.form.invalidJson,
+    dict.general.sessionExpired,
+  ]);
 
   const handleImportClick = useCallback(() => fileInputRef.current?.click(), []);
 
@@ -184,11 +198,16 @@ const FormDesigner: React.FC<DesignerProps> = ({
         }
         liveSchemaRef.current = transformed;
         if (onUpdateModel) onUpdateModel(transformed);
-      } catch {
-        addNotification({ text: dict.form.invalidJson || 'Invalid JSON format.', type: 'error' });
+      } catch (err) {
+        addNotification({
+          text: isSessionExpired(err)
+            ? dict.general.sessionExpired
+            : dict.form.invalidJson || 'Invalid JSON format.',
+          type: 'error',
+        });
       }
     },
-    [token, onUpdateModel, addNotification, dict.form.invalidJson],
+    [token, onUpdateModel, addNotification, dict.form.invalidJson, dict.general.sessionExpired],
   );
 
   if (initializing) {

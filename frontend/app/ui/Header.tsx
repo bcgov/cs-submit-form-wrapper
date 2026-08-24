@@ -60,7 +60,9 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
       dispatch(clearCurrentUser());
       return;
     }
-    if (currentUser.token !== token || currentUser.status === 'idle') {
+    // Keyed on load state, not on the token: a rotation mints a new token for the same user, and
+    // re-reading /me for it flips the session out of 'ready' and unmounts whatever is on screen.
+    if (currentUser.status === 'idle') {
       dispatch(loadCurrentUser(token));
     }
 
@@ -69,7 +71,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
         refresh();
       }, 30000);
     }
-  }, [authenticated, token, currentUser.token, currentUser.status, dispatch, refresh]);
+  }, [authenticated, token, currentUser.status, dispatch, refresh]);
 
   useEffect(() => {
     if (authenticated && token && workspaceStatus === 'idle') {
@@ -95,8 +97,9 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   };
 
   const authActions = () => {
-    const isCurrentTokenUser = currentUser.token === token;
-    const backendDisplayName = isCurrentTokenUser ? currentUser.displayName : null;
+    // The slice is cleared on sign-out, so anything loaded belongs to the current session. Matching
+    // on the token instead would blank the name every time the token rotates.
+    const backendDisplayName = currentUser.displayName;
     const keycloakDisplayName =
       typeof idTokenParsed?.display_name === 'string' &&
       idTokenParsed.display_name.trim().length > 0
@@ -105,9 +108,9 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
     let displayName: string | null;
     if (typeof backendDisplayName === 'string' && backendDisplayName.trim().length > 0) {
       displayName = backendDisplayName;
-    } else if (isCurrentTokenUser && currentUser.hasError) {
+    } else if (currentUser.hasError) {
       displayName = keycloakDisplayName ?? 'Authenticated User';
-    } else if (isCurrentTokenUser && currentUser.isLoaded) {
+    } else if (currentUser.isLoaded) {
       displayName = 'Authenticated User';
     } else {
       displayName = null;

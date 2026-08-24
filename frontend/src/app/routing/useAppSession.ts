@@ -12,10 +12,18 @@ export function useAppSession(): AppSessionSnapshot {
   const { authenticated, token, initializing } = useKeycloak();
   const dispatch = useAppDispatch();
 
-  const { workspaces, status: workspaceStatus, writableStatus } = useAppSelector((state) => state.workspace);
-  const { data: currentUser, status: currentUserStatus } = useAppSelector(
-    (state) => state.currentUser,
-  );
+  const {
+    workspaces,
+    status: workspaceStatus,
+    writableStatus,
+    loadedOnce: workspacesLoadedOnce,
+    writableLoadedOnce,
+  } = useAppSelector((state) => state.workspace);
+  const {
+    data: currentUser,
+    status: currentUserStatus,
+    loadedOnce: currentUserLoadedOnce,
+  } = useAppSelector((state) => state.currentUser);
 
   useEffect(() => {
     if (authenticated && token && workspaceStatus === 'idle') {
@@ -33,9 +41,11 @@ export function useAppSession(): AppSessionSnapshot {
   }, [authenticated, token, currentUserStatus, dispatch]);
 
   return useMemo(() => {
+    // The same three loads throughout: one that can fail the session has to be waited for too.
     const sessionReady = authenticated
       ? !initializing &&
         workspaceStatus === 'succeeded' &&
+        writableStatus === 'succeeded' &&
         currentUserStatus === 'succeeded'
       : !initializing;
 
@@ -55,6 +65,9 @@ export function useAppSession(): AppSessionSnapshot {
       authenticated,
       initializing,
       sessionReady,
+      // Data survives a refetch, so this stays true through a background reload; the guard uses it
+      // to avoid unmounting the route. Miss a load here and its failure never reaches the user.
+      sessionLoadedOnce: workspacesLoadedOnce && writableLoadedOnce && currentUserLoadedOnce,
       sessionFailed,
       needsOnboarding,
       canCreateWorkspace: currentUser?.capabilities?.canCreateWorkspace === true,
@@ -64,8 +77,11 @@ export function useAppSession(): AppSessionSnapshot {
     authenticated,
     initializing,
     workspaceStatus,
+    workspacesLoadedOnce,
+    writableLoadedOnce,
     writableStatus,
     currentUserStatus,
+    currentUserLoadedOnce,
     workspaces,
     currentUser,
   ]);

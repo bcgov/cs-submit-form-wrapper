@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
@@ -40,6 +40,7 @@ import {
   publishSobaFormVersion,
 } from '@/src/shared/api/sobaApi';
 import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 function FormForm({ formId }: { formId?: string }) {
   const dict = useDictionary();
@@ -80,9 +81,13 @@ function FormForm({ formId }: { formId?: string }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  // Load once per form. `token` is a dep (the load needs one), but a rotation mints a new token for
+  // the same user — reloading on that would blank the builder and drop unsaved edits with isDirty.
+  const loadedFormRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (formId && token) {
+    if (formId && token && loadedFormRef.current !== formId) {
+      loadedFormRef.current = formId;
       async function loadForm() {
         setLoading(true);
         try {
@@ -117,7 +122,9 @@ function FormForm({ formId }: { formId?: string }) {
           setIsDirty(false);
         } catch (e: unknown) {
           addNotification({
-            text: `${dict.form.loadFormError || 'Failed to load form:'} ${(e as Error).message}`,
+            text: isSessionExpired(e)
+              ? dict.general.sessionExpired
+              : `${dict.form.loadFormError || 'Failed to load form:'} ${(e as Error).message}`,
             type: 'error',
             consoleError: e,
           });
@@ -127,7 +134,7 @@ function FormForm({ formId }: { formId?: string }) {
       }
       loadForm();
     }
-  }, [formId, token, dict.form.loadFormError, addNotification]);
+  }, [formId, token, dict.form.loadFormError, dict.general.sessionExpired, addNotification]);
 
   const handleNameChange = useCallback((name: string) => {
     setFormName(name);

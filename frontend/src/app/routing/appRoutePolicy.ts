@@ -6,6 +6,8 @@ export type AppSessionSnapshot = {
   authenticated: boolean;
   initializing: boolean;
   sessionReady: boolean;
+  /** Both bootstrap loads have produced data at least once. */
+  sessionLoadedOnce: boolean;
   /** A required bootstrap fetch (current user or workspaces) rejected. */
   sessionFailed: boolean;
   needsOnboarding: boolean;

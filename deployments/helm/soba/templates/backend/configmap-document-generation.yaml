@@ -12,6 +12,12 @@ data:
   {{- with .Values.backend.documentGeneration.cdogsV2.tokenUrl }}
   PLUGIN_CDOGS_V2_TOKEN_URL: {{ . | quote }}
   {{- end }}
+  {{- with .Values.backend.documentGeneration.cdogsV2.timeoutMs }}
+  PLUGIN_CDOGS_V2_TIMEOUT_MS: {{ . | quote }}
+  {{- end }}
   {{- with .Values.backend.documentGeneration.cdogsV3.endpoint }}
   PLUGIN_CDOGS_V3_ENDPOINT: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.backend.documentGeneration.cdogsV3.timeoutMs }}
+  PLUGIN_CDOGS_V3_TIMEOUT_MS: {{ . | quote }}
   {{- end }}

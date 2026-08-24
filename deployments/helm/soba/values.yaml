@@ -76,6 +76,10 @@ backend:
   # -- configmap-app: general application config
   config:
     logLevel: info
+    # httpRouteTimeoutMs matches the route annotation above. httpOutboundTimeoutMs defaults to
+    # half of it; per-plugin TIMEOUT_MS overrides both.
+    httpRouteTimeoutMs: ""
+    httpOutboundTimeoutMs: ""
     nodeEnv: production
     # Allowed origin(s) for CORS (comma-separated). Defaults to frontend URL when unset.
     corsOrigin: ""
@@ -151,8 +155,12 @@ backend:
     cdogsV2:
       endpoint: ""
       tokenUrl: ""
+      # -- outbound deadline in ms; empty uses the backend default (30000)
+      timeoutMs: ""
     cdogsV3:
       endpoint: ""
+      # -- outbound deadline in ms; empty uses the backend default (30000)
+      timeoutMs: ""
 
   # -- configmap-sso: IDP / SSO config
   sso:

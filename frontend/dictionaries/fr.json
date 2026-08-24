@@ -17,6 +17,7 @@
     "welcomeTo": "Bienvenue sur le",
     "loading": "Chargement…",
     "sessionError": "Nous n'avons pas pu charger votre session. Veuillez réessayer.",
+    "sessionExpired": "Votre session a pris fin. Veuillez vous reconnecter.",
     "tryAgain": "Réessayer",
     "comingSoon": "Cette fonctionnalité sera bientôt disponible.",
     "access": "Accès",

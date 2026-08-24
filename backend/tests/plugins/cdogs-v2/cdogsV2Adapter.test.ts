@@ -1,24 +1,34 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { documentGenerationPluginDefinition } from '../../../src/plugins/cdogs-v2';
 import { CdogsV2Adapter } from '../../../src/plugins/cdogs-v2/cdogsV2Adapter';
-import type { PluginConfigReader } from '../../../src/core/config/pluginConfig';
+import {
+  createPluginConfigReaderFrom,
+  type PluginConfigReader,
+} from '../../../src/core/config/pluginConfig';
+import { createEnvReader } from '../../../src/core/config/env';
 import { clearOAuth2TokenCache } from '../../../src/core/auth/oauth2TokenProvider';
 import { ServiceUnavailableError, UnprocessableEntityError } from '../../../src/core/errors';
 import { log } from '../../../src/core/logging';
 
-function makeConfig(): PluginConfigReader {
-  const values: Record<string, string> = {
+function makeConfig(overrides: Partial<Record<string, string>> = {}): PluginConfigReader {
+  const values: Record<string, string | undefined> = {
     ENDPOINT: 'http://cdogs.test/api',
     TOKEN_URL: 'http://idp.test/token',
     CLIENT_ID: 'client',
     CLIENT_SECRET: 'secret',
+    ...overrides,
   };
-  return {
-    getRequired: (key: string) => values[key],
-    getOptional: (key: string, d?: string) => values[key] ?? d,
-    getBoolean: () => false,
-    getNumber: () => 0,
-    getCsv: () => [],
-  };
+  // Mirrors createPluginConfigReaderFrom rather than reimplementing it, so the real parsing and
+  // validation are what the adapter sees.
+  return createPluginConfigReaderFrom(
+    createEnvReader(
+      Object.fromEntries(
+        Object.entries(values).map(([key, value]) => [`PLUGIN_CDOGS_V2_${key}`, value]),
+      ),
+    ),
+    'cdogs-v2',
+  );
 }
 
 const tokenOk = () =>
@@ -160,5 +170,59 @@ describe('cdogs-v2 plugin', () => {
     const result = await new CdogsV2Adapter(makeConfig()).readinessCheck();
 
     expect(result.ok).toBe(false);
+  });
+
+  // End to end on real sockets: plugin TIMEOUT_MS → shared deadline → mapped 503. The budget is
+  // the whole render — a slow token leg and a 401 retry come out of it, they don't extend it.
+  it.each([
+    ['a stalled render', false],
+    ['a 401 that triggers the retry', true],
+  ])('bounds %s by the configured timeout', async (_label, rejectFirstRender) => {
+    let renders = 0;
+    const server = createServer((req, res) => {
+      if (req.url === '/token') {
+        // Deliberately slow. Sized so a per-leg regression would land near 1000ms — well outside
+        // the bound below — while a shared budget stays at 600ms however many legs there are.
+        setTimeout(() => {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ access_token: `tok-${renders}`, expires_in: 3600 }));
+        }, 400);
+        return;
+      }
+      renders += 1;
+      if (rejectFirstRender && renders === 1) {
+        res.writeHead(401, { 'content-type': 'text/plain' });
+        res.end('expired');
+        return;
+      }
+      // Render never answers.
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+    try {
+      const adapter = new CdogsV2Adapter(
+        makeConfig({ ENDPOINT: `${origin}/api`, TOKEN_URL: `${origin}/token`, TIMEOUT_MS: '600' }),
+      );
+
+      const started = Date.now();
+      const err = await adapter.render({ template: { content: 'x' } }).catch((e) => e);
+      const elapsed = Date.now() - started;
+
+      expect(err).toBeInstanceOf(ServiceUnavailableError);
+      expect(err.message).toContain('timed out');
+      // One budget for the whole operation, not one per leg. Per-leg deadlines put the retry case
+      // at ~1000ms, so this bound is what fails if the shared deadline is dropped.
+      expect(elapsed).toBeLessThan(800);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('rejects an unusable TIMEOUT_MS at construction', () => {
+    expect(() => new CdogsV2Adapter(makeConfig({ TIMEOUT_MS: '0' }))).toThrow(
+      'must be a positive integer',
+    );
   });
 });

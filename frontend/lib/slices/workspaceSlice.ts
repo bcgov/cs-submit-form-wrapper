@@ -6,6 +6,10 @@ export interface WorkspaceState {
   writableWorkspaces: WorkspaceItem[];
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   writableStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  /** Stays true across a refetch, so a background reload is distinguishable from first load. */
+  loadedOnce: boolean;
+  /** Same, for the writable list — a failure here counts as a failed session, so it must gate too. */
+  writableLoadedOnce: boolean;
   error: string | null;
   canceledDefaultModal: boolean;
   selectedWorkspaceId: string | null;
@@ -16,6 +20,8 @@ const initialState: WorkspaceState = {
   writableWorkspaces: [],
   status: 'idle',
   writableStatus: 'idle',
+  loadedOnce: false,
+  writableLoadedOnce: false,
   error: null,
   canceledDefaultModal: false,
   selectedWorkspaceId: null,
@@ -58,6 +64,8 @@ const workspaceSlice = createSlice({
       state.writableWorkspaces = [];
       state.status = 'idle';
       state.writableStatus = 'idle';
+      state.loadedOnce = false;
+      state.writableLoadedOnce = false;
       state.error = null;
       state.selectedWorkspaceId = null;
     },
@@ -75,6 +83,7 @@ const workspaceSlice = createSlice({
       })
       .addCase(loadWorkspaces.fulfilled, (state, action) => {
         state.status = 'succeeded';
+        state.loadedOnce = true;
         // parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
         state.workspaces = Array.isArray(action.payload) ? action.payload : [];
       })
@@ -87,6 +96,7 @@ const workspaceSlice = createSlice({
       })
       .addCase(loadWritableWorkspaces.fulfilled, (state, action) => {
         state.writableStatus = 'succeeded';
+        state.writableLoadedOnce = true;
         state.writableWorkspaces = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(loadWritableWorkspaces.rejected, (state, action) => {

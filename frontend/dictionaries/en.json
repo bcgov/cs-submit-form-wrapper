@@ -16,6 +16,7 @@
     "welcomeTo": "Welcome to the",
     "loading": "Loading…",
     "sessionError": "We couldn't load your session. Please try again.",
+    "sessionExpired": "Your session has ended. Please sign in again.",
     "tryAgain": "Try again",
     "comingSoon": "This feature is coming soon.",
     "access": "Access",

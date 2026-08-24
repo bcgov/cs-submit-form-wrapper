@@ -4,15 +4,16 @@ import { fetchCurrentUser, type CurrentUserResponse } from '@/src/shared/api/sob
 export type CurrentUserState = {
   data: CurrentUserResponse | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  /** Survives a later failure, unlike `data`, so a background reload is distinguishable. */
+  loadedOnce: boolean;
   error?: string;
-  lastToken?: string;
 };
 
 const initialState: CurrentUserState = {
   data: null,
   status: 'idle',
+  loadedOnce: false,
   error: undefined,
-  lastToken: undefined,
 };
 
 export const loadCurrentUser = createAsyncThunk<
@@ -34,19 +35,19 @@ const currentUserSlice = createSlice({
     clearCurrentUser(state) {
       state.data = null;
       state.status = 'idle';
+      state.loadedOnce = false;
       state.error = undefined;
-      state.lastToken = undefined;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(loadCurrentUser.pending, (state, action) => {
+      .addCase(loadCurrentUser.pending, (state) => {
         state.status = 'loading';
         state.error = undefined;
-        state.lastToken = action.meta.arg;
       })
       .addCase(loadCurrentUser.fulfilled, (state, action) => {
         state.status = 'succeeded';
+        state.loadedOnce = true;
         state.data = action.payload;
         state.error = undefined;
       })

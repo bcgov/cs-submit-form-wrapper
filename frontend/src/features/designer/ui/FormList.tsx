@@ -24,6 +24,7 @@ import { setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { FaFolder, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 const CustomActionButtons = ({
   form,
@@ -127,14 +128,16 @@ function FormList({
         setForms(Array.isArray(data.items) ? data.items : []);
       } catch (err: unknown) {
         if (fetchedWorkspaceRef.current !== ws) return;
-        if (err && typeof err === 'object' && 'message' in err) {
+        if (isSessionExpired(err)) {
+          setError(dict.general.sessionExpired);
+        } else if (err && typeof err === 'object' && 'message' in err) {
           setError((err as { message: string }).message);
         }
       } finally {
         if (fetchedWorkspaceRef.current === ws) setLoading(false);
       }
     })();
-  }, [authenticated, token, stateSelectedWorkspaceId]);
+  }, [authenticated, token, stateSelectedWorkspaceId, dict.general.sessionExpired]);
 
   const filteredForms = useMemo(() => {
     if (!searchQuery.trim()) return forms;

@@ -6,6 +6,12 @@ metadata:
     {{- include "soba.labels" (dict "root" . "component" "backend") | nindent 4 }}
 data:
   LOG_LEVEL: {{ .Values.backend.config.logLevel | quote }}
+  {{- with .Values.backend.config.httpRouteTimeoutMs }}
+  HTTP_ROUTE_TIMEOUT_MS: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.backend.config.httpOutboundTimeoutMs }}
+  HTTP_OUTBOUND_TIMEOUT_MS: {{ . | quote }}
+  {{- end }}
   NODE_ENV: {{ .Values.backend.config.nodeEnv | quote }}
   {{- $frontendOrigins := include "soba.frontendOrigins" . }}
   CORS_ORIGIN: {{ .Values.backend.config.corsOrigin | default $frontendOrigins | quote }}
