@@ -1,0 +1,126 @@
+# SOBA MongoDB dependency-wrapper chart.
+# This chart is intended for a manual one-time install and controlled manual upgrades.
+# Secrets must be created before installing this chart, preferably from Key Vault.
+
+mongodb:
+  enabled: false
+
+  nameOverride: ""
+  fullnameOverride: ""
+
+  global:
+    compatibility:
+      openshift:
+        adaptSecurityContext: force
+    security:
+      allowInsecureImages: true
+
+  image:
+    registry: ghcr.io
+    repository: bcgov/bitnami-mongodb
+    tag: 8.2.3
+    digest: ""
+    pullPolicy: IfNotPresent
+
+  architecture: replicaset
+  useStatefulSet: true
+  replicaSetName: rs0
+
+  updateStrategy:
+    type: RollingUpdate
+  terminationGracePeriodSeconds: 120
+
+  auth:
+    enabled: true
+    rootUser: root
+    existingSecret: ""
+    usernames:
+      - formio
+    databases:
+      - formio-ce
+
+  usePasswordFiles: true
+
+  tls:
+    enabled: false
+
+  externalAccess:
+    enabled: false
+
+  service:
+    type: ClusterIP
+    ports:
+      mongodb: 27017
+
+  networkPolicy:
+    enabled: true
+    allowExternal: false
+    allowExternalEgress: false
+    addExternalClientAccess: false
+    ingressPodMatchLabels: {}
+    ingressNSMatchLabels: {}
+    ingressNSPodMatchLabels: {}
+
+  persistence:
+    enabled: true
+    storageClass: netapp-block-standard
+    size: 10Gi
+    accessModes:
+      - ReadWriteOnce
+    resourcePolicy: keep
+
+  persistentVolumeClaimRetentionPolicy:
+    enabled: true
+    whenScaled: Retain
+    whenDeleted: Retain
+
+  pdb:
+    create: true
+    minAvailable: 2
+
+  podManagementPolicy: OrderedReady
+  podAntiAffinityPreset: hard
+
+  arbiter:
+    enabled: false
+
+  metrics:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+  podSecurityContext:
+    enabled: true
+    fsGroupChangePolicy: OnRootMismatch
+
+  serviceAccount:
+    create: true
+    automountServiceAccountToken: false
+
+  automountServiceAccountToken: false
+
+  containerSecurityContext:
+    enabled: true
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+
+  livenessProbe:
+    enabled: true
+
+  readinessProbe:
+    enabled: true
+
+  startupProbe:
+    enabled: true
