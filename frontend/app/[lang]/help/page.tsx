@@ -1,5 +1,6 @@
 import { getDictionary, resolveLocale } from '../dictionaries';
 import { PageLayout } from '@/src/components/PageLayout';
+import { SecondaryText } from '@/src/components/SecondaryText';
 
 type PageProps = {
   params: Promise<{ lang: string }>;
@@ -21,9 +22,9 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <PageLayout headingId="help-heading" heading={dict.general.help} width="narrow">
-      <p className="text-muted" data-testid="help-coming-soon">
+      <SecondaryText elementType="p" size="medium" data-testid="help-coming-soon">
         {dict.general.comingSoon}
-      </p>
+      </SecondaryText>
     </PageLayout>
   );
 }
