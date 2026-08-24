@@ -2,7 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, InlineAlert, TagGroup, TagList } from '@bcgov/design-system-react-components';
+import {
+  Button,
+  Heading,
+  InlineAlert,
+  TagGroup,
+  TagList,
+  Text,
+} from '@bcgov/design-system-react-components';
 import { useDictionary } from '@/app/[lang]/Providers';
 import styles from './PageLayout.module.css';
 
@@ -65,12 +72,16 @@ export function PageHeaderProvider({
                 </TagGroup>
               ) : null}
             </div>
-            <h1 id={headingId} className={styles.heading}>
+            <Heading level={1} id={headingId} className={styles.heading} isUnstyled>
               {active.heading}
-            </h1>
+            </Heading>
           </>
         ) : null}
-        {description ? <p className={styles.description}>{description}</p> : null}
+        {description ? (
+          <Text elementType="p" color="secondary" className={styles.description}>
+            {description}
+          </Text>
+        ) : null}
         {/* Always in the DOM and empty to start, so a notice added later is announced but the ones
             present on load are not. */}
         <div className={styles.notices} aria-live="polite">
