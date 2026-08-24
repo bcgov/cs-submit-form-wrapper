@@ -1,12 +1,12 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import {
-  DEFAULT_TIMEOUT_MS,
   HttpClient,
   HttpClientError,
   HttpClientTimeoutError,
-  ROUTE_TIMEOUT_MS,
+  defaultTimeoutMs,
   joinUrl,
+  routeTimeoutMs,
 } from '../../../src/core/http/httpClient';
 
 const binaryResponse = (body: number[], contentType = 'application/pdf') =>
@@ -180,8 +180,8 @@ describe('HttpClient timeouts', () => {
     expect(armedFor(timeoutSpy)).toBeLessThanOrEqual(1234);
 
     await new HttpClient({ baseUrl: 'http://svc.test' }).postJsonForBinary('/x', {});
-    expect(armedFor(timeoutSpy)).toBeGreaterThan(DEFAULT_TIMEOUT_MS - 100);
-    expect(armedFor(timeoutSpy)).toBeLessThanOrEqual(DEFAULT_TIMEOUT_MS);
+    expect(armedFor(timeoutSpy)).toBeGreaterThan(defaultTimeoutMs() - 100);
+    expect(armedFor(timeoutSpy)).toBeLessThanOrEqual(defaultTimeoutMs());
   });
 
   it('spends one budget across the token leg and the request', async () => {
@@ -222,7 +222,7 @@ describe('HttpClient timeouts', () => {
   });
 
   // 2_147_483_648 is the one that matters: AbortSignal.timeout accepts it, then fires in ~1ms.
-  it.each([0, -1, 30.5, NaN, Infinity, 2_147_483_648, ROUTE_TIMEOUT_MS + 1])(
+  it.each([0, -1, 30.5, NaN, Infinity, 2_147_483_648, 60_000 + 1])(
     'rejects an unusable timeout: %p',
     (value) => {
       expect(() => new HttpClient({ baseUrl: 'http://svc.test', timeoutMs: value })).toThrow(
@@ -230,6 +230,66 @@ describe('HttpClient timeouts', () => {
       );
     },
   );
+});
+
+// Per-plugin value wins, then HTTP_OUTBOUND_TIMEOUT_MS, then half the route timeout.
+describe('timeout configuration', () => {
+  const origEnv = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...origEnv };
+  });
+
+  it('derives the default from the route timeout', () => {
+    delete process.env.HTTP_ROUTE_TIMEOUT_MS;
+    delete process.env.HTTP_OUTBOUND_TIMEOUT_MS;
+    expect(routeTimeoutMs()).toBe(60_000);
+    expect(defaultTimeoutMs()).toBe(30_000);
+  });
+
+  it('follows HTTP_ROUTE_TIMEOUT_MS', () => {
+    process.env.HTTP_ROUTE_TIMEOUT_MS = '20000';
+    expect(routeTimeoutMs()).toBe(20_000);
+    expect(defaultTimeoutMs()).toBe(10_000);
+  });
+
+  it('lets HTTP_OUTBOUND_TIMEOUT_MS override the derived default', () => {
+    process.env.HTTP_OUTBOUND_TIMEOUT_MS = '5000';
+    expect(defaultTimeoutMs()).toBe(5_000);
+    expect(new HttpClient({ baseUrl: 'http://svc.test' })).toBeInstanceOf(HttpClient);
+  });
+
+  it('still lets a plugin override the env default', () => {
+    process.env.HTTP_OUTBOUND_TIMEOUT_MS = '5000';
+    const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    } as unknown as Response);
+
+    return new HttpClient({ baseUrl: 'http://svc.test', timeoutMs: 9000 })
+      .postJsonForBinary('/x', {})
+      .then(() => {
+        const armed = timeoutSpy.mock.calls.at(-1)?.[0] as number;
+        expect(armed).toBeGreaterThan(8900);
+        expect(armed).toBeLessThanOrEqual(9000);
+      });
+  });
+
+  it('rejects an outbound default above the route timeout', () => {
+    process.env.HTTP_ROUTE_TIMEOUT_MS = '10000';
+    process.env.HTTP_OUTBOUND_TIMEOUT_MS = '20000';
+    expect(() => new HttpClient({ baseUrl: 'http://svc.test' })).toThrow(
+      'HTTP_OUTBOUND_TIMEOUT_MS must be a positive integer',
+    );
+  });
+
+  it('rejects an unusable HTTP_ROUTE_TIMEOUT_MS', () => {
+    process.env.HTTP_ROUTE_TIMEOUT_MS = '0';
+    expect(() => routeTimeoutMs()).toThrow('HTTP_ROUTE_TIMEOUT_MS must be a positive integer');
+  });
 });
 
 describe('joinUrl', () => {

@@ -255,6 +255,10 @@ export const env = {
   getTemporalNamespace: () => getOptionalEnv('TEMPORAL_NAMESPACE') ?? 'default',
   getTemporalTaskQueue: () => getOptionalEnv('TEMPORAL_TASK_QUEUE') ?? 'soba',
   getTemporalWorkerHealthPort: () => getNumberEnv('TEMPORAL_WORKER_HEALTH_PORT') ?? 9090,
+  // Match the chart's haproxy.router.openshift.io/timeout annotation.
+  getHttpRouteTimeoutMs: () => getNumberEnv('HTTP_ROUTE_TIMEOUT_MS'),
+  // Budget for one outbound call. Unset derives it from the route timeout.
+  getHttpOutboundTimeoutMs: () => getNumberEnv('HTTP_OUTBOUND_TIMEOUT_MS'),
   // Max upload size accepted by the files API. Feature-level (not per storage backend).
   getFilesMaxFileSizeMb: () => getNumberEnv('FILES_MAX_FILE_SIZE_MB') || 10,
   // Storage profile the files feature reads/writes. Defaults to 'default'.

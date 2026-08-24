@@ -76,6 +76,10 @@ backend:
   # -- configmap-app: general application config
   config:
     logLevel: info
+    # httpRouteTimeoutMs matches the route annotation above. httpOutboundTimeoutMs defaults to
+    # half of it; per-plugin TIMEOUT_MS overrides both.
+    httpRouteTimeoutMs: ""
+    httpOutboundTimeoutMs: ""
     nodeEnv: production
     # Allowed origin(s) for CORS (comma-separated). Defaults to frontend URL when unset.
     corsOrigin: ""

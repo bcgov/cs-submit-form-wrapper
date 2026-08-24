@@ -1,33 +1,40 @@
+import { env } from '../config/env';
 import { log } from '../logging';
 
-/**
- * The API Route's inactivity timeout — haproxy.router.openshift.io/timeout in
- * deployments/helm/soba/values.yaml. Change both together.
- */
-export const ROUTE_TIMEOUT_MS = 60_000;
+/** AbortSignal.timeout runs on a 32-bit signed timer; larger values fire immediately. */
+const MAX_TIMER_MS = 2_147_483_647;
 
-/**
- * Total budget for one operation: token, request and body together — a retry shares it rather than
- * getting its own. Half the router's limit leaves headroom for the rest of the request (auth,
- * submission read, audit write) to finish before the router gives up on the client.
- */
-export const DEFAULT_TIMEOUT_MS = ROUTE_TIMEOUT_MS / 2;
+/** Used when HTTP_ROUTE_TIMEOUT_MS is unset. Matches the chart's route annotation. */
+export const FALLBACK_ROUTE_TIMEOUT_MS = 60_000;
 
-/**
- * AbortSignal.timeout runs on a 32-bit signed timer — a larger value fires immediately instead of
- * waiting. The route timeout is the lower bound in practice: outliving it means holding a socket
- * the client has already been 504'd on.
- */
-const MAX_TIMEOUT_MS = Math.min(ROUTE_TIMEOUT_MS, 2_147_483_647);
+/** The API Route's inactivity timeout. Set HTTP_ROUTE_TIMEOUT_MS to match the chart annotation. */
+export const routeTimeoutMs = (): number =>
+  clamp(
+    env.getHttpRouteTimeoutMs() ?? FALLBACK_ROUTE_TIMEOUT_MS,
+    'HTTP_ROUTE_TIMEOUT_MS',
+    MAX_TIMER_MS,
+  );
 
-export function resolveTimeoutMs(value: number | undefined, label: string): number {
-  if (value === undefined) return DEFAULT_TIMEOUT_MS;
-  if (!Number.isInteger(value) || value <= 0 || value > MAX_TIMEOUT_MS) {
+/** Budget for one operation. The token leg, the request, the body and a retry all share it. */
+export const defaultTimeoutMs = (): number =>
+  env.getHttpOutboundTimeoutMs() ?? Math.floor(routeTimeoutMs() / 2);
+
+function clamp(value: number, label: string, max: number): number {
+  if (!Number.isInteger(value) || value <= 0 || value > max) {
     throw new Error(
-      `${label} must be a positive integer of milliseconds no greater than ${MAX_TIMEOUT_MS}, got ${value}`,
+      `${label} must be a positive integer of milliseconds no greater than ${max}, got ${value}`,
     );
   }
   return value;
+}
+
+/** Per-plugin value wins, then HTTP_OUTBOUND_TIMEOUT_MS, then half the route timeout. */
+export function resolveTimeoutMs(value: number | undefined, label: string): number {
+  // A call must not outlive the route.
+  const max = Math.min(routeTimeoutMs(), MAX_TIMER_MS);
+  return value === undefined
+    ? clamp(defaultTimeoutMs(), 'HTTP_OUTBOUND_TIMEOUT_MS', max)
+    : clamp(value, label, max);
 }
 
 export interface HttpClientOptions {
@@ -38,7 +45,7 @@ export interface HttpClientOptions {
    */
   getToken?: (timeoutMs: number) => Promise<string | null>;
   defaultHeaders?: Record<string, string>;
-  /** Total budget for one operation. Defaults to DEFAULT_TIMEOUT_MS. */
+  /** Total budget for one operation. Unset falls back to HTTP_OUTBOUND_TIMEOUT_MS. */
   timeoutMs?: number;
 }
 
@@ -59,7 +66,7 @@ export class HttpClientError extends Error {
   }
 }
 
-/** AbortSignal.timeout's DOMException. Matched by name — it crosses realms, so instanceof can fail. */
+/** AbortSignal.timeout's DOMException. Matched by name; it crosses realms, so instanceof can fail. */
 export const isTimeoutAbort = (err: unknown): boolean =>
   typeof err === 'object' && err !== null && (err as { name?: unknown }).name === 'TimeoutError';
 
@@ -70,9 +77,8 @@ export class HttpClientTimeoutError extends Error {
   readonly url: string;
 
   /**
-   * `timeoutMs` is what this leg actually had; `budgetMs` the whole operation's. They differ once
-   * an earlier leg has spent some of it — reporting only the remainder makes a slow token leg read
-   * as a misconfigured timeout. URL stays off the message; that reaches the client in the 503 body.
+   * `timeoutMs` is what this leg had, `budgetMs` the whole operation's. The URL stays off the
+   * message; that reaches the client in the 503 body.
    */
   constructor(url: string, timeoutMs: number, budgetMs: number) {
     super(
