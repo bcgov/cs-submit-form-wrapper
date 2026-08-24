@@ -16,9 +16,13 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default function Page() {
+export default async function Page({ params }: PageProps) {
+  const param = await params;
+  const locale = resolveLocale(param.lang);
+  const dict = await getDictionary(locale);
+
   return (
-    <PageLayout headingId="workspace-form-heading">
+    <PageLayout headingId="workspace-form-heading" heading={dict.workspaces.createHeading}>
       <WorkspaceFormLoader />
     </PageLayout>
   );

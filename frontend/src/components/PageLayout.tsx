@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { PageHeaderProvider } from './PageHeader';
 import styles from './PageLayout.module.css';
 
 export type PageWidth = 'narrow' | 'default' | 'wide';
@@ -12,10 +13,9 @@ const MAX_WIDTH: Record<PageWidth, string> = {
 type PageLayoutProps = {
   /** Referenced by aria-labelledby, so it must match the heading actually rendered on the page. */
   headingId: string;
-  /** Omit when a client child owns the heading and registers it instead. */
-  heading?: ReactNode;
-  headingHidden?: boolean;
-  eyebrow?: ReactNode;
+  /** Rendered until a client child registers its own through usePageHeading. */
+  heading?: string;
+  eyebrow?: string;
   description?: ReactNode;
   width?: PageWidth;
   children: ReactNode;
@@ -28,7 +28,6 @@ type PageLayoutProps = {
 export function PageLayout({
   headingId,
   heading,
-  headingHidden = false,
   eyebrow,
   description,
   width = 'default',
@@ -36,20 +35,17 @@ export function PageLayout({
 }: Readonly<PageLayoutProps>) {
   // CSSProperties admits no custom properties.
   const style = { '--page-max-width': MAX_WIDTH[width] } as CSSProperties;
-  // The row is reserved so titles line up across pages, which only means anything where a title
-  // is actually shown.
-  const showEyebrowRow = Boolean(eyebrow) || (Boolean(heading) && !headingHidden);
 
   return (
     <section className={styles.page} style={style} aria-labelledby={headingId}>
-      {showEyebrowRow ? <div className={styles.eyebrow}>{eyebrow}</div> : null}
-      {heading ? (
-        <h1 id={headingId} className={headingHidden ? 'visually-hidden' : styles.heading}>
-          {heading}
-        </h1>
-      ) : null}
-      {description ? <p className={styles.description}>{description}</p> : null}
-      {children}
+      <PageHeaderProvider
+        headingId={headingId}
+        heading={heading}
+        eyebrow={eyebrow}
+        description={description}
+      >
+        {children}
+      </PageHeaderProvider>
     </section>
   );
 }

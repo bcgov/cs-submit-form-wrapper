@@ -35,7 +35,6 @@ export default async function Page({ params }: PageProps) {
     <PageLayout
       headingId="designer-heading"
       heading={dict.general.formDesigner}
-      headingHidden
       width="wide"
     >
       <FormDesignerLoader />

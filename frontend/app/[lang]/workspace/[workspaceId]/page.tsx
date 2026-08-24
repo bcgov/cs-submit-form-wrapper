@@ -18,9 +18,11 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default async function Page({ params }: Readonly<PageProps>) {
   const param = await params;
+  const locale = resolveLocale(param.lang);
+  const dict = await getDictionary(locale);
 
   return (
-    <PageLayout headingId="workspace-form-heading">
+    <PageLayout headingId="workspace-form-heading" heading={dict.workspaces.manageHeading}>
       <WorkspaceFormLoader workspaceId={param.workspaceId} />
     </PageLayout>
   );

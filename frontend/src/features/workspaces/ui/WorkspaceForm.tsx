@@ -13,7 +13,7 @@ import {
 } from '@bcgov/design-system-react-components';
 import { FormSubmitterAudience } from '@/src/features/designer/ui/FormSubmitterAudience';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
+import { usePageHeading } from '@/src/components/PageHeader';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
@@ -206,6 +206,9 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     loadedUseCase,
   ]);
 
+  const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
+  usePageHeading({ heading });
+
   if (!authenticated && !initializing) {
     return <p>{dict.general.notAuthenticated}</p>;
   }
@@ -214,7 +217,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     return <CenteredProgress label={dict.general.loading} />;
   }
 
-  const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
   const saveLabel = isCreate ? dictWorkspaces.create : dictWorkspaces.save;
 
   const settingsForm = (
@@ -292,7 +294,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
 
   return (
     <>
-      {!first && <DsPageHeading id="workspace-form-heading">{heading}</DsPageHeading>}
       {first && <p>{dictWorkspaces.defaultWorkspaceIntro}</p>}
       {isCreate ? (
         settingsForm

@@ -8,9 +8,6 @@ import {
   Form,
   TextField,
   Select,
-  Heading,
-  TagGroup,
-  TagList,
 } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { Modal as CommonModal } from '@/src/components/Modal';
@@ -23,6 +20,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import FormDesigner from '@/src/features/designer/ui/FormDesigner';
 import { DynamicForm } from '@/src/features/formio-v5/ui/DynamicForm';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
+import { usePageHeading } from '@/src/components/PageHeader';
 import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
@@ -191,6 +189,11 @@ function FormForm({ formId }: { formId?: string }) {
     }
     return dict.form.createForm;
   }, [formId, formName, dict]);
+
+  usePageHeading({
+    heading: headerText,
+    eyebrow: formId && formWorkspaceId ? activeWorkspace?.name || formWorkspaceId : undefined,
+  });
 
   const createNewVersion = async () => {
     if (isSaving || loading || !token) return;
@@ -459,22 +462,6 @@ function FormForm({ formId }: { formId?: string }) {
 
   return (
     <>
-      {formId && formWorkspaceId && (
-        <TagGroup>
-          <TagList
-            items={[
-              {
-                color: 'yellow',
-                id: `workspace-tag-${formId}`,
-                textValue: activeWorkspace?.name || formWorkspaceId,
-              },
-            ]}
-          />
-        </TagGroup>
-      )}
-      <Heading level={2} isUnstyled>
-        {headerText}
-      </Heading>
       {isHistoryView && (
         <div className="mb-4">
           <InlineAlert
