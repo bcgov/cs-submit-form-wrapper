@@ -16,6 +16,17 @@
   font-size: var(--typography-font-size-h2);
 }
 
+/* Empty until a page declares a notice, so it takes no space and adds no margin. */
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-margin-medium);
+}
+
+.notices:not(:empty) {
+  margin-bottom: var(--layout-margin-large);
+}
+
 .description {
   margin: 0 0 var(--layout-margin-large);
   color: var(--app-text-muted);

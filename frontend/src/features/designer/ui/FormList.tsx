@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Button as DSButton,
-  InlineAlert,
   TagList,
   TagGroup,
 } from '@bcgov/design-system-react-components';
@@ -18,6 +17,7 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
+import { usePageNotices } from '@/src/components/PageHeader';
 import { useAppSelector, useAppDispatch } from '@/lib/store';
 import { setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
@@ -173,6 +173,16 @@ function FormList({
     [router, locale],
   );
 
+  usePageNotices([
+    needsDisclaimer && {
+      id: 'disclaimer',
+      variant: 'warning' as const,
+      body:
+        dict.form.disclaimerRequired ||
+        'Accept the workspace disclaimer in workspace Settings before creating a form.',
+    },
+  ]);
+
   const formatLongDate = useFormatLongDate();
 
   const columns: Column<SobaFormSummary>[] = useMemo(
@@ -291,17 +301,6 @@ function FormList({
           size="medium"
         />
       </div>
-
-      {needsDisclaimer ? (
-        <InlineAlert
-          variant="warning"
-          title={
-            dict.form.disclaimerRequired ||
-            'Accept the workspace disclaimer in workspace Settings before creating a form.'
-          }
-          data-testid="forms-disclaimer-required-alert"
-        />
-      ) : null}
 
       <DataTable<SobaFormSummary>
         data={paginatedForms as SobaFormSummary[]}

@@ -20,7 +20,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import FormDesigner from '@/src/features/designer/ui/FormDesigner';
 import { DynamicForm } from '@/src/features/formio-v5/ui/DynamicForm';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
-import { usePageHeading } from '@/src/components/PageHeader';
+import { usePageHeading, usePageNotices } from '@/src/components/PageHeader';
 import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
@@ -194,6 +194,30 @@ function FormForm({ formId }: { formId?: string }) {
     heading: headerText,
     eyebrow: formId && formWorkspaceId ? activeWorkspace?.name || formWorkspaceId : undefined,
   });
+
+  usePageNotices([
+    isHistoryView && {
+      id: 'history-view',
+      variant: 'info' as const,
+      title: dict.form.readOnlyMode || 'Read-Only Mode:',
+      body: `${dict.form.viewingHistoricalVersion || 'You are viewing historical version'} v${historicalVersionNo}. ${dict.form.savePublishDisabled || 'Save and Publish options are disabled.'}`,
+      action: {
+        label:
+          dict.form.switchToCurrentDraft ||
+          'Switch to ' + (dict.form.currentDraft || 'Current Draft'),
+        onPress: () => handleVersionChange('current'),
+      },
+    },
+    !isHistoryView &&
+      isCurrentPublished && {
+        id: 'published-version',
+        variant: 'info' as const,
+        title: dict.form.publishedVersion || 'Published Version:',
+        body:
+          dict.form.publishedVersionCannotBeModified ||
+          'This version is published and cannot be modified',
+      },
+  ]);
 
   const createNewVersion = async () => {
     if (isSaving || loading || !token) return;
@@ -462,39 +486,6 @@ function FormForm({ formId }: { formId?: string }) {
 
   return (
     <>
-      {isHistoryView && (
-        <div className="mb-4">
-          <InlineAlert
-            variant="info"
-            buttons={
-              <Button
-                size="small"
-                variant="secondary"
-                onPress={() => handleVersionChange('current')}
-              >
-                {dict.form.switchToCurrentDraft ||
-                  'Switch to ' + (dict.form.currentDraft || 'Current Draft')}
-              </Button>
-            }
-          >
-            <strong>{dict.form.readOnlyMode || 'Read-Only Mode:'}</strong>{' '}
-            {dict.form.viewingHistoricalVersion || 'You are viewing historical version'}{' '}
-            <strong>v{historicalVersionNo}</strong>.{' '}
-            {dict.form.savePublishDisabled || 'Save and Publish options are disabled.'}
-          </InlineAlert>
-        </div>
-      )}
-
-      {!isHistoryView && isCurrentPublished && (
-        <div className="mb-4">
-          <InlineAlert variant="info">
-            <strong>{dict.form.publishedVersion || 'Published Version:'}</strong>{' '}
-            {dict.form.publishedVersionCannotBeModified ||
-              'This version is published and cannot be modified'}
-          </InlineAlert>
-        </div>
-      )}
-
       {formId ? (
         <Tabs
           id="form-designer-tabs"
