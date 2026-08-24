@@ -20,7 +20,21 @@
   width: 1.5rem;
 }
 
+/* Zero height so it does not displace the nav items, sticky so the toggle stays on screen however
+   long the page is. */
+.toggleAnchor {
+  position: sticky;
+  top: 1rem;
+  height: 0;
+  z-index: 1;
+}
+
+/* Straddles the nav's right border; the negative offset cancels the nav's horizontal padding. */
 .sidebarToggle {
+  position: absolute;
+  top: 0;
+  right: -0.5rem;
+  transform: translateX(50%);
   width: 24px;
   height: 48px;
   cursor: pointer;

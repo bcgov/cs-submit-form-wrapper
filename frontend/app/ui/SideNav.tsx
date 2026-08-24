@@ -75,7 +75,26 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
   }
 
   return (
-    <nav className={`d-flex flex-column py-3 px-2 ${styles.sideNav} position-relative`}>
+    <nav className={`d-flex flex-column py-3 px-2 ${styles.sideNav}`}>
+      <div className={styles.toggleAnchor}>
+        <Button
+          id="sidebar-toggle-button"
+          className={`bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
+          aria-label={dict.sideNav.toggleSidebar}
+          variant="secondary"
+          data-testid="sidebar-toggle"
+          onClick={() => {
+            setIsCollapsed(!isCollapsed);
+          }}
+        >
+          {isCollapsed ? (
+            <FaChevronRight size={14} className="text-secondary" />
+          ) : (
+            <FaChevronLeft size={14} className="text-secondary" />
+          )}
+        </Button>
+      </div>
+
       <ul className="nav flex-column gap-2">
         {navItems.map((item) => (
           <li className="nav-item" key={item.href}>
@@ -93,23 +112,6 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
           </li>
         ))}
       </ul>
-
-      <Button
-        id="sidebar-toggle-button"
-        className={`position-relative top-25gt start-100 translate-middle-y bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
-        aria-label={dict.sideNav.toggleSidebar}
-        variant="secondary"
-        data-testid="sidebar-toggle"
-        onClick={() => {
-          setIsCollapsed(!isCollapsed);
-        }}
-      >
-        {isCollapsed ? (
-          <FaChevronRight size={14} className="text-secondary" />
-        ) : (
-          <FaChevronLeft size={14} className="text-secondary" />
-        )}
-      </Button>
     </nav>
   );
 }

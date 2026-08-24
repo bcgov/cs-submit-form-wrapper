@@ -1,4 +1,23 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* Takes the free space, so the footer sits at the bottom of the viewport on a short page. */
+.row {
+  display: flex;
+  flex: 1;
+  width: 100%;
+}
+
 .aside {
   min-width: 70px;
   max-width: 240px;
+}
+
+/* min-width lets a wide table shrink instead of widening the row. */
+.main {
+  flex: 1;
+  min-width: 0;
 }
