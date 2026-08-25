@@ -226,7 +226,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         event.preventDefault();
         handleSave().catch(() => undefined);
       }}
-      className={styles.fieldStack}
+      className={`${styles.fieldStack} ${first ? styles.fieldStackFill : ''}`}
     >
       <TextField
         label={dictWorkspaces.nameLabel}

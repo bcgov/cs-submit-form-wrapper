@@ -7,7 +7,7 @@
     "title": "Common Hosted Forms",
     "titleAsService": "Common Hosted Forms Service",
     "acronym": "CHEFS",
-    "description": "Bienvenue sur le Common Hosted Form Service (CHEFS) où vous pouvez créer et publier des formulaires, recevoir et examiner des soumissions, et intégrer avec vos systèmes métier.",
+    "description": "Bienvenue sur Common Hosted Forms Service (CHEFS) où vous pouvez créer et publier des formulaires, recevoir et examiner des soumissions, et intégrer avec vos systèmes métier.",
     "notAuthenticated": "Vous n'êtes pas authentifié. Veuillez vous connecter pour accéder à cette section.",
     "home": "Accueil",
     "forms": "Formulaires",
@@ -83,7 +83,7 @@
       "forms": "Formulaires"
     },
     "modalTitle": "Configuration de l'espace de travail par défaut",
-    "defaultWorkspaceIntro": "Vous vous êtes connecté à Common Hosted Forms Service 2 pour la première fois. Veuillez configurer vos options d'espace de travail par défaut. Cette opération ne doit être effectuée qu'une seule fois. Merci.",
+    "defaultWorkspaceIntro": "Vous vous êtes connecté à Common Hosted Forms pour la première fois. Veuillez configurer vos options d'espace de travail par défaut. Cette opération ne doit être effectuée qu'une seule fois. Merci.",
     "yourOrgReq": "Votre organisation",
     "useCase": "Cas d'utilisation",
     "disclaimer": "Il est de votre responsabilité de respecter les lois sur la vie privée régissant la collecte, l'utilisation et la divulgation des informations personnelles identifiables. L'accès à cet outil de conception de formulaires ne confère pas implicitement la permission de collecter, utiliser ou divulguer des informations personnelles identifiables. Il est de votre responsabilité d'obtenir le consentement pour collecter des informations comme requis par la loi. Si vous utilisez BCeID ou la carte des services de la C.-B. comme options d'accès au formulaire, vous DEVEZ informer l'équipe de gestion des informations sur l'identité (IDIM) par courriel (IDIM.Consulting@gov.bc.ca) de votre intention d'utiliser BCeID ou la carte des services de la C.-B. pour vérifier les identités de vos soumissionnaires de formulaires. Il est de votre responsabilité de remplir ces exigences d'intégration supplémentaires avant de collecter des données. Avant de publier ou de distribuer votre formulaire, vous êtes tenu de discuter de l'intention du formulaire avec votre responsable à la protection des renseignements personnels au sein de votre ministère et de compléter les évaluations requises.",
