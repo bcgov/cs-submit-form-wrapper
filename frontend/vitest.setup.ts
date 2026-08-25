@@ -26,6 +26,15 @@ process.stderr.write = function (chunk: unknown, ...rest: unknown[]): boolean {
   return (originalStderrWrite as any)(chunk, ...rest);
 } as typeof process.stderr.write;
 
+// jsdom ships no ResizeObserver. Nothing under test depends on it firing, only on constructing.
+if (!('ResizeObserver' in globalThis)) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
+
 // Automatically clean up after each test
 afterEach(() => {
   cleanup();

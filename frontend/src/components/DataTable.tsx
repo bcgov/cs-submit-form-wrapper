@@ -63,6 +63,25 @@ export function DataTable<T>({
   pageSizeOptions = [5, 10, 25, 50],
   keyExtractor,
 }: DataTableProps<T>) {
+  // A scrollable region has to be focusable or its overflow is unreachable by keyboard, but a table
+  // that fits should not be a tab stop. Set from a ref so it tracks what the table is actually doing.
+  const scrollerRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const sync = () => {
+      if (scroller.scrollWidth > scroller.clientWidth) {
+        scroller.setAttribute('tabindex', '0');
+      } else {
+        scroller.removeAttribute('tabindex');
+      }
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, []);
+
   const dict = useDictionary();
   const t = dict.dataTable;
 
@@ -111,7 +130,7 @@ export function DataTable<T>({
     <div className={`bg-white rounded overflow-hidden ${styles.container}`}>
       {/* Owned rather than react-bootstrap's `responsive` wrapper, which is scrollable but has no
           tabindex, leaving the overflow unreachable by keyboard. */}
-      <div className={styles.scroller} tabIndex={0} role="region" aria-label={caption}>
+      <section ref={scrollerRef} className={styles.scroller} aria-label={caption}>
         <Table className={`mb-0 align-middle ${styles.table}`}>
           {caption ? <caption className="visually-hidden">{caption}</caption> : null}
           <thead className={styles.thead}>
@@ -125,7 +144,7 @@ export function DataTable<T>({
           </thead>
           <tbody className={styles.tbody}>{renderBody()}</tbody>
         </Table>
-      </div>
+      </section>
 
       {!loading && data.length > 0 && totalItems !== undefined && (
         <div className={`d-flex align-items-stretch ${styles.pagination}`}>

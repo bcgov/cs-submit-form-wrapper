@@ -102,25 +102,23 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
   ];
 
   return (
-    <>
-      <DataTable<SubmissionListItem>
-        data={paginatedSubmissions}
-        columns={columns}
-        loading={loading}
-        emptyMessage={dict.submission?.empty || 'No submissions found yet.'}
-        loadingMessage={dict.submission?.loading || 'Loading submissions...'}
-        keyExtractor={(sub) => sub.id}
-        itemName={dict.submission?.submissions || 'submissions'}
-        caption={dict.submission?.submissions || 'Submissions'}
-        totalItems={submissions.length}
-        pageSize={pageSize}
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setCurrentPage(1);
-        }}
-      />
-    </>
+    <DataTable<SubmissionListItem>
+      data={paginatedSubmissions}
+      columns={columns}
+      loading={loading}
+      emptyMessage={dict.submission?.empty || 'No submissions found yet.'}
+      loadingMessage={dict.submission?.loading || 'Loading submissions...'}
+      keyExtractor={(sub) => sub.id}
+      itemName={dict.submission?.submissions || 'submissions'}
+      caption={dict.submission?.submissions || 'Submissions'}
+      totalItems={submissions.length}
+      pageSize={pageSize}
+      currentPage={currentPage}
+      onPageChange={setCurrentPage}
+      onPageSizeChange={(size) => {
+        setPageSize(size);
+        setCurrentPage(1);
+      }}
+    />
   );
 }

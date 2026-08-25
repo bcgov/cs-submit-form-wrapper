@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: Readonly<PageProps>) {
   const param = await params;
   const locale = resolveLocale(param.lang);
   const dict = await getDictionary(locale);
