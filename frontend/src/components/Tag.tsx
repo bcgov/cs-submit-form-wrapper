@@ -26,12 +26,10 @@ type TagProps = {
 };
 
 /**
- * Label pill.
- *
- * The design system renders tags as a grid, which makes a static label a tab stop and announces it
- * as a grid containing a row and a cell. `inert` takes the rendered tag out of the tab order and
- * off the accessibility tree, and the span carries the text instead. Drop both when the design
- * system stops using grid semantics; StatusTag's grid test fails when that happens.
+ * Label pill. The design system renders tags as a grid, so a static label would be a tab stop and
+ * announce as a grid containing a row and a cell. `inert` keeps it out of the tab order and off the
+ * accessibility tree; the span carries the text. Drop both when the design system stops using grid
+ * semantics - StatusTag's grid test fails when that happens.
  */
 export function Tag({
   text,

@@ -6,6 +6,7 @@ import { Select, Button } from '@bcgov/design-system-react-components';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa6';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { useDictionary } from '@/app/[lang]/Providers';
+import { useScrollableRegion } from '@/src/shared/hooks/useScrollableRegion';
 import styles from './DataTable.module.css';
 
 export interface Column<T> {
@@ -63,24 +64,7 @@ export function DataTable<T>({
   pageSizeOptions = [5, 10, 25, 50],
   keyExtractor,
 }: DataTableProps<T>) {
-  // A scrollable region has to be focusable or its overflow is unreachable by keyboard, but a table
-  // that fits should not be a tab stop. Set from a ref so it tracks what the table is actually doing.
-  const scrollerRef = React.useRef<HTMLElement>(null);
-  React.useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    const sync = () => {
-      if (scroller.scrollWidth > scroller.clientWidth) {
-        scroller.setAttribute('tabindex', '0');
-      } else {
-        scroller.removeAttribute('tabindex');
-      }
-    };
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(scroller);
-    return () => observer.disconnect();
-  }, []);
+  const scrollerRef = useScrollableRegion<HTMLElement>();
 
   const dict = useDictionary();
   const t = dict.dataTable;

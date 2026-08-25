@@ -4,8 +4,8 @@
 
 /* Reserved on every page so a page with a tag and a page without keep their titles on the same
    line. Matches the height of a small BCDS tag, the size TagList renders by default. */
-/* Flex, not block: an inline tag would add line-box descender space and the row would no longer
-   match an empty one, which is the whole point of reserving it. */
+/* Flex, not block: an inline tag adds line-box descender space, so the row stops matching an
+   empty one. */
 .eyebrow {
   display: flex;
   align-items: center;

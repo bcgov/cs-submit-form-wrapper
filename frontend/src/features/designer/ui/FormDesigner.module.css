@@ -27,7 +27,7 @@
 
 :global(.builder-sidebar) {
   position: sticky;
-  top: 1rem;
+  top: calc(var(--app-header-height, 0px) + var(--layout-margin-medium));
   align-self: flex-start;
   max-height: none;
   padding-right: 0.5rem;

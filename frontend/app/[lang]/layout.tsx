@@ -38,11 +38,13 @@ export default async function RootLayout({
   return (
     <DictionaryProvider dictionary={dictionary} locale={locale}>
       <div className={shellStyles.shell}>
-        <Header
-          headerNavItems={headerNavItems}
-          overlayNavItems={overlayNavItems}
-          showWorkspaces={showWorkspaces}
-        />
+        <div className={shellStyles.header}>
+          <Header
+            headerNavItems={headerNavItems}
+            overlayNavItems={overlayNavItems}
+            showWorkspaces={showWorkspaces}
+          />
+        </div>
         <div className={shellStyles.row}>
           <aside className={`p-2 d-flex flex-column flex-shrink-0 ${shellStyles.aside}`}>
             <SideNav

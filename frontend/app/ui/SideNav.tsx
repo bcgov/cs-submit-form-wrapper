@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Button } from '@bcgov/design-system-react-components';
 import { usePathname } from 'next/navigation';
 import { useDictionary } from '../[lang]/Providers';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
@@ -75,23 +76,6 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
 
   return (
     <nav className={`d-flex flex-column py-3 px-2 ${styles.sideNav}`}>
-      <div className={styles.toggleAnchor}>
-        <button
-          type="button"
-          id="sidebar-toggle-button"
-          className={styles.sidebarToggle}
-          aria-label={dict.sideNav.toggleSidebar}
-          aria-expanded={!isCollapsed}
-          aria-controls="sidenav-items"
-          data-testid="sidebar-toggle"
-          onClick={() => {
-            setIsCollapsed(!isCollapsed);
-          }}
-        >
-          {isCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
-        </button>
-      </div>
-
       <ul id="sidenav-items" className="nav flex-column gap-2">
         {navItems.map((item) => (
           <li className="nav-item" key={item.href}>
@@ -109,6 +93,26 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
           </li>
         ))}
       </ul>
+
+      {/* The wrapper carries the position. A className on the Button replaces the design system's
+          own classes rather than adding to them, so its styling is overridden from the wrapper. */}
+      <span className={styles.toggleSlot}>
+        <Button
+          id="sidebar-toggle-button"
+          variant="secondary"
+          size="small"
+          isIconButton
+          aria-label={dict.sideNav.toggleSidebar}
+          aria-expanded={!isCollapsed}
+          aria-controls="sidenav-items"
+          data-testid="sidebar-toggle"
+          onPress={() => {
+            setIsCollapsed(!isCollapsed);
+          }}
+        >
+          {isCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
+        </Button>
+      </span>
     </nav>
   );
 }
