@@ -26,12 +26,14 @@ process.stderr.write = function (chunk: unknown, ...rest: unknown[]): boolean {
   return (originalStderrWrite as any)(chunk, ...rest);
 } as typeof process.stderr.write;
 
-// jsdom ships no ResizeObserver. Nothing under test depends on it firing, only on constructing.
+// jsdom ships no ResizeObserver. Nothing under test depends on it firing, only on constructing, so
+// the callback is never invoked - a test that needs resize behaviour will need a real fake.
+const ignoreResize = () => undefined;
 if (!('ResizeObserver' in globalThis)) {
   globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+    observe = ignoreResize;
+    unobserve = ignoreResize;
+    disconnect = ignoreResize;
   } as unknown as typeof ResizeObserver;
 }
 
