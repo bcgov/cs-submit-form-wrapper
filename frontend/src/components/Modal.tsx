@@ -38,7 +38,7 @@ export function Modal({
   size = 'lg',
   footer,
   isDismissable = true,
-}: ModalProps) {
+}: Readonly<ModalProps>) {
   const dict = useDictionary();
   return (
     <BCModal
