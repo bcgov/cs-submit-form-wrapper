@@ -81,6 +81,8 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
           id="sidebar-toggle-button"
           className={`bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
           aria-label={dict.sideNav.toggleSidebar}
+          aria-expanded={!isCollapsed}
+          aria-controls="sidenav-items"
           variant="secondary"
           data-testid="sidebar-toggle"
           onClick={() => {
@@ -95,7 +97,7 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
         </Button>
       </div>
 
-      <ul className="nav flex-column gap-2">
+      <ul id="sidenav-items" className="nav flex-column gap-2">
         {navItems.map((item) => (
           <li className="nav-item" key={item.href}>
             <Link

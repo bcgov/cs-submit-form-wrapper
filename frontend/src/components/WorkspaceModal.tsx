@@ -1,3 +1,5 @@
+'use client';
+
 import WorkspaceForm from '@/src/features/workspaces/ui/WorkspaceForm';
 import { Modal, Heading, Button } from '@bcgov/design-system-react-components';
 import { useDictionary } from '../../app/[lang]/Providers';

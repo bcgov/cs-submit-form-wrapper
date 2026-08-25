@@ -109,19 +109,23 @@ export function DataTable<T>({
 
   return (
     <div className={`bg-white rounded overflow-hidden ${styles.container}`}>
-      <Table responsive className={`mb-0 align-middle ${styles.table}`}>
-        {caption ? <caption className="visually-hidden">{caption}</caption> : null}
-        <thead className={styles.thead}>
-          <tr className="bg-bcgov-light-blue">
-            {columns.map((col) => (
-              <th key={col.key} scope="col" className={columnHeaderClass(col)}>
-                {col.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className={styles.tbody}>{renderBody()}</tbody>
-      </Table>
+      {/* Owned rather than react-bootstrap's `responsive` wrapper, which is scrollable but has no
+          tabindex, leaving the overflow unreachable by keyboard. */}
+      <div className={styles.scroller} tabIndex={0} role="region" aria-label={caption}>
+        <Table className={`mb-0 align-middle ${styles.table}`}>
+          {caption ? <caption className="visually-hidden">{caption}</caption> : null}
+          <thead className={styles.thead}>
+            <tr className="bg-bcgov-light-blue">
+              {columns.map((col) => (
+                <th key={col.key} scope="col" className={columnHeaderClass(col)}>
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className={styles.tbody}>{renderBody()}</tbody>
+        </Table>
+      </div>
 
       {!loading && data.length > 0 && totalItems !== undefined && (
         <div className={`d-flex align-items-stretch ${styles.pagination}`}>
