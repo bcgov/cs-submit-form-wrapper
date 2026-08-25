@@ -11,6 +11,7 @@ import {
   WorkspaceMembershipStatus,
 } from './codes';
 import { db, pool } from './client';
+import { applyFeatureFlags } from './featureFlags';
 import { appUsers, identityProviders, userIdentities } from './schema';
 
 const SYSTEM_PROVIDER_CODE = 'system';
@@ -115,6 +116,14 @@ const seed = async () => {
   }
 
   await ensurePublicUser();
+
+  const { changes, unmatched } = await applyFeatureFlags(process.env, SEED_USER_STAMP);
+  for (const change of changes) {
+    console.log(`Feature ${change.code}: ${change.from} -> ${change.to} from the environment`);
+  }
+  for (const name of unmatched) {
+    console.warn(`${name} does not match any feature; check the code in it`);
+  }
 
   console.log(`Seed complete. System user subject: ${systemSubject}`);
   await pool.end();

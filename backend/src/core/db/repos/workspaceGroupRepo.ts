@@ -18,8 +18,6 @@ import {
   WorkspaceMembershipStatus,
 } from '../codes';
 
-type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
 /** Insert rows for a group's role set; duplicate codes collapse to one row. */
 const groupRoleRows = (args: {
   workspaceId: string;
@@ -56,7 +54,7 @@ const idpMemberRow = (args: {
 
 /** Creates a workspace group carrying the given roles; returns the new group id. */
 export const createGroupWithRole = async (
-  tx: DbTx,
+  executor: DbOrTx,
   args: {
     workspaceId: string;
     name: string;
@@ -67,7 +65,7 @@ export const createGroupWithRole = async (
   },
 ): Promise<string> => {
   const groupId = uuidv7();
-  await tx.insert(workspaceGroups).values({
+  await executor.insert(workspaceGroups).values({
     id: groupId,
     workspaceId: args.workspaceId,
     name: args.name,
@@ -78,7 +76,7 @@ export const createGroupWithRole = async (
     updatedBy: args.displayLabel,
   });
   if (args.roleCodes.length) {
-    await tx.insert(workspaceGroupRoles).values(groupRoleRows({ ...args, groupId }));
+    await executor.insert(workspaceGroupRoles).values(groupRoleRows({ ...args, groupId }));
   }
   return groupId;
 };

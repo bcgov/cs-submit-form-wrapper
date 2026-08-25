@@ -33,6 +33,8 @@ spec:
             - |
               node dist/src/core/db/migrate.js && node dist/src/core/db/seed.js
           env:
+            # Inline: hook Jobs run before ConfigMaps exist.
+            {{- include "soba.featureEnv" . | nindent 12 }}
             - name: LOG_LEVEL
               value: {{ .Values.backend.config.logLevel | quote }}
             - name: NODE_ENV

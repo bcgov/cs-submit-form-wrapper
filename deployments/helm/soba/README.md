@@ -187,6 +187,7 @@ app pods start (Helm `pre-install,pre-upgrade` hook). The Job:
 1. Creates the database if it doesn't exist (via `DB_ADMIN_DATABASE`)
 2. Runs Drizzle schema migrations
 3. Seeds reference data (roles, statuses, features, system user)
+4. Applies per-environment feature status (see below)
 
 The seed is fully idempotent (`ON CONFLICT DO NOTHING`), so it's safe to run on
 every deploy.
@@ -196,6 +197,36 @@ To disable automatic migration:
 ```bash
 --set backend.migration.enabled=false
 ```
+
+## Feature Status per Environment
+
+Migrations insert each feature with the same status everywhere. `backend.features`
+overrides that per environment, rendered into the migration Job's `env` and
+applied to `soba.feature` by the seed step.
+
+It is rendered inline rather than through a ConfigMap because the Job is a
+`pre-install,pre-upgrade` hook, and Helm creates hook resources before
+ConfigMaps.
+
+| Helm value                       | Env var                     | Effect                          |
+| -------------------------------- | --------------------------- | ------------------------------- |
+| `backend.features.<code>: ""`    | `FEATURE_<CODE>_STATUS=""`  | leave the migrated status alone |
+| `backend.features.<code>: "..."` | `FEATURE_<CODE>_STATUS=...` | set the feature to that status  |
+
+Values are quoted `feature_status` codes: `enabled`, `disabled`, `experimental`,
+`deprecated`. Anything else fails `helm template`, including an unquoted `false`
+or `off`, which YAML would otherwise turn into "no opinion".
+
+The value is applied by the seed inside the migration Job, so it takes effect on
+the next deploy rather than immediately, and the stored status is what the
+application reads thereafter.
+
+```bash
+# enable the development data generator in a PR or dev namespace
+--set backend.features.dev-data=enabled
+```
+
+`dev-data` gates `pnpm db:dev-data` and must stay disabled in production.
 
 ## Internal Sub-Charts
 

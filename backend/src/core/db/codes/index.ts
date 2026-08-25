@@ -126,6 +126,8 @@ export const Features = {
   /** Per-backend: which document-generation engine is available (v3 is scoped). */
   document_generation_v2: 'document-generation-v2',
   document_generation_v3: 'document-generation-v3',
+  /** Backend-only: gates generating and purging development data. Off in production. */
+  dev_data: 'dev-data',
 } as const;
 export type FeatureCode = (typeof Features)[keyof typeof Features];
 
@@ -148,6 +150,14 @@ export const FeatureScopeType = {
   form: 'form',
 } as const;
 export type FeatureScopeTypeCode = (typeof FeatureScopeType)[keyof typeof FeatureScopeType];
+
+/** Lifecycle of a generated development data set (dev_data_run.status). */
+export const DevDataRunStatus = {
+  generating: 'generating',
+  active: 'active',
+  purged: 'purged',
+} as const;
+export type DevDataRunStatusCode = (typeof DevDataRunStatus)[keyof typeof DevDataRunStatus];
 
 /** Status of a feature_scope grant (feature_scope.status). */
 export const FeatureScopeStatus = {
