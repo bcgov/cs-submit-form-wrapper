@@ -86,11 +86,12 @@ Two constraints worth knowing before reaching for a component:
   them, because it is spread after them. That silently drops its typography and colour, including
   props set on the same element.
 
-The layout uses design system components throughout except two places, and both should stay as
-they are:
+The layout uses design system components throughout except the sidenav collapse toggle, which is a
+plain button: it straddles the nav border, and a `className` on `Button` replaces the class that
+would make it a design system button anyway.
 
-- the eyebrow is a plain span. `TagGroup` carries grid semantics, so using it would put a keyboard
-  tab stop in front of every page title and make a screen reader announce the workspace label as a
-  grid containing a row and a cell.
-- the sidenav collapse toggle is a plain button. It straddles the nav border, and a `className` on
-  `Button` replaces the class that would make it a design system button anyway.
+Tags go through `Tag`, which wraps the design system's `TagGroup`. That carries grid semantics, so
+every tag is a keyboard tab stop and announces as a grid containing a row and a cell - including
+one per row in a table. This is known and is being raised with the design system team; when it
+changes, `Tag` is the only file to touch and `StatusTag`'s grid-semantics test will fail to say so.
+Every tag needs a `label`, which names it for assistive tech.
