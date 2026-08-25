@@ -11,8 +11,9 @@ notices are the same everywhere. The page supplies content; the layout decides a
 </PageLayout>
 ```
 
-Do not add a `<section>`, padding, a width or a heading of your own. `headingId` is what the
-section's `aria-labelledby` points at, so it has to match the heading that actually renders.
+Do not add a `<section>`, padding, a width or a heading of your own. `heading` is required, so the
+section's `aria-labelledby` always resolves. Page padding belongs to `main`, so error and
+session-failure states that never reach a `PageLayout` are inset too.
 
 ## Widths
 
@@ -20,8 +21,9 @@ section's `aria-labelledby` points at, so it has to match the heading that actua
 - `default`, 75rem: lists, forms, the Form.io render and fill pages.
 - `wide`, 90rem: the designer.
 
-Set with `width="narrow"`. The value lands in `--page-max-width` rather than a class, so a
-form-level width can drive the same property later without changing the component.
+Set with `width="narrow"`. The value lands in `--page-max-width`, set inline on the page element,
+so nothing inherited can override it - a form-level width will need its own container inside the
+page rather than reaching this one.
 
 ## Headings
 
@@ -34,11 +36,13 @@ client component replaces it:
 usePageHeading({ heading: form.name, eyebrow: workspace.name });
 ```
 
-Strings, not markup: the layout renders the eyebrow tag. Last caller wins, and unmounting restores
-the page's own value. Call it before any early return, like every other hook.
+Strings, not markup: the layout renders the eyebrow tag. Omitting `heading` leaves the page's own
+in place, so a caller can supply only an eyebrow, or nothing until its data arrives. Registrants are
+keyed, so one unmounting cannot blank another's. Call it before any early return, like every other
+hook.
 
-The eyebrow row is reserved on every page that shows a title, so titles sit on the same line
-whether or not there is a tag.
+The eyebrow row is reserved on every page, so titles sit on the same line whether or not there is a
+tag.
 
 ## Notices
 
@@ -65,6 +69,6 @@ Result of an action: use `useNotificationStore`, which shows a toast.
 
 ## Announcement
 
-The notices region is always in the DOM and starts empty, with `aria-live="polite"`. Notices that
-appear later are announced; the ones present on load are not. `danger` also carries `role="alert"`.
-There is nothing to set per notice.
+Notices register from an effect, so every one of them lands after the first paint and is announced -
+there is no quiet "already on the page" case. `danger` carries `role="alert"`, everything else
+`role="status"`. There is nothing to set per notice.

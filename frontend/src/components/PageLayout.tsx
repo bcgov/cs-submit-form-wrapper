@@ -11,25 +11,21 @@ const MAX_WIDTH: Record<PageWidth, string> = {
 };
 
 type PageLayoutProps = {
-  /** Referenced by aria-labelledby, so it must match the heading actually rendered on the page. */
+  /** Referenced by aria-labelledby, so it must match the heading the layout renders. */
   headingId: string;
-  /** Rendered until a client child registers its own through usePageHeading. */
-  heading?: string;
-  eyebrow?: string;
-  description?: ReactNode;
+  /** Stands until a client child registers its own through usePageHeading. */
+  heading: string;
   width?: PageWidth;
   children: ReactNode;
 };
 
 /**
- * The page shell: owns padding, content width, and the heading block. Pages pass content, never
- * arrangement, so every page keeps the same rhythm.
+ * The page shell: owns content width and the heading block. Pages pass content, never arrangement,
+ * so every page keeps the same rhythm.
  */
 export function PageLayout({
   headingId,
   heading,
-  eyebrow,
-  description,
   width = 'default',
   children,
 }: Readonly<PageLayoutProps>) {
@@ -38,12 +34,7 @@ export function PageLayout({
 
   return (
     <section className={styles.page} style={style} aria-labelledby={headingId}>
-      <PageHeaderProvider
-        headingId={headingId}
-        heading={heading}
-        eyebrow={eyebrow}
-        description={description}
-      >
+      <PageHeaderProvider headingId={headingId} heading={heading}>
         {children}
       </PageHeaderProvider>
     </section>

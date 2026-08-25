@@ -183,15 +183,10 @@ function FormForm({ formId }: { formId?: string }) {
 
   const isCurrentPublished = currentVersion?.state === 'published';
 
-  const headerText = useMemo(() => {
-    if (formId) {
-      return `${formName || dict.form.createForm || 'Untitled Form'}`;
-    }
-    return dict.form.createForm;
-  }, [formId, formName, dict]);
-
   usePageHeading({
-    heading: headerText,
+    // Editing claims no heading until the name arrives, so the page's own stands rather than
+    // flashing the create-form label on an existing form.
+    heading: formId ? formName || undefined : dict.form.createForm,
     eyebrow: formId && formWorkspaceId ? activeWorkspace?.name || formWorkspaceId : undefined,
   });
 

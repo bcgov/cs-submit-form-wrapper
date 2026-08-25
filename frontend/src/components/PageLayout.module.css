@@ -1,19 +1,23 @@
 .page {
   max-width: var(--page-max-width, 75rem);
-  padding: var(--layout-padding-xlarge) var(--layout-padding-large);
 }
 
-/* Reserved on every page, empty or not, so a page with a tag and a page without keep their titles
-   on the same line. Tall enough for the largest tag size. */
+/* Reserved on every page so a page with a tag and a page without keep their titles on the same
+   line. Matches the height of a small BCDS tag, the size TagList renders by default. */
 .eyebrow {
-  min-height: calc(var(--layout-padding-xlarge) + 2 * var(--layout-border-width-small));
+  min-height: var(--layout-padding-large);
   margin-bottom: var(--layout-margin-small);
 }
 
-/* h2's size, so the correct heading level does not change how the page looks. */
+/* BCDS h2 typography, capped at h2's size rather than growing to h1's, and allowed to shrink on
+   narrow screens. */
 .heading {
   margin: 0 0 var(--layout-margin-medium);
-  font-size: var(--typography-font-size-h2);
+  font: var(--typography-bold-h2);
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, var(--typography-font-size-h2));
+  /* The token bakes in a 3rem leading for 2rem text; keep that ratio once the size clamps down. */
+  line-height: 1.5;
+  color: var(--typography-color-primary);
 }
 
 /* Empty until a page declares a notice, so it takes no space and adds no margin. */
@@ -25,9 +29,4 @@
 
 .notices:not(:empty) {
   margin-bottom: var(--layout-margin-large);
-}
-
-.description {
-  margin: 0 0 var(--layout-margin-large);
-  color: var(--app-text-muted);
 }

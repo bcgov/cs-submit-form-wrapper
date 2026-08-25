@@ -10,7 +10,7 @@ export default function LandingPage() {
   return (
     <div>
       <p>{dict.general.description}</p>
-      <Heading level={5} isUnstyled className="mt-5">
+      <Heading level={2} isUnstyled className="mt-5">
         {dict.general.access} {dict.general.acronym}
       </Heading>
       <div className="mt-5">
@@ -20,7 +20,7 @@ export default function LandingPage() {
           variant="primary"
         />
       </div>
-      <Heading level={5} isUnstyled className="mt-5">
+      <Heading level={2} isUnstyled className="mt-5">
         {dict.general.needHelp}
       </Heading>
       <div className="mt-5">

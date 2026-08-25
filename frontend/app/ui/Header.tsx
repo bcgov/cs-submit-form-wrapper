@@ -157,7 +157,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
           <Link href="/" data-testid="bcgov-header-logo" title={dict.header.bcgovTitle} />
         }
         title={dict.general.title}
-        titleElement="h1"
+        titleElement="span"
         skipLinks={[
           <a key="skip-to-main" href="#main-content">
             {dict.header.skipToMain}

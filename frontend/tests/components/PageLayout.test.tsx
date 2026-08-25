@@ -48,13 +48,46 @@ describe('PageLayout heading', () => {
     expect(screen.queryByText('Workspace A')).not.toBeInTheDocument();
   });
 
-  it('omits the heading block entirely when no heading is set', () => {
-    const { container } = render(
-      <PageLayout headingId="page-heading">
-        <p>body</p>
+  it('keeps the page heading when a child registers only an eyebrow', () => {
+    render(
+      <PageLayout headingId="page-heading" heading="From the page">
+        <Child eyebrow="Workspace A" />
       </PageLayout>,
     );
-    expect(container.querySelector('h1')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'From the page' })).toBeInTheDocument();
+    expect(screen.getByText('Workspace A')).toBeInTheDocument();
+  });
+
+  it('always labels the section with a heading that exists', () => {
+    const { container } = render(
+      <PageLayout headingId="page-heading" heading="From the page">
+        <Child />
+      </PageLayout>,
+    );
+    const section = container.querySelector('section');
+    const labelId = section?.getAttribute('aria-labelledby');
+    expect(labelId).toBe('page-heading');
+    expect(document.getElementById(labelId as string)).not.toBeNull();
+  });
+
+  it('does not let one child clobber another child\'s heading', async () => {
+    function TwoChildren() {
+      const [showSecond, setShowSecond] = useState(true);
+      return (
+        <PageLayout headingId="page-heading" heading="From the page">
+          <Child heading="First" />
+          {showSecond ? <Child heading="Second" /> : null}
+          <button onClick={() => setShowSecond(false)}>drop second</button>
+        </PageLayout>
+      );
+    }
+    render(<TwoChildren />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Second' })).toBeInTheDocument();
+    await act(async () => {
+      screen.getByRole('button', { name: 'drop second' }).click();
+    });
+    // The surviving registrant keeps its heading rather than being blanked by the other's cleanup.
+    expect(screen.getByRole('heading', { level: 1, name: 'First' })).toBeInTheDocument();
   });
 });
 

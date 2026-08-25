@@ -1,7 +1,9 @@
 .shell {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: 100vh;
+  /* Smallest viewport, so a collapsing mobile URL bar cannot push the footer above the fold. */
+  min-height: 100svh;
 }
 
 /* Takes the free space, so the footer sits at the bottom of the viewport on a short page. */
@@ -16,8 +18,19 @@
   max-width: 240px;
 }
 
-/* min-width lets a wide table shrink instead of widening the row. */
+/* Owns page padding, so anything rendered here is inset - including the error and session-failure
+   states, which do not go through PageLayout. min-width lets a wide table shrink rather than
+   widening the row, and the overflow keeps anything still too wide scrollable here instead of
+   dragging the header and footer sideways with the document. */
 .main {
   flex: 1;
   min-width: 0;
+  overflow: auto;
+  padding: var(--layout-padding-large) var(--layout-padding-medium);
+}
+
+@media (min-width: 768px) {
+  .main {
+    padding: var(--layout-padding-xlarge) var(--layout-padding-large);
+  }
 }

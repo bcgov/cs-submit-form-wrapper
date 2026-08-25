@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Button,
@@ -8,7 +8,6 @@ import {
   InlineAlert,
   TagGroup,
   TagList,
-  Text,
 } from '@bcgov/design-system-react-components';
 import { useDictionary } from '@/app/[lang]/Providers';
 import styles from './PageLayout.module.css';
@@ -31,67 +30,72 @@ export type PageNotice = {
   action?: { label: string; onPress: () => void };
 };
 
-type RegisterHeading = (value: PageHeading | null) => void;
-type RegisterNotices = (value: PageNotice[]) => void;
+type Entry<T> = { token: string; value: T };
+type Register<T> = (token: string, value: T | null) => void;
 
-const PageHeadingContext = createContext<RegisterHeading | null>(null);
-const PageNoticesContext = createContext<RegisterNotices | null>(null);
+const PageHeadingContext = createContext<Register<PageHeading> | null>(null);
+const PageNoticesContext = createContext<Register<PageNotice[]> | null>(null);
 
-type PageHeaderProviderProps = PageHeading & {
+/** Replaces this token's entry, or drops it. Other registrants are left alone. */
+const upsert = <T,>(entries: Entry<T>[], token: string, value: T | null): Entry<T>[] => {
+  const rest = entries.filter((entry) => entry.token !== token);
+  return value === null ? rest : [...rest, { token, value }];
+};
+
+type PageHeaderProviderProps = {
   headingId: string;
-  description?: ReactNode;
+  heading: string;
   children: ReactNode;
 };
 
 export function PageHeaderProvider({
   headingId,
   heading,
-  eyebrow,
-  description,
   children,
 }: Readonly<PageHeaderProviderProps>) {
   const dict = useDictionary();
-  const [override, setOverride] = useState<PageHeading | null>(null);
-  const [notices, setNotices] = useState<PageNotice[]>([]);
-  const registerHeading = useCallback<RegisterHeading>((value) => setOverride(value), []);
-  const registerNotices = useCallback<RegisterNotices>((value) => setNotices(value), []);
+  const [headings, setHeadings] = useState<Entry<PageHeading>[]>([]);
+  const [noticeEntries, setNoticeEntries] = useState<Entry<PageNotice[]>[]>([]);
 
-  const active = override ?? { heading, eyebrow };
+  const registerHeading = useCallback<Register<PageHeading>>(
+    (token, value) => setHeadings((entries) => upsert(entries, token, value)),
+    [],
+  );
+  const registerNotices = useCallback<Register<PageNotice[]>>(
+    (token, value) => setNoticeEntries((entries) => upsert(entries, token, value)),
+    [],
+  );
+
+  // Last registrant wins the heading; an entry that supplies only an eyebrow leaves the page's own
+  // heading standing.
+  const claimed = headings[headings.length - 1]?.value;
+  const activeHeading = claimed?.heading ?? heading;
+  const activeEyebrow = claimed?.eyebrow;
+  const notices = noticeEntries.flatMap((entry) => entry.value);
 
   return (
     <PageHeadingContext.Provider value={registerHeading}>
       <PageNoticesContext.Provider value={registerNotices}>
-        {active.heading ? (
-          <>
-            <div className={styles.eyebrow}>
-              {active.eyebrow ? (
-                <TagGroup aria-label={dict.workspaces?.workspace || 'Workspace'}>
-                  <TagList
-                    items={[{ color: 'yellow', id: 'page-eyebrow', textValue: active.eyebrow }]}
-                  />
-                </TagGroup>
-              ) : null}
-            </div>
-            <Heading level={1} id={headingId} className={styles.heading} isUnstyled>
-              {active.heading}
-            </Heading>
-          </>
-        ) : null}
-        {description ? (
-          <Text elementType="p" color="secondary" className={styles.description}>
-            {description}
-          </Text>
-        ) : null}
-        {/* Always in the DOM and empty to start, so a notice added later is announced but the ones
-            present on load are not. */}
-        <div className={styles.notices} aria-live="polite">
+        <div className={styles.eyebrow}>
+          {activeEyebrow ? (
+            <TagGroup aria-label={dict.workspaces.workspace}>
+              <TagList items={[{ color: 'yellow', id: 'page-eyebrow', textValue: activeEyebrow }]} />
+            </TagGroup>
+          ) : null}
+        </div>
+        <Heading level={1} id={headingId} className={styles.heading} isUnstyled>
+          {activeHeading}
+        </Heading>
+        <div className={styles.notices}>
           {notices.map((notice) => (
             <InlineAlert
               key={notice.id}
               variant={notice.variant}
-              title={notice.title}
-              description={notice.body}
-              role={notice.variant === 'danger' ? 'alert' : undefined}
+              // BCDS points the alert's aria-labelledby at an id it only emits alongside `title`,
+              // so a notice without one has no accessible name.
+              title={notice.title ?? notice.body}
+              description={notice.title ? notice.body : undefined}
+              role={notice.variant === 'danger' ? 'alert' : 'status'}
               data-testid={`page-notice-${notice.id}`}
               buttons={
                 notice.action ? (
@@ -110,17 +114,18 @@ export function PageHeaderProvider({
 }
 
 /**
- * Hand the layout a heading resolved on the client. The page's own `heading` renders until this
- * runs, so pass one that is right on the server. Last caller wins; unmounting restores the page's.
+ * Hand the layout a heading resolved on the client. Omitting `heading` leaves the page's own in
+ * place, so a caller can supply only an eyebrow, or nothing until its data arrives.
  */
 export function usePageHeading({ heading, eyebrow }: PageHeading) {
   const register = useContext(PageHeadingContext);
+  const token = useId();
 
   useEffect(() => {
     if (!register) return;
-    register({ heading, eyebrow });
-    return () => register(null);
-  }, [register, heading, eyebrow]);
+    register(token, { heading, eyebrow });
+    return () => register(token, null);
+  }, [register, token, heading, eyebrow]);
 }
 
 /**
@@ -129,6 +134,7 @@ export function usePageHeading({ heading, eyebrow }: PageHeading) {
  */
 export function usePageNotices(notices: Array<PageNotice | false | null | undefined>) {
   const register = useContext(PageNoticesContext);
+  const token = useId();
   const resolved = notices.filter(Boolean) as PageNotice[];
   // The array and any action callback are new on every render, so the effect keys on the content
   // instead and reads the current value from the ref.
@@ -150,12 +156,13 @@ export function usePageNotices(notices: Array<PageNotice | false | null | undefi
   useEffect(() => {
     if (!register) return;
     register(
+      token,
       latest.current.map((notice) =>
         notice.action
           ? { ...notice, action: { label: notice.action.label, onPress: () => invoke(notice.id) } }
           : notice,
       ),
     );
-    return () => register([]);
-  }, [register, invoke, signature]);
+    return () => register(token, null);
+  }, [register, token, invoke, signature]);
 }

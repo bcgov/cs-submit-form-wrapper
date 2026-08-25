@@ -207,7 +207,8 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   ]);
 
   const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
-  usePageHeading({ heading });
+  // The first-workspace flow runs inside a modal over another page, whose heading it must not take.
+  usePageHeading({ heading: first ? undefined : heading });
 
   if (!authenticated && !initializing) {
     return <p>{dict.general.notAuthenticated}</p>;
