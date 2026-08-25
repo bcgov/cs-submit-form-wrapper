@@ -72,3 +72,25 @@ Result of an action: use `useNotificationStore`, which shows a toast.
 Notices register from an effect, so every one of them lands after the first paint and is announced -
 there is no quiet "already on the page" case. `danger` carries `role="alert"`, everything else
 `role="status"`. There is nothing to set per notice.
+
+## Design system
+
+Two constraints worth knowing before reaching for a component:
+
+- Route files (`page.tsx`, `layout.tsx`, `template.tsx`) are Server Components and cannot import
+  `@bcgov/design-system-react-components` at all. React Aria's `createContext` breaks the server
+  graph and the route fails at runtime, which nothing but loading the page catches - lint blocks
+  the import for that reason. Reach the design system through a client wrapper instead;
+  `SecondaryText` is the one for body text.
+- A `className` passed to a design system component replaces its own classes rather than adding to
+  them, because it is spread after them. That silently drops its typography and colour, including
+  props set on the same element.
+
+The layout uses design system components throughout except two places, and both should stay as
+they are:
+
+- the eyebrow is a plain span. `TagGroup` carries grid semantics, so using it would put a keyboard
+  tab stop in front of every page title and make a screen reader announce the workspace label as a
+  grid containing a row and a cell.
+- the sidenav collapse toggle is a plain button. It straddles the nav border, and a `className` on
+  `Button` replaces the class that would make it a design system button anyway.

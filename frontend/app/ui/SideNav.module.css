@@ -21,24 +21,48 @@
 }
 
 /* Zero height so it does not displace the nav items, sticky so the toggle stays on screen however
-   long the page is. */
+   long the page is. Hidden below md, where the nav labels are already hidden and collapsing does
+   nothing. */
 .toggleAnchor {
+  display: none;
   position: sticky;
-  top: 1rem;
+  top: var(--layout-margin-medium);
   height: 0;
   z-index: 1;
 }
 
-/* Straddles the nav's right border; the negative offset cancels the nav's horizontal padding. */
+@media (min-width: 768px) {
+  .toggleAnchor {
+    display: block;
+  }
+}
+
+/* Straddles the nav's right border; the negative offset cancels the nav's horizontal padding.
+   A plain button rather than the design system's: it is a bespoke edge affordance, and passing a
+   className to BCDS Button replaces its own classes anyway. */
 .sidebarToggle {
   position: absolute;
   top: 0;
-  right: -0.5rem;
+  right: calc(-1 * var(--layout-padding-small));
   transform: translateX(50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 24px;
   height: 48px;
+  padding: 0;
   cursor: pointer;
+  background: var(--surface-color-background-white);
+  color: var(--typography-color-secondary);
+  border: var(--layout-border-width-small) solid var(--app-border);
+  border-left: none;
+  border-radius: 0 var(--layout-border-radius-medium) var(--layout-border-radius-medium) 0;
+  box-shadow: var(--surface-shadow-none);
   transition: background-color 0.2s ease;
+}
+
+.sidebarToggle:hover {
+  background: var(--app-hover);
 }
 
 .iconOutlineBootstrap {

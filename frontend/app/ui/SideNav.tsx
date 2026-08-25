@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button } from '@bcgov/design-system-react-components';
 import { useDictionary } from '../[lang]/Providers';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import {
@@ -77,24 +76,20 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
   return (
     <nav className={`d-flex flex-column py-3 px-2 ${styles.sideNav}`}>
       <div className={styles.toggleAnchor}>
-        <Button
+        <button
+          type="button"
           id="sidebar-toggle-button"
-          className={`bg-white border border-start-0 rounded-end d-flex align-items-center justify-content-center shadow-sm p-0 ${styles.sidebarToggle}`}
+          className={styles.sidebarToggle}
           aria-label={dict.sideNav.toggleSidebar}
           aria-expanded={!isCollapsed}
           aria-controls="sidenav-items"
-          variant="secondary"
           data-testid="sidebar-toggle"
           onClick={() => {
             setIsCollapsed(!isCollapsed);
           }}
         >
-          {isCollapsed ? (
-            <FaChevronRight size={14} className="text-secondary" />
-          ) : (
-            <FaChevronLeft size={14} className="text-secondary" />
-          )}
-        </Button>
+          {isCollapsed ? <FaChevronRight size={14} /> : <FaChevronLeft size={14} />}
+        </button>
       </div>
 
       <ul id="sidenav-items" className="nav flex-column gap-2">

@@ -2,13 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import {
-  Button,
-  Heading,
-  InlineAlert,
-  TagGroup,
-  TagList,
-} from '@bcgov/design-system-react-components';
+import { Button, Heading, InlineAlert } from '@bcgov/design-system-react-components';
 import { useDictionary } from '@/app/[lang]/Providers';
 import styles from './PageLayout.module.css';
 
@@ -78,9 +72,10 @@ export function PageHeaderProvider({
       <PageNoticesContext.Provider value={registerNotices}>
         <div className={styles.eyebrow}>
           {activeEyebrow ? (
-            <TagGroup aria-label={dict.workspaces.workspace}>
-              <TagList items={[{ color: 'yellow', id: 'page-eyebrow', textValue: activeEyebrow }]} />
-            </TagGroup>
+            <span className={styles.eyebrowTag} data-testid="page-eyebrow">
+              <span className="visually-hidden">{dict.workspaces.workspace}: </span>
+              {activeEyebrow}
+            </span>
           ) : null}
         </div>
         <Heading level={1} id={headingId} className={styles.heading} isUnstyled>
