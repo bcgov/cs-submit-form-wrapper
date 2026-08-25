@@ -1,0 +1,47 @@
+/* Matches the design system's small tag. A span rather than its TagGroup, which carries grid
+   semantics: a keyboard tab stop and a "grid, row, cell" announcement for a label that does
+   nothing when activated. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: var(--layout-padding-large);
+  padding: var(--layout-padding-hair) var(--layout-padding-small);
+  border: var(--layout-border-width-small) solid;
+  color: var(--typography-color-primary);
+  font: var(--typography-regular-label);
+}
+
+.rectangular {
+  border-radius: var(--layout-border-radius-small);
+}
+
+.circular {
+  border-radius: var(--layout-border-radius-circular);
+}
+
+.yellow {
+  background-color: var(--support-surface-color-warning);
+  border-color: var(--support-border-color-warning);
+}
+
+.blue {
+  background-color: var(--support-surface-color-info);
+  border-color: var(--support-border-color-info);
+}
+
+.bcBlue {
+  background-color: var(--theme-primary-blue);
+  border-color: var(--theme-blue-90);
+  color: var(--typography-color-primary-invert);
+}
+
+.grey {
+  background-color: var(--theme-gray-20);
+  border-color: var(--surface-color-border-dark);
+}
+
+.green {
+  background-color: var(--support-surface-color-success);
+  border-color: var(--support-border-color-success);
+}

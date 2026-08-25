@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import type { ReactNode } from 'react';
 import { Button, Heading, InlineAlert } from '@bcgov/design-system-react-components';
 import { useDictionary } from '@/app/[lang]/Providers';
+import { Tag } from './Tag';
 import styles from './PageLayout.module.css';
 
 export type PageHeading = {
@@ -72,10 +73,9 @@ export function PageHeaderProvider({
       <PageNoticesContext.Provider value={registerNotices}>
         <div className={styles.eyebrow}>
           {activeEyebrow ? (
-            <span className={styles.eyebrowTag} data-testid="page-eyebrow">
-              <span className="visually-hidden">{dict.workspaces.workspace}: </span>
+            <Tag color="yellow" label={dict.workspaces.workspace} data-testid="page-eyebrow">
               {activeEyebrow}
-            </span>
+            </Tag>
           ) : null}
         </div>
         <Heading level={1} id={headingId} className={styles.heading} isUnstyled>

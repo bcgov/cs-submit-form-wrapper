@@ -13,30 +13,14 @@
   margin-bottom: var(--layout-margin-small);
 }
 
-/* BCDS h2 typography, capped at h2's size rather than growing to h1's, and allowed to shrink on
-   narrow screens. */
+/* Shrinks on narrow screens; the clamp caps it at the token's own size. */
 .heading {
   margin: 0 0 var(--layout-margin-medium);
-  font: var(--typography-bold-h2);
-  font-size: clamp(1.5rem, 1.1rem + 1.6vw, var(--typography-font-size-h2));
-  /* The token bakes in a 3rem leading for 2rem text; keep that ratio once the size clamps down. */
+  font: var(--typography-bold-h1);
+  font-size: clamp(1.5rem, 1.1rem + 1.9vw, var(--typography-font-size-h1));
+  /* The token bakes in a 3.375rem leading for 2.25rem text; keep that ratio once the size clamps. */
   line-height: 1.5;
   color: var(--typography-color-primary);
-}
-
-/* A label, not a control: the design system's TagGroup gives it grid semantics and a tab stop,
-   which a decorative page label should not have. Colours match its small yellow tag. */
-.eyebrowTag {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--layout-padding-large);
-  padding: var(--layout-padding-hair) var(--layout-padding-small);
-  border: var(--layout-border-width-small) solid var(--support-border-color-warning);
-  border-radius: var(--layout-border-radius-medium);
-  background-color: var(--support-surface-color-warning);
-  color: var(--typography-color-primary);
-  font: var(--typography-regular-label);
-  max-width: 100%;
 }
 
 /* Empty until a page declares a notice, so it takes no space and adds no margin. */

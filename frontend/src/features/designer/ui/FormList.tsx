@@ -3,10 +3,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Button as DSButton,
-  TagList,
-  TagGroup,
 } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
+import { Tag } from '@/src/components/Tag';
 import { ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
 import { ListPageSearchField } from '@/src/components/ListPageSearchField';
 import { RowActionButton } from '@/src/components/RowActionButton';
@@ -211,17 +210,9 @@ function FormList({
         render: (form: SobaFormSummary) => {
           const ws = workspaces.find((w) => w.id === form.workspaceId);
           return (
-            <TagGroup>
-              <TagList
-                items={[
-                  {
-                    color: 'yellow',
-                    id: `workspace-tag-${form.id}`,
-                    textValue: ws?.name || form.workspaceId,
-                  },
-                ]}
-              />
-            </TagGroup>
+            <Tag color="yellow" data-testid={`workspace-tag-${form.id}`}>
+              {ws?.name || form.workspaceId}
+            </Tag>
           );
         },
       },
