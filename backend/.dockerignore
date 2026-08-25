@@ -12,6 +12,7 @@ coverage
 
 .env
 .env.local
+.devdata-*
 .env.*.local
 
 *.log

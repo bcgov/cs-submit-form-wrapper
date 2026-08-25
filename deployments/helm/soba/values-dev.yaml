@@ -1,5 +1,8 @@
 # Dev environment — single replica, moderate resources
 backend:
+  # Development data generator: on in dev.
+  features:
+    dev-data: "enabled"
   replicas: 1
   resources:
     requests:

@@ -1,5 +1,8 @@
 # PR environment — minimal resources, single replica, internal Form.io + MongoDB
 backend:
+  # Development data generator: on for PR review environments.
+  features:
+    dev-data: "enabled"
   replicas: 1
   config:
     documentGenerationDefaultCode: cdogs-v2

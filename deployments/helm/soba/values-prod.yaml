@@ -1,5 +1,8 @@
 # Production — higher replicas, resources, HPA enabled, external Form.io likely
 backend:
+  # Development data generator: stated explicitly rather than left to the default.
+  features:
+    dev-data: "disabled"
   replicas: 3
   resources:
     requests:

@@ -23,6 +23,7 @@ interface FakeClient {
   loadSubmissions: jest.Mock;
   loadSubmission: jest.Mock;
   saveSubmission: jest.Mock;
+  deleteSubmission: jest.Mock;
 }
 
 function makeClient(overrides: Partial<FakeClient> = {}): FakeClient {
@@ -30,6 +31,7 @@ function makeClient(overrides: Partial<FakeClient> = {}): FakeClient {
     loadSubmissions: jest.fn().mockResolvedValue([]),
     loadSubmission: jest.fn().mockResolvedValue({ _id: 'sub-1', data: { a: 1 } }),
     saveSubmission: jest.fn().mockResolvedValue({ _id: 'sub-new' }),
+    deleteSubmission: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -134,5 +136,21 @@ describe('FormioEngineAdapter submission methods', () => {
     mockedGetClient.mockResolvedValue(client);
     const adapter = new FormioEngineAdapter(makeConfig());
     expect(await adapter.readSubmission('form-ref-1', 'missing')).toBeNull();
+  });
+
+  it('deleteSubmission deletes the document under its form', async () => {
+    const client = makeClient();
+    mockedGetClient.mockResolvedValue(client);
+
+    const adapter = new FormioEngineAdapter(makeConfig());
+    await adapter.deleteSubmission('form-ref-1', 'sub-1');
+
+    expect(client.deleteSubmission).toHaveBeenCalledWith('form-ref-1', 'sub-1');
+  });
+
+  it('deleteSubmission throws when no admin client is available', async () => {
+    mockedGetClient.mockResolvedValue(null);
+    const adapter = new FormioEngineAdapter(makeConfig());
+    await expect(adapter.deleteSubmission('form-ref-1', 'sub-1')).rejects.toThrow(/admin client/i);
   });
 });
