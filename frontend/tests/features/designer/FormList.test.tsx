@@ -96,6 +96,7 @@ vi.mock('@/lib/store', async () => ({
 }));
 
 import FormList from '@/src/features/designer/ui/FormList';
+import { PageLayout } from '@/src/components/PageLayout';
 
 describe('FormList', () => {
   beforeEach(() => {
@@ -111,9 +112,13 @@ describe('FormList', () => {
     mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: false }];
     mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: false }];
     await act(async () => {
-      render(<FormList />);
+      render(
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>,
+      );
     });
-    expect(screen.getByTestId('forms-disclaimer-required-alert')).toBeInTheDocument();
+    expect(screen.getByTestId('page-notice-disclaimer')).toBeInTheDocument();
     expect(screen.getByTestId('create-form-button')).toBeDisabled();
   });
 
@@ -127,9 +132,13 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ];
     await act(async () => {
-      render(<FormList />);
+      render(
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>,
+      );
     });
-    expect(screen.queryByTestId('forms-disclaimer-required-alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('page-notice-disclaimer')).not.toBeInTheDocument();
     expect(screen.getByTestId('create-form-button')).not.toBeDisabled();
   });
 
@@ -145,9 +154,13 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ];
     await act(async () => {
-      render(<FormList />);
+      render(
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>,
+      );
     });
-    expect(screen.queryByTestId('forms-disclaimer-required-alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('page-notice-disclaimer')).not.toBeInTheDocument();
     expect(screen.getByTestId('create-form-button')).not.toBeDisabled();
   });
 
@@ -156,17 +169,24 @@ describe('FormList', () => {
     mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: true }];
     mockWorkspaceState.writableWorkspaces = [];
     await act(async () => {
-      render(<FormList />);
+      render(
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>,
+      );
     });
-    expect(screen.queryByTestId('forms-disclaimer-required-alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('page-notice-disclaimer')).not.toBeInTheDocument();
     expect(screen.getByTestId('create-form-button')).toBeDisabled();
   });
 
-  it('renders the header and search input', async () => {
+  it('renders the search input', async () => {
     await act(async () => {
-      render(<FormList />);
+      render(
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>,
+      );
     });
-    expect(screen.getByRole('heading', { name: 'Forms' })).toBeInTheDocument();
     // DS TextField puts data-testid on its wrapper; query the input by its
     // accessible label instead.
     const input = screen
@@ -177,7 +197,11 @@ describe('FormList', () => {
 
   it('loads and displays rows from API', async () => {
     await act(async () => {
-      render(<FormList />);
+      render(
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>,
+      );
     });
     await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
     expect(screen.getByText('Form Two')).toBeInTheDocument();
@@ -185,7 +209,11 @@ describe('FormList', () => {
 
   it('search works to filter forms', async () => {
     await act(async () => {
-      render(<FormList />);
+      render(
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>,
+      );
     });
     await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
     const input = screen

@@ -8,9 +8,6 @@ import {
   Form,
   TextField,
   Select,
-  Heading,
-  TagGroup,
-  TagList,
 } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { Modal as CommonModal } from '@/src/components/Modal';
@@ -23,6 +20,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import FormDesigner from '@/src/features/designer/ui/FormDesigner';
 import { DynamicForm } from '@/src/features/formio-v5/ui/DynamicForm';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
+import { usePageHeading, usePageNotices } from '@/src/components/PageHeader';
 import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
@@ -185,12 +183,36 @@ function FormForm({ formId }: { formId?: string }) {
 
   const isCurrentPublished = currentVersion?.state === 'published';
 
-  const headerText = useMemo(() => {
-    if (formId) {
-      return `${formName || dict.form.createForm || 'Untitled Form'}`;
-    }
-    return dict.form.createForm;
-  }, [formId, formName, dict]);
+  usePageHeading({
+    // Editing claims no heading until the name arrives, so the page's own stands rather than
+    // flashing the create-form label on an existing form.
+    heading: formId ? formName || undefined : dict.form.createForm,
+    eyebrow: formId && formWorkspaceId ? activeWorkspace?.name || formWorkspaceId : undefined,
+  });
+
+  usePageNotices([
+    isHistoryView && {
+      id: 'history-view',
+      variant: 'info' as const,
+      title: dict.form.readOnlyMode || 'Read-Only Mode:',
+      body: `${dict.form.viewingHistoricalVersion || 'You are viewing historical version'} v${historicalVersionNo}. ${dict.form.savePublishDisabled || 'Save and Publish options are disabled.'}`,
+      action: {
+        label:
+          dict.form.switchToCurrentDraft ||
+          'Switch to ' + (dict.form.currentDraft || 'Current Draft'),
+        onPress: () => handleVersionChange('current'),
+      },
+    },
+    !isHistoryView &&
+      isCurrentPublished && {
+        id: 'published-version',
+        variant: 'info' as const,
+        title: dict.form.publishedVersion || 'Published Version:',
+        body:
+          dict.form.publishedVersionCannotBeModified ||
+          'This version is published and cannot be modified',
+      },
+  ]);
 
   const createNewVersion = async () => {
     if (isSaving || loading || !token) return;
@@ -459,55 +481,6 @@ function FormForm({ formId }: { formId?: string }) {
 
   return (
     <>
-      {formId && formWorkspaceId && (
-        <TagGroup>
-          <TagList
-            items={[
-              {
-                color: 'yellow',
-                id: `workspace-tag-${formId}`,
-                textValue: activeWorkspace?.name || formWorkspaceId,
-              },
-            ]}
-          />
-        </TagGroup>
-      )}
-      <Heading level={2} isUnstyled>
-        {headerText}
-      </Heading>
-      {isHistoryView && (
-        <div className="mb-4">
-          <InlineAlert
-            variant="info"
-            buttons={
-              <Button
-                size="small"
-                variant="secondary"
-                onPress={() => handleVersionChange('current')}
-              >
-                {dict.form.switchToCurrentDraft ||
-                  'Switch to ' + (dict.form.currentDraft || 'Current Draft')}
-              </Button>
-            }
-          >
-            <strong>{dict.form.readOnlyMode || 'Read-Only Mode:'}</strong>{' '}
-            {dict.form.viewingHistoricalVersion || 'You are viewing historical version'}{' '}
-            <strong>v{historicalVersionNo}</strong>.{' '}
-            {dict.form.savePublishDisabled || 'Save and Publish options are disabled.'}
-          </InlineAlert>
-        </div>
-      )}
-
-      {!isHistoryView && isCurrentPublished && (
-        <div className="mb-4">
-          <InlineAlert variant="info">
-            <strong>{dict.form.publishedVersion || 'Published Version:'}</strong>{' '}
-            {dict.form.publishedVersionCannotBeModified ||
-              'This version is published and cannot be modified'}
-          </InlineAlert>
-        </div>
-      )}
-
       {formId ? (
         <Tabs
           id="form-designer-tabs"

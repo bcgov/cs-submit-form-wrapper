@@ -95,11 +95,10 @@ describe('WorkspaceList', () => {
     mockDispatch.mockReturnValue({ unwrap: mockUnwrap });
   });
 
-  it('renders the header and search input', async () => {
+  it('renders the search input', async () => {
     await act(async () => {
       render(<WorkspaceList />);
     });
-    expect(screen.getByRole('heading', { name: 'Workspaces' })).toBeInTheDocument();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
   });
 

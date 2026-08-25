@@ -13,8 +13,7 @@ import {
 } from '@bcgov/design-system-react-components';
 import { FormSubmitterAudience } from '@/src/features/designer/ui/FormSubmitterAudience';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
-import { ListPageLayout } from '@/src/components/ListPageLayout';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
+import { usePageHeading } from '@/src/components/PageHeader';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
@@ -207,6 +206,10 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     loadedUseCase,
   ]);
 
+  const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
+  // The first-workspace flow runs inside a modal over another page, whose heading it must not take.
+  usePageHeading({ heading: first ? undefined : heading });
+
   if (!authenticated && !initializing) {
     return <p>{dict.general.notAuthenticated}</p>;
   }
@@ -215,7 +218,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     return <CenteredProgress label={dict.general.loading} />;
   }
 
-  const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
   const saveLabel = isCreate ? dictWorkspaces.create : dictWorkspaces.save;
 
   const settingsForm = (
@@ -224,7 +226,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         event.preventDefault();
         handleSave().catch(() => undefined);
       }}
-      className={styles.fieldStack}
+      className={`${styles.fieldStack} ${first ? styles.fieldStackFill : ''}`}
     >
       <TextField
         label={dictWorkspaces.nameLabel}
@@ -292,8 +294,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   );
 
   return (
-    <ListPageLayout>
-      {!first && <DsPageHeading id="workspace-form-heading">{heading}</DsPageHeading>}
+    <>
       {first && <p>{dictWorkspaces.defaultWorkspaceIntro}</p>}
       {isCreate ? (
         settingsForm
@@ -320,7 +321,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
           </Tab>
         </Tabs>
       )}
-    </ListPageLayout>
+    </>
   );
 }
 

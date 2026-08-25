@@ -1,5 +1,5 @@
 import { SubmissionView } from '@/src/features/submit-mode/ui/SubmissionView';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
+import { PageLayout } from '@/src/components/PageLayout';
 import { getDictionary, hasLocale, Locale } from '../../dictionaries';
 import { notFound } from 'next/navigation';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
@@ -31,9 +31,8 @@ export default async function Page({ params }: PageProps) {
   const { lang, submissionId } = await params;
   const dict = await getDictionary((hasLocale(lang) ? lang : 'en') as Locale);
   return (
-    <section className="p-4" aria-labelledby="submission-view-heading">
-      <DsPageHeading id="submission-view-heading">{dict.submission.pageTitle}</DsPageHeading>
+    <PageLayout headingId="submission-view-heading" heading={dict.submission.pageTitle}>
       <SubmissionView key={submissionId} />
-    </section>
+    </PageLayout>
   );
 }

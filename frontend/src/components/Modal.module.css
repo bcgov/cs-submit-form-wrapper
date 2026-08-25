@@ -1,12 +1,20 @@
 /*
- * Baseline layout for app "form" dialogs (import/export, preview, etc.).
+ * Layout for app "form" dialogs (import/export, preview, etc.).
  *
- * The BC Design System plain `Dialog` only stacks its children with no internal
- * structure, which is why these looked basic. We give them the same region
- * model the DS `AlertDialog` uses — header / body / footer separated by thin
- * borders — reusing the same design tokens so the spacing matches the rest of
- * the system (e.g. the disclaimer dialog).
+ * The design system's plain `Dialog` stacks its children with no internal structure, so these
+ * borrow the region model of its `AlertDialog`: header, body and footer separated by thin borders,
+ * on the same tokens the rest of the system uses.
  */
+
+/*
+ * The design system caps the modal box at the viewport but sets no overflow, so taller content is
+ * simply clipped and its buttons cannot be reached. Header and footer stay put; the body scrolls.
+ */
+.shell {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - var(--layout-margin-xxxlarge));
+}
 
 .header {
   padding: var(--layout-padding-medium) var(--layout-padding-large);
@@ -26,6 +34,9 @@
 .body {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  /* Without this a flex item refuses to shrink below its content, so it would never scroll. */
+  min-height: 0;
   padding: var(--layout-padding-medium) var(--layout-padding-large);
   border-bottom: var(--layout-border-width-small) solid var(--surface-color-border-default);
 }

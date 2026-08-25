@@ -1,51 +1,33 @@
 'use client';
 
-import { TagGroup, TagList } from '@bcgov/design-system-react-components';
+import { Tag, type TagColor } from './Tag';
 
 export type StatusTagVariant = 'primary' | 'info' | 'neutral' | 'success';
 
-const VARIANT_COLORS: Record<
-  StatusTagVariant,
-  'bc-blue' | 'blue' | 'grey' | 'green'
-> = {
-  primary: 'bc-blue',
+const VARIANT_COLORS: Record<StatusTagVariant, TagColor> = {
+  primary: 'bcBlue',
   info: 'blue',
   neutral: 'grey',
   success: 'green',
 };
 
 type StatusTagProps = {
-  id: string;
   label: string;
   variant?: StatusTagVariant;
   'data-testid'?: string;
 };
 
 /**
- * BCDS tag pill for table status/role cells. Shared by workspace roles and
- * submission workflow states so chips look identical across list pages.
+ * Status/role pill for table cells. Shared by workspace roles and submission workflow states so
+ * they look identical across list pages.
  */
 export function StatusTag({
-  id,
   label,
   variant = 'neutral',
   'data-testid': testId,
 }: Readonly<StatusTagProps>) {
   return (
-    <TagGroup aria-label={label} data-testid={testId}>
-      <TagList
-        items={[
-          {
-            id,
-            textValue: label,
-            color: VARIANT_COLORS[variant],
-            tagStyle: 'circular',
-            size: 'small',
-            children: label,
-          },
-        ]}
-      />
-    </TagGroup>
+    <Tag text={label} color={VARIANT_COLORS[variant]} shape="circular" data-testid={testId} />
   );
 }
 

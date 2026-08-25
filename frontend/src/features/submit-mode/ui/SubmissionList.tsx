@@ -8,8 +8,6 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaSubmissions } from '@/src/shared/api/sobaApiDesign';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { DataTable, Column } from '@/src/components/DataTable';
-import { ListPageLayout } from '@/src/components/ListPageLayout';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { WorkflowStateBadge } from './WorkflowStateBadge';
 
@@ -104,28 +102,23 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
   ];
 
   return (
-    <ListPageLayout>
-      <DsPageHeading id="submissions-heading">
-        {dict.submission?.submissions || 'Submissions'}
-      </DsPageHeading>
-      <DataTable<SubmissionListItem>
-        data={paginatedSubmissions}
-        columns={columns}
-        loading={loading}
-        emptyMessage={dict.submission?.empty || 'No submissions found yet.'}
-        loadingMessage={dict.submission?.loading || 'Loading submissions...'}
-        keyExtractor={(sub) => sub.id}
-        itemName={dict.submission?.submissions || 'submissions'}
-        caption={dict.submission?.submissions || 'Submissions'}
-        totalItems={submissions.length}
-        pageSize={pageSize}
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setCurrentPage(1);
-        }}
-      />
-    </ListPageLayout>
+    <DataTable<SubmissionListItem>
+      data={paginatedSubmissions}
+      columns={columns}
+      loading={loading}
+      emptyMessage={dict.submission?.empty || 'No submissions found yet.'}
+      loadingMessage={dict.submission?.loading || 'Loading submissions...'}
+      keyExtractor={(sub) => sub.id}
+      itemName={dict.submission?.submissions || 'submissions'}
+      caption={dict.submission?.submissions || 'Submissions'}
+      totalItems={submissions.length}
+      pageSize={pageSize}
+      currentPage={currentPage}
+      onPageChange={setCurrentPage}
+      onPageSizeChange={(size) => {
+        setPageSize(size);
+        setCurrentPage(1);
+      }}
+    />
   );
 }

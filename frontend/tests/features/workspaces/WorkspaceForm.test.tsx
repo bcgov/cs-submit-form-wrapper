@@ -167,7 +167,6 @@ describe('WorkspaceForm', () => {
     await act(async () => {
       render(<WorkspaceForm />);
     });
-    expect(screen.getByRole('heading', { name: 'Create Workspace' })).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toHaveValue('');
     expect(mockSelectWorkspace).not.toHaveBeenCalled();
   });

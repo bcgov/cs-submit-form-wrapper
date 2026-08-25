@@ -3,14 +3,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Button as DSButton,
-  InlineAlert,
-  TagList,
-  TagGroup,
 } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
-import { ListPageLayout, ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
+import { Tag } from '@/src/components/Tag';
+import { ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
 import { ListPageSearchField } from '@/src/components/ListPageSearchField';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
@@ -19,6 +16,7 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
+import { usePageNotices } from '@/src/components/PageHeader';
 import { useAppSelector, useAppDispatch } from '@/lib/store';
 import { setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
@@ -174,6 +172,16 @@ function FormList({
     [router, locale],
   );
 
+  usePageNotices([
+    needsDisclaimer && {
+      id: 'disclaimer',
+      variant: 'warning' as const,
+      body:
+        dict.form.disclaimerRequired ||
+        'Accept the workspace disclaimer in workspace Settings before creating a form.',
+    },
+  ]);
+
   const formatLongDate = useFormatLongDate();
 
   const columns: Column<SobaFormSummary>[] = useMemo(
@@ -202,17 +210,11 @@ function FormList({
         render: (form: SobaFormSummary) => {
           const ws = workspaces.find((w) => w.id === form.workspaceId);
           return (
-            <TagGroup>
-              <TagList
-                items={[
-                  {
-                    color: 'yellow',
-                    id: `workspace-tag-${form.id}`,
-                    textValue: ws?.name || form.workspaceId,
-                  },
-                ]}
-              />
-            </TagGroup>
+            <Tag
+              text={ws?.name || form.workspaceId}
+              color="yellow"
+              data-testid={`workspace-tag-${form.id}`}
+            />
           );
         },
       },
@@ -263,8 +265,7 @@ function FormList({
   }
 
   return (
-    <ListPageLayout>
-      <DsPageHeading id="forms-heading">{dict.general.forms}</DsPageHeading>
+    <>
       <ListPageToolbar align={designModeEnabled ? 'between' : 'end'}>
         <ListPageSearchField
           value={searchQuery}
@@ -294,17 +295,6 @@ function FormList({
         />
       </div>
 
-      {needsDisclaimer ? (
-        <InlineAlert
-          variant="warning"
-          title={
-            dict.form.disclaimerRequired ||
-            'Accept the workspace disclaimer in workspace Settings before creating a form.'
-          }
-          data-testid="forms-disclaimer-required-alert"
-        />
-      ) : null}
-
       <DataTable<SobaFormSummary>
         data={paginatedForms as SobaFormSummary[]}
         columns={columns}
@@ -322,7 +312,7 @@ function FormList({
         pageSizeOptions={[5, 10, 25, 50]}
         keyExtractor={(form) => form.id}
       />
-    </ListPageLayout>
+    </>
   );
 }
 

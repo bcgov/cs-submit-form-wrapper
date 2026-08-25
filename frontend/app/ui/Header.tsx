@@ -51,6 +51,23 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
     init();
   }, [init]);
 
+  // The aside sticks below the header, so its height has to be a real number. It is a design system
+  // component and varies with viewport and signed-in state, so measure rather than assume.
+  useEffect(() => {
+    const chrome = headerChromeRef.current;
+    if (!chrome) return;
+    const publishHeight = () => {
+      document.documentElement.style.setProperty(
+        '--app-header-height',
+        `${chrome.getBoundingClientRect().height}px`,
+      );
+    };
+    publishHeight();
+    const observer = new ResizeObserver(publishHeight);
+    observer.observe(chrome);
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (!authenticated || !token) {
       if (intervalRef) {
@@ -157,7 +174,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
           <Link href="/" data-testid="bcgov-header-logo" title={dict.header.bcgovTitle} />
         }
         title={dict.general.title}
-        titleElement="h1"
+        titleElement="span"
         skipLinks={[
           <a key="skip-to-main" href="#main-content">
             {dict.header.skipToMain}

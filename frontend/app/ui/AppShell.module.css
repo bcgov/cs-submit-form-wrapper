@@ -1,4 +1,55 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* Smallest viewport, so a collapsing mobile URL bar cannot push the footer above the fold. */
+  min-height: 100svh;
+}
+
+/* Takes the free space, so the footer sits at the bottom of the viewport on a short page. */
+.row {
+  display: flex;
+  flex: 1;
+  width: 100%;
+}
+
+/* Above the aside so the nav slides under it, and above the designer's builder palette (10), which
+   otherwise paints over the sticky header. Below the designer's floating action bar (1050). */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* Sticks below the header so the nav and its toggle stay on screen while the page scrolls.
+   align-self stops the flex row stretching it to the height of the content, which is what gives it
+   somewhere to stick to; without it the aside is as tall as the page and never moves. */
 .aside {
   min-width: 70px;
   max-width: 240px;
+  position: sticky;
+  top: var(--app-header-height, 0px);
+  align-self: flex-start;
+  z-index: 11;
+}
+
+/* Owns page padding, so anything rendered here is inset - including the error and session-failure
+   states, which do not go through PageLayout. min-width lets a wide table shrink rather than
+   widening the row. overflow-x is clip rather than auto so this does not become a scroll container:
+   anything sticky inside it needs the viewport as its scrollport, and a scroll container that never
+   scrolls would silently disable them. Wide content scrolls in its own region (see DataTable). */
+.main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: clip;
+  /* Carries the divider: the aside is only as tall as its content, so a border there would stop
+     short of the page. */
+  border-left: var(--layout-border-width-small) solid var(--app-border);
+  padding: var(--layout-padding-large) var(--layout-padding-medium);
+}
+
+@media (min-width: 768px) {
+  .main {
+    padding: var(--layout-padding-xlarge) var(--layout-padding-large);
+  }
 }
