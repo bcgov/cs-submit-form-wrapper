@@ -210,9 +210,11 @@ function FormList({
         render: (form: SobaFormSummary) => {
           const ws = workspaces.find((w) => w.id === form.workspaceId);
           return (
-            <Tag color="yellow" data-testid={`workspace-tag-${form.id}`}>
-              {ws?.name || form.workspaceId}
-            </Tag>
+            <Tag
+              text={ws?.name || form.workspaceId}
+              color="yellow"
+              data-testid={`workspace-tag-${form.id}`}
+            />
           );
         },
       },

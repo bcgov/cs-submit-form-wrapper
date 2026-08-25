@@ -27,9 +27,7 @@ export function StatusTag({
   'data-testid': testId,
 }: Readonly<StatusTagProps>) {
   return (
-    <Tag color={VARIANT_COLORS[variant]} shape="circular" data-testid={testId}>
-      {label}
-    </Tag>
+    <Tag text={label} color={VARIANT_COLORS[variant]} shape="circular" data-testid={testId} />
   );
 }
 

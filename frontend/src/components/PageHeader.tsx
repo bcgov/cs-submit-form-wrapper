@@ -73,9 +73,12 @@ export function PageHeaderProvider({
       <PageNoticesContext.Provider value={registerNotices}>
         <div className={styles.eyebrow}>
           {activeEyebrow ? (
-            <Tag color="yellow" label={dict.workspaces.workspace} data-testid="page-eyebrow">
-              {activeEyebrow}
-            </Tag>
+            <Tag
+              text={activeEyebrow}
+              color="yellow"
+              label={dict.workspaces.workspace}
+              data-testid="page-eyebrow"
+            />
           ) : null}
         </div>
         <Heading level={1} id={headingId} className={styles.heading} isUnstyled>
