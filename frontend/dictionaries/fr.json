@@ -87,7 +87,9 @@
     "yourOrgReq": "Votre organisation",
     "useCase": "Cas d'utilisation",
     "disclaimer": "Il est de votre responsabilité de respecter les lois sur la vie privée régissant la collecte, l'utilisation et la divulgation des informations personnelles identifiables. L'accès à cet outil de conception de formulaires ne confère pas implicitement la permission de collecter, utiliser ou divulguer des informations personnelles identifiables. Il est de votre responsabilité d'obtenir le consentement pour collecter des informations comme requis par la loi. Si vous utilisez BCeID ou la carte des services de la C.-B. comme options d'accès au formulaire, vous DEVEZ informer l'équipe de gestion des informations sur l'identité (IDIM) par courriel (IDIM.Consulting@gov.bc.ca) de votre intention d'utiliser BCeID ou la carte des services de la C.-B. pour vérifier les identités de vos soumissionnaires de formulaires. Il est de votre responsabilité de remplir ces exigences d'intégration supplémentaires avant de collecter des données. Avant de publier ou de distribuer votre formulaire, vous êtes tenu de discuter de l'intention du formulaire avec votre responsable à la protection des renseignements personnels au sein de votre ministère et de compléter les évaluations requises.",
-    "disclaimerTitle": "Avis de non-responsabilité et déclaration de responsabilité"
+    "disclaimerTitle": "Avis de non-responsabilité et déclaration de responsabilité",
+    "unavailableFilter": "Cet espace de travail n'est pas disponible pour vous. Affichage de tous les formulaires.",
+    "clearFilter": "Effacer le filtre"
   },
   "header": {
     "workspaces": "Espaces de travail",

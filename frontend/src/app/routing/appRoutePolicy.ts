@@ -5,6 +5,8 @@ export type RouteKind = 'home' | 'onboarding' | 'workspace-app' | 'workspaces' |
 export type AppSessionSnapshot = {
   authenticated: boolean;
   initializing: boolean;
+  /** Keycloak init has been dispatched, so `authenticated` is an answer rather than a default. */
+  initStarted: boolean;
   sessionReady: boolean;
   /** Both bootstrap loads have produced data at least once. */
   sessionLoadedOnce: boolean;
@@ -41,7 +43,9 @@ export function resolveRedirect(
   session: AppSessionSnapshot,
   workspacesEnabled: boolean,
 ): string | null {
-  if (session.initializing) {
+  // Routing an unauthenticated user off a guarded route before Keycloak has run sends a deep link
+  // to the landing page and drops its query string.
+  if (session.initializing || !session.initStarted) {
     return null;
   }
 

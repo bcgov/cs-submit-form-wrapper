@@ -19,6 +19,11 @@ export type KeycloakState = {
   idTokenParsed?: Keycloak.KeycloakTokenParsed;
   authenticated: boolean;
   initializing: boolean;
+  /**
+   * Init has been dispatched. Before that, `authenticated: false` only means Keycloak has not run
+   * yet, which is not the same answer as "anonymous" and must not be routed on.
+   */
+  initStarted: boolean;
   error?: string;
 };
 
@@ -27,6 +32,7 @@ const initialState: KeycloakState = {
   idTokenParsed: undefined,
   authenticated: false,
   initializing: false,
+  initStarted: false,
   error: undefined,
 };
 
@@ -116,6 +122,7 @@ const slice = createSlice({
     builder
       .addCase(initKeycloak.pending, (state) => {
         state.initializing = true;
+        state.initStarted = true;
         state.error = undefined;
       })
       .addCase(initKeycloak.fulfilled, (state, action) => {

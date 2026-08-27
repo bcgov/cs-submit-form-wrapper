@@ -3,7 +3,6 @@ import workspaceReducer, {
   loadWorkspaces,
   clearWorkspaceState,
   setCanceledDefaultModal,
-  setSelectedWorkspaceId,
 } from '@/lib/slices/workspaceSlice';
 import type { WorkspaceState } from '@/lib/slices/workspaceSlice';
 import { loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
@@ -28,7 +27,6 @@ const baseState: WorkspaceState = {
   writableLoadedOnce: false,
   error: null,
   canceledDefaultModal: false,
-  selectedWorkspaceId: null,
 };
 
 describe('workspaceSlice', () => {
@@ -42,17 +40,11 @@ describe('workspaceSlice', () => {
     expect(next.status).toBe('idle');
     expect(next.writableStatus).toBe('idle');
     expect(next.error).toBeNull();
-    expect(next.selectedWorkspaceId).toBeNull();
   });
 
   it('setCanceledDefaultModal sets state', () => {
     const next = workspaceReducer(baseState, setCanceledDefaultModal(true));
     expect(next.canceledDefaultModal).toBe(true);
-  });
-
-  it('setSelectedWorkspaceId sets state', () => {
-    const next = workspaceReducer(baseState, setSelectedWorkspaceId('w1'));
-    expect(next.selectedWorkspaceId).toBe('w1');
   });
 
   it('handles loadWorkspaces.pending', () => {

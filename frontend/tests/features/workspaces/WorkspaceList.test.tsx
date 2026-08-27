@@ -112,24 +112,14 @@ describe('WorkspaceList', () => {
     expect(screen.getByTestId('role-ws2')).toHaveTextContent('Member');
   });
 
+  // Opening a workspace's forms is an explicit scope choice, unlike landing on the list directly,
+  // so the chosen workspace travels in the URL as the forms-list filter.
   it('navigates to forms when workspace name is clicked', async () => {
     await act(async () => {
       render(<WorkspaceList />);
     });
     await userEvent.click(screen.getByTestId('workspace-link-ws2'));
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms'));
-  });
-
-  // Opening a workspace's forms is an explicit scope choice, unlike landing on the list directly.
-  it('seeds the forms-list workspace filter with the chosen workspace', async () => {
-    await act(async () => {
-      render(<WorkspaceList />);
-    });
-    await userEvent.click(screen.getByTestId('workspace-link-ws2'));
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms'));
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'workspace/setSelectedWorkspaceId', payload: 'ws2' }),
-    );
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?workspace=ws2'));
   });
 
   it('navigates to manage page on Manage action', async () => {
@@ -158,7 +148,7 @@ describe('WorkspaceList', () => {
     ) as HTMLButtonElement | null;
     expect(btn).toBeTruthy();
     await userEvent.click(btn!);
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?workspace=ws2'));
   });
 
   it('search filters workspaces', async () => {

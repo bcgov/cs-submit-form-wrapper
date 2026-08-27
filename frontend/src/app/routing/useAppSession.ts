@@ -9,7 +9,7 @@ import { needsWorkspaceOnboarding } from '@/src/features/onboarding/workspaceOnb
 import type { AppSessionSnapshot } from './appRoutePolicy';
 
 export function useAppSession(): AppSessionSnapshot {
-  const { authenticated, token, initializing } = useKeycloak();
+  const { authenticated, token, initializing, initStarted } = useKeycloak();
   const dispatch = useAppDispatch();
 
   const {
@@ -64,6 +64,7 @@ export function useAppSession(): AppSessionSnapshot {
     return {
       authenticated,
       initializing,
+      initStarted,
       sessionReady,
       // Data survives a refetch, so this stays true through a background reload; the guard uses it
       // to avoid unmounting the route. Miss a load here and its failure never reaches the user.
@@ -76,6 +77,7 @@ export function useAppSession(): AppSessionSnapshot {
   }, [
     authenticated,
     initializing,
+    initStarted,
     workspaceStatus,
     workspacesLoadedOnce,
     writableLoadedOnce,

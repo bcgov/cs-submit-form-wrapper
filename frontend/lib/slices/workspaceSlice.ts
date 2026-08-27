@@ -12,7 +12,6 @@ export interface WorkspaceState {
   writableLoadedOnce: boolean;
   error: string | null;
   canceledDefaultModal: boolean;
-  selectedWorkspaceId: string | null;
 }
 
 const initialState: WorkspaceState = {
@@ -24,7 +23,6 @@ const initialState: WorkspaceState = {
   writableLoadedOnce: false,
   error: null,
   canceledDefaultModal: false,
-  selectedWorkspaceId: null,
 };
 
 export const loadWorkspaces = createAsyncThunk(
@@ -67,13 +65,9 @@ const workspaceSlice = createSlice({
       state.loadedOnce = false;
       state.writableLoadedOnce = false;
       state.error = null;
-      state.selectedWorkspaceId = null;
     },
     setCanceledDefaultModal(state, action: PayloadAction<boolean>) {
       state.canceledDefaultModal = action.payload;
-    },
-    setSelectedWorkspaceId(state, action: PayloadAction<string | null>) {
-      state.selectedWorkspaceId = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -106,7 +100,6 @@ const workspaceSlice = createSlice({
   },
 });
 
-export const { clearWorkspaceState, setCanceledDefaultModal, setSelectedWorkspaceId } =
-  workspaceSlice.actions;
+export const { clearWorkspaceState, setCanceledDefaultModal } = workspaceSlice.actions;
 
 export default workspaceSlice.reducer;

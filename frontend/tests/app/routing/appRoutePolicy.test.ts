@@ -4,6 +4,7 @@ import { classifyRoute, resolveRedirect } from '@/src/app/routing/appRoutePolicy
 const readySession = {
   authenticated: true,
   initializing: false,
+  initStarted: true,
   sessionReady: true,
   sessionLoadedOnce: true,
   sessionFailed: false,
@@ -42,6 +43,15 @@ describe('resolveRedirect — workspaces enabled', () => {
         true,
       ),
     ).toBe('/en');
+  });
+
+  // Before Keycloak has run, `authenticated: false` is the default rather than an answer. Acting on
+  // it bounces a deep link through home to the landing route, losing the path and its query string.
+  it('does not redirect before Keycloak init has started', () => {
+    const unstarted = { ...readySession, authenticated: false, initStarted: false };
+    expect(resolveRedirect('/en/forms', 'en', unstarted, true)).toBeNull();
+    expect(resolveRedirect('/en/workspaces', 'en', unstarted, true)).toBeNull();
+    expect(resolveRedirect('/en/designer/abc', 'en', unstarted, true)).toBeNull();
   });
 
   it('allows unauthenticated users on home and public routes', () => {

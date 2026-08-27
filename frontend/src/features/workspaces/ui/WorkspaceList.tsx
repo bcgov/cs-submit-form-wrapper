@@ -11,7 +11,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces, setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
@@ -117,13 +117,12 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
 
       if (destination === 'forms') {
         // Opening a workspace's forms is an explicit scope choice, so it seeds the list filter.
-        dispatch(setSelectedWorkspaceId(workspaceId));
-        router.push(`/${locale}/forms`);
+        router.push(`/${locale}/forms?workspace=${encodeURIComponent(workspaceId)}`);
       } else {
         router.push(`/${locale}/workspace/${workspaceId}`);
       }
     },
-    [token, router, locale, dispatch],
+    [token, router, locale],
   );
 
   const handleAction = useCallback(

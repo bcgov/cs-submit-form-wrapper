@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Button as DSButton,
 } from '@bcgov/design-system-react-components';
@@ -11,14 +11,14 @@ import { ListPageSearchField } from '@/src/components/ListPageSearchField';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
 import { usePageNotices } from '@/src/components/PageHeader';
-import { useAppSelector, useAppDispatch } from '@/lib/store';
-import { setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
+import { useAppSelector } from '@/lib/store';
+import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { FaFolder, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
@@ -69,14 +69,11 @@ function FormList({
   const dict = useDictionary();
   const dictFormList = dict.submission?.formList;
   const dictForm = dict.form;
-  const { authenticated, token, initializing } = useKeycloak();
+  const { authenticated, initializing } = useKeycloak();
 
   const router = useRouter();
   const pathname = usePathname();
-
-  const [forms, setForms] = useState<SobaFormSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [pageSize, setPageSize] = useState(10);
@@ -87,9 +84,51 @@ function FormList({
   const {
     workspaces,
     writableWorkspaces,
-    selectedWorkspaceId: stateSelectedWorkspaceId,
+    status: workspaceStatus,
   } = useAppSelector((state) => state.workspace);
-  const dispatch = useAppDispatch();
+
+  const workspacesLoaded = workspaceStatus === 'succeeded';
+  const workspaceParam = searchParams.get('workspace');
+  // The filter comes from the URL, so it can name a workspace that does not exist or that this user
+  // cannot see. Resolve it against their own list before it reaches the request.
+  const selectedWorkspaceId =
+    workspaceParam && workspaces.some((w) => w.id === workspaceParam) ? workspaceParam : undefined;
+  const workspaceRejected = workspacesLoaded && !!workspaceParam && !selectedWorkspaceId;
+
+  const {
+    data,
+    isLoading,
+    error: loadError,
+  } = useAuthedSWR(
+    // An unresolved filter must not fall through to an unscoped read, so wait for the workspaces.
+    workspaceParam && !workspacesLoaded ? null : ['forms', selectedWorkspaceId ?? null],
+    (token) => getSobaForms(token, selectedWorkspaceId),
+  );
+
+  // parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
+  const forms: SobaFormSummary[] = useMemo(
+    () => (Array.isArray(data?.items) ? data.items : []),
+    [data],
+  );
+
+  const error = useMemo(() => {
+    if (!loadError) return null;
+    if (isSessionExpired(loadError)) return dict.general.sessionExpired;
+    return loadError instanceof Error ? loadError.message : String(loadError);
+  }, [loadError, dict.general.sessionExpired]);
+
+  const setWorkspaceParam = useCallback(
+    (next: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next) params.set('workspace', next);
+      else params.delete('workspace');
+      const qs = params.toString();
+      // Next keeps useSearchParams in sync with replaceState. A router navigation would re-run the
+      // page's server component for what is only a client-side filter change.
+      window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname);
+    },
+    [searchParams, pathname],
+  );
 
   // The picker filters this list only; a new form is targeted in the designer. So creation
   // depends on having any workspace the user can create in with its disclaimer accepted.
@@ -101,41 +140,9 @@ function FormList({
   const needsDisclaimer = writableWorkspaces.length > 0 && !canCreate;
 
   const handleWorkspaceChange = useCallback(
-    (key: string | number | null) => {
-      const newWs = key ? String(key) : null;
-      dispatch(setSelectedWorkspaceId(newWs));
-    },
-    [dispatch],
+    (key: string | number | null) => setWorkspaceParam(key ? String(key) : null),
+    [setWorkspaceParam],
   );
-
-  // Tracks the workspace whose forms we've already started loading. A ref (not state) dedupes
-  // StrictMode's dev double-invoke while still re-fetching when the active workspace changes.
-  const fetchedWorkspaceRef = useRef<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!authenticated || !token) return;
-    const ws = stateSelectedWorkspaceId || undefined;
-
-    fetchedWorkspaceRef.current = ws;
-    void (async () => {
-      setLoading(true);
-      try {
-        const data = await getSobaForms(token as string, ws);
-        // Ignore a superseded response if the active workspace changed while this was in flight.
-        if (fetchedWorkspaceRef.current !== ws) return;
-        setForms(Array.isArray(data.items) ? data.items : []);
-      } catch (err: unknown) {
-        if (fetchedWorkspaceRef.current !== ws) return;
-        if (isSessionExpired(err)) {
-          setError(dict.general.sessionExpired);
-        } else if (err && typeof err === 'object' && 'message' in err) {
-          setError((err as { message: string }).message);
-        }
-      } finally {
-        if (fetchedWorkspaceRef.current === ws) setLoading(false);
-      }
-    })();
-  }, [authenticated, token, stateSelectedWorkspaceId, dict.general.sessionExpired]);
 
   const filteredForms = useMemo(() => {
     if (!searchQuery.trim()) return forms;
@@ -173,6 +180,15 @@ function FormList({
   );
 
   usePageNotices([
+    workspaceRejected && {
+      id: 'workspace-filter',
+      variant: 'warning' as const,
+      body: dict.workspaces.unavailableFilter,
+      action: {
+        label: dict.workspaces.clearFilter,
+        onPress: () => setWorkspaceParam(null),
+      },
+    },
     needsDisclaimer && {
       id: 'disclaimer',
       variant: 'warning' as const,
@@ -287,7 +303,7 @@ function FormList({
       <div className={`mb-2 ${styles.workspaceField}`}>
         <WorkspaceSelector
           workspaces={workspaces}
-          selectedWorkspaceId={stateSelectedWorkspaceId}
+          selectedWorkspaceId={selectedWorkspaceId ?? null}
           label={dict.workspaces.workspace}
           onChange={handleWorkspaceChange}
           allLabel={dict.workspaces.allWorkspaces}
@@ -298,7 +314,7 @@ function FormList({
       <DataTable<SobaFormSummary>
         data={paginatedForms as SobaFormSummary[]}
         columns={columns}
-        loading={loading || initializing}
+        loading={isLoading || initializing}
         error={error}
         emptyMessage="No forms found matching your criteria."
         loadingMessage={dict.general.loading}
