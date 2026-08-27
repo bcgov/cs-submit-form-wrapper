@@ -6,14 +6,22 @@ import {
   addDirectSobaAdmin,
   removeDirectSobaAdmin,
 } from '../../db/repos/sobaAdminRepo';
-import { upsertFeatureScope } from '../../db/repos/featureScopeRepo';
+import {
+  getFeatureScopeById,
+  listFeatureScopes,
+  removeFeatureScope,
+  upsertFeatureScope,
+} from '../../db/repos/featureScopeRepo';
 import { listDocumentGenerationAudits } from '../../db/repos/documentGenerationAuditRepo';
 import { db } from '../../db/client';
 import { appUsers } from '../../db/schema';
+import { NotFoundError } from '../../errors';
 import { asyncHandler } from '../shared/asyncHandler';
 import { decodeCursor, encodeCursor } from '../shared/pagination';
 import {
   AddSobaAdminBodySchema,
+  FeatureScopeIdParamsSchema,
+  ListFeatureScopesQuerySchema,
   ListDocumentGenerationAuditsQuerySchema,
   UpsertFeatureScopeBodySchema,
 } from './schema';
@@ -21,7 +29,22 @@ import type { Request } from 'express';
 
 type AddSobaAdminBody = z.infer<typeof AddSobaAdminBodySchema>;
 type UpsertFeatureScopeBody = z.infer<typeof UpsertFeatureScopeBodySchema>;
+type ListFeatureScopesQuery = z.infer<typeof ListFeatureScopesQuerySchema>;
 type ListDocumentGenerationAuditsQuery = z.infer<typeof ListDocumentGenerationAuditsQuerySchema>;
+
+type FeatureScopeRow = NonNullable<Awaited<ReturnType<typeof getFeatureScopeById>>>;
+
+const toFeatureScopeItem = (row: FeatureScopeRow) => ({
+  id: row.id,
+  featureCode: row.featureCode,
+  scopeType: row.scopeType,
+  scopeId: row.scopeId,
+  status: row.status,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+  createdBy: row.createdBy,
+  updatedBy: row.updatedBy,
+});
 
 export const listSobaAdminsHandler = asyncHandler(async (req: Request, res: Response) => {
   const limit = Number(req.query.limit) || 20;
@@ -91,5 +114,43 @@ export const upsertFeatureScopeHandler = asyncHandler(
       updatedBy: req.actorId ?? null,
     });
     res.status(204).send();
+  },
+);
+
+export const listFeatureScopesHandler = asyncHandler(async (req: Request, res: Response) => {
+  const query = req.query as unknown as ListFeatureScopesQuery;
+  const rows = await listFeatureScopes(query);
+  res.json({ items: rows.map(toFeatureScopeItem) });
+});
+
+export const getFeatureScopeHandler = asyncHandler(
+  async (req: Request<z.infer<typeof FeatureScopeIdParamsSchema>>, res: Response) => {
+    const row = await getFeatureScopeById(req.params.featureScopeId);
+    if (!row) throw new NotFoundError('Feature scope not found');
+    res.json(toFeatureScopeItem(row));
+  },
+);
+
+export const removeFeatureScopeHandler = asyncHandler(
+  async (req: Request<z.infer<typeof FeatureScopeIdParamsSchema>>, res: Response) => {
+    await removeFeatureScope(req.params.featureScopeId);
+    res.status(204).send();
+  },
+);
+
+export const listDocumentGenerationAuditsHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const query = req.query as unknown as ListDocumentGenerationAuditsQuery;
+    const rows = await listDocumentGenerationAudits({
+      workspaceId: query.workspaceId,
+      formId: query.formId,
+      limit: query.limit,
+    });
+    res.json({
+      items: rows.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    });
   },
 );

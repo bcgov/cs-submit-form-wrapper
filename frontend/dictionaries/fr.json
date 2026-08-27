@@ -91,6 +91,91 @@
     "disclaimer": "Il est de votre responsabilité de respecter les lois sur la vie privée régissant la collecte, l'utilisation et la divulgation des informations personnelles identifiables. L'accès à cet outil de conception de formulaires ne confère pas implicitement la permission de collecter, utiliser ou divulguer des informations personnelles identifiables. Il est de votre responsabilité d'obtenir le consentement pour collecter des informations comme requis par la loi. Si vous utilisez BCeID ou la carte des services de la C.-B. comme options d'accès au formulaire, vous DEVEZ informer l'équipe de gestion des informations sur l'identité (IDIM) par courriel (IDIM.Consulting@gov.bc.ca) de votre intention d'utiliser BCeID ou la carte des services de la C.-B. pour vérifier les identités de vos soumissionnaires de formulaires. Il est de votre responsabilité de remplir ces exigences d'intégration supplémentaires avant de collecter des données. Avant de publier ou de distribuer votre formulaire, vous êtes tenu de discuter de l'intention du formulaire avec votre responsable à la protection des renseignements personnels au sein de votre ministère et de compléter les évaluations requises.",
     "disclaimerTitle": "Avis de non-responsabilité et déclaration de responsabilité"
   },
+  "admin": {
+    "heading": "Administration",
+    "forbidden": "Vous n'avez pas le rôle d'administrateur de plateforme requis pour cette section.",
+    "admins": {
+      "heading": "Administrateurs de la plateforme",
+      "intro": "Les utilisateurs répertoriés ici peuvent administrer l'ensemble de la plateforme. Les administrateurs accordés par le fournisseur d'identité sont resynchronisés à chaque connexion et ne peuvent pas être retirés ici.",
+      "userIdLabel": "Identifiant d'utilisateur",
+      "add": "Ajouter",
+      "remove": "Retirer",
+      "idpManaged": "Géré par le fournisseur d'identité",
+      "unknownUser": "Utilisateur inconnu",
+      "empty": "Aucun administrateur de plateforme trouvé.",
+      "loadError": "Échec du chargement des administrateurs de la plateforme.",
+      "addSuccess": "Administrateur de plateforme ajouté.",
+      "addError": "Échec de l'ajout de l'administrateur de plateforme.",
+      "removeSuccess": "Administrateur de plateforme retiré.",
+      "removeError": "Échec du retrait de l'administrateur de plateforme.",
+      "columns": {
+        "user": "Utilisateur",
+        "source": "Source",
+        "identityProvider": "Fournisseur d'identité",
+        "actions": "Actions"
+      }
+    },
+    "featureScopes": {
+      "heading": "Accès aux fonctionnalités",
+      "createHeading": "Définir l'accès à une fonctionnalité",
+      "manageHeading": "Gérer l'accès à une fonctionnalité",
+      "intro": "Activez ou désactivez une fonctionnalité à portée limitée pour un espace de travail ou un formulaire.",
+      "featureCodeLabel": "Fonctionnalité",
+      "scopeTypeLabel": "Portée",
+      "scopeIdLabel": "Identifiant de portée",
+      "scopeIdHint": "L'UUID de l'espace de travail ou du formulaire visé par l'autorisation.",
+      "statusLabel": "Statut",
+      "create": "Définir l'accès",
+      "manage": "Gérer",
+      "delete": "Supprimer",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "saveSuccess": "Accès à la fonctionnalité mis à jour.",
+      "saveError": "Échec de la mise à jour de l'accès à la fonctionnalité.",
+      "loadError": "Échec du chargement de l'accès aux fonctionnalités.",
+      "deleteSuccess": "Accès à la fonctionnalité supprimé.",
+      "deleteError": "Échec de la suppression de l'accès à la fonctionnalité.",
+      "empty": "Aucune autorisation d'accès aux fonctionnalités trouvée.",
+      "statusToggleLabel": "Basculer {featureCode} pour {scopeType} {scopeId}",
+      "warningTitle": "Application immédiate",
+      "warning": "Les modifications prennent effet à la prochaine requête pour l'espace de travail ou le formulaire sélectionné.",
+      "noScopedFeatures": "Aucune fonctionnalité ne prend en charge les autorisations par espace de travail ou par formulaire pour le moment.",
+      "columns": {
+        "feature": "Fonctionnalité",
+        "scope": "Portée",
+        "scopeId": "Identifiant de portée",
+        "status": "Statut",
+        "updated": "Mis à jour",
+        "actions": "Actions"
+      },
+      "scopeTypes": {
+        "workspace": "Espace de travail",
+        "form": "Formulaire"
+      },
+      "statuses": {
+        "active": "Activé",
+        "inactive": "Désactivé"
+      }
+    },
+    "audits": {
+      "heading": "Génération de documents",
+      "intro": "Appels récents de génération de documents pour un espace de travail ou un formulaire.",
+      "workspaceIdLabel": "Identifiant d'espace de travail",
+      "formIdLabel": "Identifiant de formulaire",
+      "prompt": "Saisissez un identifiant d'espace de travail ou de formulaire pour voir l'activité récente.",
+      "empty": "Aucune activité de génération de documents trouvée.",
+      "loadError": "Échec du chargement de l'activité de génération de documents.",
+      "columns": {
+        "createdAt": "Date",
+        "outcome": "Résultat",
+        "mode": "Mode",
+        "backend": "Service",
+        "duration": "Durée",
+        "detail": "Détail",
+        "submission": "Soumission"
+      }
+    }
+  },
   "header": {
     "workspaces": "Espaces de travail",
     "design": "Conception",

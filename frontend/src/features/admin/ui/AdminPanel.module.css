@@ -1,0 +1,21 @@
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.fieldStack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 32rem;
+}
+
+.tabContent {
+  padding-top: 1rem;
+}
+
+.panelIntro {
+  max-width: 48rem;
+  margin-bottom: 1.25rem;
+}

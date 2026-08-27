@@ -1,4 +1,4 @@
-import { and, eq, or } from 'drizzle-orm';
+import { and, desc, eq, or, type SQL } from 'drizzle-orm';
 import { db } from '../client';
 import { featureScopes } from '../schema';
 import { FeatureScopeStatus, FeatureScopeType } from '../codes';
@@ -19,6 +19,13 @@ export interface UpsertFeatureScopeInput {
   scopeId: string;
   status?: string;
   updatedBy?: string | null;
+}
+
+export interface ListFeatureScopesInput {
+  featureCode?: string;
+  scopeType?: string;
+  status?: string;
+  limit?: number;
 }
 
 export const createFeatureScope = async (input: NewFeatureScope): Promise<FeatureScopeRecord> => {
@@ -79,6 +86,38 @@ export const upsertFeatureScope = async (
     })
     .returning();
   return created;
+};
+
+export const listFeatureScopes = async (
+  input: ListFeatureScopesInput = {},
+): Promise<FeatureScopeRecord[]> => {
+  const conditions: SQL<unknown>[] = [];
+  if (input.featureCode) conditions.push(eq(featureScopes.featureCode, input.featureCode));
+  if (input.scopeType) conditions.push(eq(featureScopes.scopeType, input.scopeType));
+  if (input.status) conditions.push(eq(featureScopes.status, input.status));
+
+  let where = undefined;
+  if (conditions.length === 1) {
+    where = conditions[0];
+  } else if (conditions.length > 1) {
+    where = and(...conditions);
+  }
+
+  return db
+    .select()
+    .from(featureScopes)
+    .where(where)
+    .orderBy(desc(featureScopes.updatedAt), desc(featureScopes.createdAt))
+    .limit(input.limit ?? 100);
+};
+
+export const getFeatureScopeById = async (id: string): Promise<FeatureScopeRecord | null> => {
+  const rows = await db.select().from(featureScopes).where(eq(featureScopes.id, id)).limit(1);
+  return rows[0] ?? null;
+};
+
+export const removeFeatureScope = async (id: string): Promise<void> => {
+  await db.delete(featureScopes).where(eq(featureScopes.id, id));
 };
 
 export interface FeatureGrantLookup {

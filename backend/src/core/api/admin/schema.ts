@@ -68,6 +68,35 @@ export const ListDocumentGenerationAuditsResponseSchema = z
   })
   .openapi('Admin_ListDocumentGenerationAuditsResponse');
 
+export const FeatureScopeItemSchema = z
+  .object({
+    id: z.uuid(),
+    featureCode: z.string(),
+    scopeType: z.enum(['workspace', 'form']),
+    scopeId: z.uuid(),
+    status: z.enum(['active', 'inactive']),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    createdBy: z.string().nullable(),
+    updatedBy: z.string().nullable(),
+  })
+  .openapi('Admin_FeatureScopeItem');
+
+export const ListFeatureScopesQuerySchema = z
+  .object({
+    featureCode: z.string().min(1).optional(),
+    scopeType: z.enum(['workspace', 'form']).optional(),
+    status: z.enum(['active', 'inactive']).optional(),
+    limit: z.coerce.number().int().min(1).max(200).default(100),
+  })
+  .openapi('Admin_ListFeatureScopesQuery');
+
+export const ListFeatureScopesResponseSchema = z
+  .object({
+    items: z.array(FeatureScopeItemSchema),
+  })
+  .openapi('Admin_ListFeatureScopesResponse');
+
 export const AddSobaAdminBodySchema = z
   .object({
     userId: z.string().uuid(),
@@ -89,7 +118,14 @@ export const SobaAdminUserIdParamsSchema = z
   })
   .openapi('Admin_SobaAdminUserIdParams');
 
+export const FeatureScopeIdParamsSchema = z
+  .object({
+    featureScopeId: z.uuid(),
+  })
+  .openapi('Admin_FeatureScopeIdParams');
+
 const TAG = 'core.admin';
+const REQUIRES_SOBA_ADMIN = 'Requires soba_admin role';
 
 export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
   registry.registerPath({
@@ -146,6 +182,66 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
   });
 
   registry.registerPath({
+    method: 'get',
+    path: '/admin/feature-scopes',
+    tags: [TAG],
+    security: [{ bearerAuth: [] }],
+    request: {
+      query: ListFeatureScopesQuerySchema,
+    },
+    responses: {
+      200: {
+        description: 'List feature scope grants',
+        content: {
+          'application/json': {
+            schema: ListFeatureScopesResponseSchema,
+          },
+        },
+      },
+      400: { description: 'Invalid query' },
+      403: { description: REQUIRES_SOBA_ADMIN },
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/admin/feature-scopes/{featureScopeId}',
+    tags: [TAG],
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: FeatureScopeIdParamsSchema,
+    },
+    responses: {
+      200: {
+        description: 'Read a feature scope grant',
+        content: {
+          'application/json': {
+            schema: FeatureScopeItemSchema,
+          },
+        },
+      },
+      400: { description: 'Invalid featureScopeId' },
+      403: { description: REQUIRES_SOBA_ADMIN },
+      404: { description: 'Feature scope not found' },
+    },
+  });
+
+  registry.registerPath({
+    method: 'delete',
+    path: '/admin/feature-scopes/{featureScopeId}',
+    tags: [TAG],
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: FeatureScopeIdParamsSchema,
+    },
+    responses: {
+      204: { description: 'Feature scope grant deleted' },
+      400: { description: 'Invalid featureScopeId' },
+      403: { description: REQUIRES_SOBA_ADMIN },
+    },
+  });
+
+  registry.registerPath({
     method: 'post',
     path: '/admin/feature-scopes',
     tags: [TAG],
@@ -166,7 +262,7 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
           'Feature scope upserted. Creates when missing, otherwise updates existing row status.',
       },
       400: { description: 'Invalid request body' },
-      403: { description: 'Requires soba_admin role' },
+      403: { description: REQUIRES_SOBA_ADMIN },
     },
   });
 
@@ -188,7 +284,7 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
         },
       },
       400: { description: 'Invalid query (workspaceId/formId/limit)' },
-      403: { description: 'Requires soba_admin role' },
+      403: { description: REQUIRES_SOBA_ADMIN },
       404: { description: 'Document generation feature is disabled' },
     },
   });
