@@ -6,7 +6,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import type { RootState } from '@/lib/store';
 import { SessionExpiredError } from './sobaFetch';
 
-/** Key parts for an authenticated read. `null` from the caller means the request is not ready. */
+/** Key parts for a read. `null` from the caller means the request is not ready. */
 export type AuthedKey = readonly unknown[] | null;
 
 /**
@@ -36,4 +36,18 @@ export function useAuthedSWR<T>(
     },
     config,
   );
+}
+
+/**
+ * Read that works signed in or anonymously: the submit surface authorizes against the form's
+ * audience, not against membership. The caller's key must say which of the two it is, or signing in
+ * is served the payload already cached for the anonymous reader.
+ */
+export function useMaybeAuthedSWR<T>(
+  key: AuthedKey,
+  fetcher: (token: string | undefined) => Promise<T>,
+  config?: SWRConfiguration<T>,
+): SWRResponse<T> {
+  const store = useStore<RootState>();
+  return useSWR<T>(key, () => fetcher(store.getState().keycloak.token), config);
 }

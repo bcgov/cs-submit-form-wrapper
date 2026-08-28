@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaSubmissions } from '@/src/shared/api/sobaApiDesign';
+import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { DataTable, Column } from '@/src/components/DataTable';
 import { RowActionButton } from '@/src/components/RowActionButton';
@@ -16,43 +18,43 @@ interface SubmissionListProps {
 }
 
 export function SubmissionList({ formId }: SubmissionListProps = {}) {
-  const { authenticated, token, initializing } = useKeycloak();
+  const { authenticated, initializing } = useKeycloak();
   const dict = useDictionary();
   const router = useRouter();
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
-  const [submissions, setSubmissions] = useState<SubmissionListItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const {
+    data,
+    isLoading,
+    error: loadError,
+  } = useAuthedSWR(
+    // The endpoint requires a scope anchor and rejects an unscoped list, so without a form there is
+    // no request to make. `formId` is the SOBA formId, routed from FormList.
+    formId ? ['submissions', formId] : null,
+    (token) => getSobaSubmissions(token, { formId: formId as string }),
+  );
+
+  // parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
+  const submissions: SubmissionListItem[] = useMemo(
+    () => (Array.isArray(data?.items) ? data.items : []),
+    [data],
+  );
+
+  const error = useMemo(() => {
+    if (!loadError) return null;
+    if (isSessionExpired(loadError)) return dict.general.sessionExpired;
+    return loadError instanceof Error ? loadError.message : String(loadError);
+  }, [loadError, dict.general.sessionExpired]);
 
   const paginatedSubmissions = useMemo(
     () => submissions.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [submissions, currentPage, pageSize],
   );
 
-  useEffect(() => {
-    if (authenticated && token) {
-      const fetchSubmissions = async () => {
-        try {
-          // `formId` is the SOBA formId (routed from FormList); list submissions for it directly.
-          const params = formId ? { formId } : undefined;
-          const data = await getSobaSubmissions(token, params);
-          setSubmissions(data.items || []);
-        } catch {
-          // Submissions failed to load; the empty state is shown to the user.
-        } finally {
-          setIsLoaded(true);
-        }
-      };
-
-      fetchSubmissions();
-    }
-    // No workspace selected for this tab: submissions are workspace-scoped, so we render a
-    // "select a workspace" prompt (below) instead of calling the API.
-  }, [authenticated, token, formId]);
-
-  const loading = initializing || (authenticated && (!token || !isLoaded));
+  const loading = initializing || isLoading;
 
   // Auth gate only — loading (including Keycloak init) is shown inside the table
   // body so the page heading stays visible throughout.
@@ -106,6 +108,7 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
       data={paginatedSubmissions}
       columns={columns}
       loading={loading}
+      error={error}
       emptyMessage={dict.submission?.empty || 'No submissions found yet.'}
       loadingMessage={dict.submission?.loading || 'Loading submissions...'}
       keyExtractor={(sub) => sub.id}
