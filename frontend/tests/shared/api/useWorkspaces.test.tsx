@@ -22,7 +22,9 @@ let store: ReturnType<typeof makeStore>;
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >{children}</SWRConfig>
     </Provider>
   );
 }

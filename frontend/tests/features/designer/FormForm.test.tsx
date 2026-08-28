@@ -101,7 +101,9 @@ let store: ReturnType<typeof makeStore>;
 function renderForm(props: { formId?: string } = {}) {
   return render(
     <Provider store={store}>
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
         <PageLayout headingId="designer-heading" heading="Form Designer">
           <FormForm {...props} />
         </PageLayout>

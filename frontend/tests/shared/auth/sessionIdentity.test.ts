@@ -15,9 +15,7 @@ describe('isIdentityEnded', () => {
   });
 
   it('ends when a different user signs in without a sign-out in between', () => {
-    expect(
-      isIdentityEnded({ ...base, authenticated: true, currentSubject: 'user-2' }),
-    ).toBe(true);
+    expect(isIdentityEnded({ ...base, authenticated: true, currentSubject: 'user-2' })).toBe(true);
   });
 
   // The default state before Keycloak answers is "not authenticated". Acting on it wipes the tab
@@ -36,15 +34,13 @@ describe('isIdentityEnded', () => {
   });
 
   it('does not end while the same user stays signed in', () => {
-    expect(
-      isIdentityEnded({ ...base, authenticated: true, currentSubject: 'user-1' }),
-    ).toBe(false);
+    expect(isIdentityEnded({ ...base, authenticated: true, currentSubject: 'user-1' })).toBe(false);
   });
 
   // A rotation can leave the parsed token briefly absent; that is not a departure.
   it('does not end when the subject is momentarily unknown but still authenticated', () => {
-    expect(
-      isIdentityEnded({ ...base, authenticated: true, currentSubject: undefined }),
-    ).toBe(false);
+    expect(isIdentityEnded({ ...base, authenticated: true, currentSubject: undefined })).toBe(
+      false,
+    );
   });
 });

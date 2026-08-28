@@ -88,7 +88,9 @@ async function renderList() {
   await act(async () => {
     view = render(
       <Provider store={store}>
-        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
           <PageLayout headingId="forms-heading" heading="Forms">
             <FormList />
           </PageLayout>
@@ -102,7 +104,9 @@ async function renderList() {
 function listTree() {
   return (
     <Provider store={store}>
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
         <PageLayout headingId="forms-heading" heading="Forms">
           <FormList />
         </PageLayout>

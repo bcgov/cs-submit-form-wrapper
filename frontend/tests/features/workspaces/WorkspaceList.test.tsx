@@ -12,6 +12,7 @@ vi.mock('@/app/[lang]/Providers', () => ({
     locale: 'en',
     general: {
       notAuthenticated: 'Not authed',
+      sessionExpired: 'Your session has ended.',
       loading: 'Loading…',
       workspaceSwitchError: 'Failed to switch workspace.',
       search: 'Search',
@@ -23,6 +24,7 @@ vi.mock('@/app/[lang]/Providers', () => ({
       columns: { name: 'Name', actions: 'Actions', roles: 'Roles', default: 'Default' },
       actions: { manage: 'Manage', forms: 'Forms' },
       createAction: 'Create',
+      listLoadError: 'Failed to load workspaces.',
       defaultWorkspaceLabel: 'Set {name} as default workspace',
       defaultWorkspaceError: 'Failed to update default workspace.',
     },
@@ -70,7 +72,9 @@ let store: ReturnType<typeof makeStore>;
 function renderList(props: { showFormsAction?: boolean } = {}) {
   return render(
     <Provider store={store}>
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
         <WorkspaceList {...props} />
       </SWRConfig>
     </Provider>,
@@ -166,5 +170,17 @@ describe('WorkspaceList', () => {
     });
     await userEvent.click(screen.getByTestId('create-workspace-button'));
     expect(mockPush).toHaveBeenCalledWith('/en/workspace');
+  });
+
+  it('reports an ended session rather than a generic load failure', async () => {
+    const expired = new Error('Session expired');
+    expired.name = 'SessionExpiredError';
+    fetchWorkspaces.mockRejectedValue(expired);
+    await act(async () => {
+      renderList();
+    });
+    await waitFor(() =>
+      expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument(),
+    );
   });
 });

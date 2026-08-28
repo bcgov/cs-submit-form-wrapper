@@ -42,16 +42,32 @@ import { SubmissionView } from '@/src/features/submit-mode/ui/SubmissionView';
 
 let store: ReturnType<typeof makeStore>;
 
+function viewTree() {
+  return (
+    <Provider store={store}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
+        <SubmissionView />
+      </SWRConfig>
+    </Provider>
+  );
+}
+
 async function renderView() {
+  let view: ReturnType<typeof render> | undefined;
   await act(async () => {
-    render(
+    view = render(
       <Provider store={store}>
-        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
           <SubmissionView />
         </SWRConfig>
       </Provider>,
     );
   });
+  return view!;
 }
 
 describe('SubmissionView', () => {
@@ -123,5 +139,32 @@ describe('SubmissionView', () => {
     await renderView();
     expect(getSubmitSubmission).not.toHaveBeenCalled();
     expect(screen.queryByTestId('submission-view-notfound')).not.toBeInTheDocument();
+  });
+
+  // One cache entry for both identities serves a signed-in reader whatever the anonymous one was
+  // allowed to see.
+  it('does not serve the anonymous copy after signing in', async () => {
+    initAnswered();
+    getSubmitSubmission.mockImplementation((token: string | undefined) =>
+      Promise.resolve({
+        id: 'sub-1',
+        formId: 'f1',
+        formName: token ? 'Signed in view' : 'Anonymous view',
+        versionNo: 3,
+        workflowState: 'submitted',
+      }),
+    );
+
+    const view = await renderView();
+    await waitFor(() => expect(screen.getByText('Anonymous view')).toBeInTheDocument());
+
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
+    await act(async () => {
+      view.rerender(viewTree());
+    });
+
+    await waitFor(() => expect(screen.getByText('Signed in view')).toBeInTheDocument());
+    expect(getSubmitSubmission).toHaveBeenCalledWith('token', 'sub-1');
   });
 });

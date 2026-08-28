@@ -44,7 +44,9 @@ async function renderList(props: { formId?: string } = {}) {
   await act(async () => {
     render(
       <Provider store={store}>
-        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
           <SubmissionList {...props} />
         </SWRConfig>
       </Provider>,

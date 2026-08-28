@@ -1,8 +1,8 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
-import { SWRConfig } from 'swr';
+import { SWRConfig, useSWRConfig } from 'swr';
 
 const fetchWorkspaces = vi.fn();
 const fetchCurrentUser = vi.fn();
@@ -74,15 +74,34 @@ describe('useAppSession', () => {
   });
 
   // The latch is what stops the guard unmounting a route mid-form-fill on a background failure.
-  it('keeps sessionLoadedOnce true after a later failure', async () => {
-    const { result } = renderHook(() => useAppSession(), { wrapper });
-    await waitFor(() => expect(result.current.sessionLoadedOnce).toBe(true));
+  it('keeps sessionLoadedOnce true when a later read fails', async () => {
+    const { result } = renderHook(
+      () => ({ session: useAppSession(), mutate: useSWRConfig().mutate }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.session.sessionLoadedOnce).toBe(true));
 
     fetchWorkspaces.mockRejectedValue(new Error('boom'));
-    await result.current.sessionReady;
-    store.dispatch(setToken('token-2'));
+    await act(async () => {
+      await result.current.mutate(['workspaces']).catch(() => undefined);
+    });
 
-    await waitFor(() => expect(result.current.sessionLoadedOnce).toBe(true));
+    await waitFor(() => expect(result.current.session.sessionFailed).toBe(true));
+    expect(result.current.session.sessionLoadedOnce).toBe(true);
+    expect(result.current.session.sessionReady).toBe(false);
+  });
+
+  // Every read that gates the session has to be waited for, or the app renders before one of them
+  // has answered.
+  it('is not ready while only the writable-workspaces read is pending', async () => {
+    fetchWorkspaces.mockImplementation((_token: string, requiredPermission?: string) =>
+      requiredPermission ? new Promise(() => {}) : Promise.resolve({ items: WORKSPACES }),
+    );
+    const { result } = renderHook(() => useAppSession(), { wrapper });
+
+    await waitFor(() => expect(result.current.hasWorkspaces).toBe(true));
+    expect(result.current.sessionReady).toBe(false);
+    expect(result.current.sessionLoadedOnce).toBe(false);
   });
 
   it('reports no onboarding need when the user has workspaces', async () => {
