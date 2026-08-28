@@ -16,7 +16,6 @@ export function useCurrentUser() {
     sessionReadConfig,
   );
 
-  // parseJson casts the body unchecked, so every step has to tolerate a missing one.
   const displayName = useMemo(
     () =>
       data?.actor?.displayLabel ??
@@ -28,8 +27,6 @@ export function useCurrentUser() {
 
   return {
     data: data ?? null,
-    actor: data?.actor ?? null,
-    profile: data?.profile ?? null,
     displayName,
     loaded: data !== undefined,
     isLoading,

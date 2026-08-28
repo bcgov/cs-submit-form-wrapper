@@ -42,19 +42,15 @@ export function AppAccessGuard({
   }, [redirectTarget, router]);
 
   const handleRetry = useCallback(async () => {
-    // Hopefully this never happens, but better safe than sorry.
-    // Too many things loading at once so a failure is possible.
-    // A failed bootstrap load is often an expired access token, which a plain refresh would just hit again.
-    // Refresh first (best-effort): on success the
-    // store holds a fresh token; if the refresh token is also expired, refreshToken
-    // clears auth, which redirects the user to sign in again. Every bootstrap read is then retried,
-    // since a partial retry leaves the others failed and the alert on screen.
+    // A failed bootstrap read is usually an expired token, so refresh before re-reading. If the
+    // refresh token has also expired, refreshing clears auth and the user is sent to sign in.
+    // All three reads are retried: a partial retry leaves the others failed and the alert up.
     await refresh();
     await Promise.all([refreshWorkspaces(), refreshCurrentUser()]);
   }, [refresh, refreshWorkspaces, refreshCurrentUser]);
 
   // Same rule as the spinner below: once bootstrapped, a failed background reload must not replace
-  // the route either — the retry lives on the next full load.
+  // the route either. The retry lives on the next full load.
   if (session.sessionFailed && !session.sessionLoadedOnce && !redirectTarget) {
     return (
       <div className="mt-4" role="alert">

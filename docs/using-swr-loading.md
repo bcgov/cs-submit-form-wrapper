@@ -188,13 +188,15 @@ without it is a bookmark or someone else's link and means the unfiltered list. A
 names a scope counts as a choice wherever it came from. A bare one does not touch the
 memory.
 
-## Not migrated
+## Screens with their own loading
 
-`FormioV5SubmissionFillClient` and `StartSubmission` keep their own loading.
+`FormioV5SubmissionFillClient`, `StartSubmission` and `WorkspaceForm`.
 
 The fill client holds answers the user has typed that no server has seen, and Form.io
 resets the live webform when the submission prop is not deep-equal to what is on screen. A
 revalidating cache over it discards work. `StartSubmission` is a fire-once idempotent POST.
+`WorkspaceForm` reads one workspace through a plain effect; it has no reason to stay that
+way beyond nobody needing it yet.
 
 ## Testing
 
@@ -230,6 +232,9 @@ failure on every list page.
 
 Search, page size, page and sort are still resolved client-side over a capped fetch and are
 not in the URL. They move when the list endpoints can answer them: offset paging with a
-total, per-resource sort options, and search on the endpoints that lack it. The screen will
-not change when that happens. The hook owns the key and the fetcher, so only the fetcher
-body and the key's filters do.
+total, per-resource sort options, and search on the endpoints that lack it.
+
+How much of a screen changes then depends on where its key and fetcher live. Put them in a
+resource hook, as `useWorkspaces` and `useFormDraft` do, and the screen does not move at
+all. `FormList` and `SubmissionList` still call `useAuthedSWR` inline, so those two will be
+edited directly.

@@ -14,9 +14,8 @@ export function useAppSession(): AppSessionSnapshot {
   const { loaded: writableLoaded, error: writableError } = useWritableWorkspaces();
   const { data: currentUser, loaded: currentUserLoaded, error: currentUserError } = useCurrentUser();
 
-  // Survives a failed reload: SWR keeps the last data on error. It only resets when the session
-  // ends, which is when the guard should stop rendering the route anyway. This is why the reads
-  // must not be keyed on the token - a rotation would clear them.
+  // SWR keeps the last data on error, so this survives a failed reload and resets only when the
+  // session ends.
   const loadedOnce = workspacesLoaded && writableLoaded && currentUserLoaded;
 
   return useMemo(() => {

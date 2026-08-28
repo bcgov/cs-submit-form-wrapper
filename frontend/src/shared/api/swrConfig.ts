@@ -7,7 +7,7 @@ import { isSessionExpired } from './sobaFetch';
  */
 export const swrConfig: SWRConfiguration = {
   // A fresh cache per mount. The default cache is module-global and would outlive the store, which
-  // AppProviders rebuilds on a locale change.
+  // is rebuilt when the localized layout remounts.
   provider: () => new Map(),
   // The token refreshes on its own schedule, so a refetch per tab switch buys nothing.
   revalidateOnFocus: false,

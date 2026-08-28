@@ -127,7 +127,6 @@ function FormList({
     (token) => getSobaForms(token, selectedWorkspaceId),
   );
 
-  // parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
   const forms: SobaFormSummary[] = useMemo(
     () => (Array.isArray(data?.items) ? data.items : []),
     [data],

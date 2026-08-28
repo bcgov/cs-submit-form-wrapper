@@ -12,7 +12,6 @@ const WRITABLE_KEY = ['workspaces', 'design_create'] as const;
 
 const EMPTY: WorkspaceItem[] = [];
 
-// parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
 const toItems = (items: unknown): WorkspaceItem[] => (Array.isArray(items) ? items : EMPTY);
 
 export function useWorkspaces() {

@@ -8,7 +8,7 @@ export type AppSessionSnapshot = {
   /** Keycloak init has been dispatched, so `authenticated` is an answer rather than a default. */
   initStarted: boolean;
   sessionReady: boolean;
-  /** Both bootstrap loads have produced data at least once. */
+  /** Every bootstrap read has produced data at least once. */
   sessionLoadedOnce: boolean;
   /** A required bootstrap fetch (current user or workspaces) rejected. */
   sessionFailed: boolean;

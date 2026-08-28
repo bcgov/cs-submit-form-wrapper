@@ -11,6 +11,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
@@ -53,7 +54,7 @@ const WorkspaceActionButtons = ({
 function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: boolean }>) {
   const dict = useDictionary();
   const dictWorkspaces = dict.workspaces;
-  const { authenticated, token, initializing } = useKeycloak();
+  const { authenticated, initializing } = useKeycloak();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -65,6 +66,12 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
   const locale = getLocaleFromPath(pathname);
 
   const { workspaces, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces();
+
+  const error = useMemo(() => {
+    if (!workspacesError) return null;
+    if (isSessionExpired(workspacesError)) return dict.general.sessionExpired;
+    return dictWorkspaces.listLoadError;
+  }, [workspacesError, dict.general.sessionExpired, dictWorkspaces.listLoadError]);
   const { data: currentUser } = useCurrentUser();
 
   const filteredWorkspaces = useMemo(() => {
@@ -93,8 +100,6 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
 
   const handleSelect = useCallback(
     (workspaceId: string, destination: 'forms' | 'manage') => {
-      if (!token) return;
-
       if (destination === 'forms') {
         // Opening a workspace's forms is an explicit scope choice, so it seeds the list filter.
         router.push(`/${locale}/forms?workspace=${encodeURIComponent(workspaceId)}`);
@@ -102,7 +107,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
         router.push(`/${locale}/workspace/${workspaceId}`);
       }
     },
-    [token, router, locale],
+    [router, locale],
   );
 
   const handleAction = useCallback(
@@ -188,7 +193,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
         data={paginatedWorkspaces}
         columns={columns}
         loading={loading || initializing}
-        error={workspacesError ? dictWorkspaces.loadError : null}
+        error={error}
         emptyMessage={dictWorkspaces.empty}
         loadingMessage={dict.general.loading}
         itemName="items"

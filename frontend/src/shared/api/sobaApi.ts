@@ -6,7 +6,7 @@ import { sobaFetch } from './sobaFetch';
 
 import type { SobaFormType } from '../../types/forms';
 import type { WorkspaceItem, WorkspacesResponse, CreateWorkspaceBody, UpdateWorkspaceBody } from '../../types/workspaces';
-import type { CurrentUserResponse, PatchCurrentUserBody } from '../../types/user';
+import type { CurrentUserResponse } from '../../types/user';
 
 export type { SobaFormType, WorkspaceItem, WorkspacesResponse, CurrentUserResponse };
 // Design-mode (staff, /design/*)
@@ -150,14 +150,6 @@ export async function selectWorkspace(token: string, id: string): Promise<Worksp
 
 export async function fetchCurrentUser(token: string): Promise<CurrentUserResponse> {
   const response = await sobaFetch('/me', { token });
-  return parseJson(response);
-}
-
-export async function patchCurrentUser(
-  token: string,
-  body: PatchCurrentUserBody,
-): Promise<CurrentUserResponse> {
-  const response = await sobaFetch('/me', { token, method: 'PATCH', json: body });
   return parseJson(response);
 }
 

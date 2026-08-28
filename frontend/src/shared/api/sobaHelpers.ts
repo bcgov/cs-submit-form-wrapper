@@ -10,5 +10,6 @@ export async function parseJson<T>(response: Response): Promise<T> {
     }
     throw new Error(message);
   }
+  // Unchecked cast. A caller that expects a list has to guard for one.
   return (await response.json()) as T;
 }

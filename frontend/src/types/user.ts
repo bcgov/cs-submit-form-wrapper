@@ -16,9 +16,3 @@ export type CurrentUserResponse = {
     canCreateWorkspace: boolean;
   };
 };
-
-export type PatchCurrentUserBody = {
-  preferences: {
-    [key: string]: unknown;
-  };
-};

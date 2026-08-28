@@ -37,7 +37,6 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
     (token) => getSobaSubmissions(token, { formId: formId as string }),
   );
 
-  // parseJson casts the body unchecked, so a malformed 200 can land a non-array here.
   const submissions: SubmissionListItem[] = useMemo(
     () => (Array.isArray(data?.items) ? data.items : []),
     [data],
