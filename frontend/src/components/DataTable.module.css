@@ -33,13 +33,18 @@
   border-bottom-color: var(--app-border);
 }
 
+.headerRow {
+  background-color: var(--surface-color-background-light-blue);
+  --bs-table-bg: var(--surface-color-background-light-blue);
+}
+
 .tbody {
   border-top: none;
 }
 
 /* Zebra striping: even rows light grey, odd rows white; subtle grey on hover. */
 .row:nth-of-type(even) {
-  --bs-table-bg: var(--app-bg);
+  --bs-table-bg: var(--app-surface-alt);
 }
 
 .row:hover {
@@ -48,9 +53,9 @@
 
 /* Footer (pagination): darker grey, bordered to match the header. */
 .pagination {
-  background-color: var(--bcgov-light-blue);
+  background-color: var(--surface-color-background-light-blue);
   color: var(--app-text);
-  border: 1px solid var(--app-border);
+  border: var(--layout-border-width-small) solid var(--app-border);
 }
 
 .pagination [data-testid='datatable-page-size-select'],

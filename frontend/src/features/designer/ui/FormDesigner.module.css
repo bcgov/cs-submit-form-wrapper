@@ -30,7 +30,7 @@
   top: calc(var(--app-header-height, 0px) + var(--layout-margin-medium));
   align-self: flex-start;
   max-height: none;
-  padding-right: 0.5rem;
+  padding-right: var(--layout-padding-small);
   z-index: 10;
 }
 
@@ -39,8 +39,8 @@
   width: 4px;
 }
 :global(.builder-sidebar::-webkit-scrollbar-thumb) {
-  background: #ccc;
-  border-radius: 4px;
+  background: var(--theme-gray-60);
+  border-radius: var(--layout-border-radius-medium);
 }
 
 /* Form.io builder per-component action buttons (Edit / Move / Edit JSON / Paste /

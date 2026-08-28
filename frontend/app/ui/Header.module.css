@@ -1,3 +1,49 @@
+/*
+ * The design system caps its header content at 1100px and centres it, so the branding drifts with
+ * the viewport and lines up with nothing. Pin it left instead, then inset both ends to where the
+ * page content starts and stops, so the header and the page share one pair of edges.
+ */
+.chrome :global(.bcds-header) {
+  justify-content: flex-start;
+  padding-left: var(--layout-padding-none);
+}
+
+/* Repeats the design system's own selector, which is otherwise an even specificity match. */
+.chrome :global(.bcds-header > .bcds-header--container) {
+  max-width: none;
+}
+
+.chrome :global([data-testid='bcgov-header-logo']) {
+  flex: none;
+  padding-left: var(--layout-padding-medium);
+}
+
+/* The acronym stands in for the title, which otherwise wraps to three lines on a phone. */
+.titleFull {
+  display: none;
+}
+
+/* Clears the nav column and its divider, then takes the same insets .main takes at this width. */
+@media (min-width: 768px) {
+  .chrome :global(.bcds-header) {
+    padding-right: var(--app-page-inset);
+  }
+
+  .chrome :global([data-testid='bcgov-header-logo']) {
+    padding-left: calc(
+      var(--app-nav-width) + var(--layout-border-width-small) + var(--app-page-inset)
+    );
+  }
+
+  .titleFull {
+    display: inline;
+  }
+
+  .titleShort {
+    display: none;
+  }
+}
+
 .userDrop {
   /* Flex layout keeps the person icon, name, and caret aligned regardless of
      Bootstrap `.btn` defaults or Form.io's injected global CSS. */
@@ -32,7 +78,7 @@
 .userDrop:focus-visible {
   /* Keyboard focus needs a clearly visible ring; the surface-pinning rules
      above otherwise leave focus indistinguishable from the resting state. */
-  outline: 2px solid var(--app-focus-ring) !important;
+  outline: var(--layout-border-width-medium) solid var(--app-focus-ring) !important;
   outline-offset: 2px;
 }
 
@@ -41,7 +87,7 @@
   width: 11rem;
   height: 1.25rem;
   background: var(--app-border);
-  border-radius: 4px;
+  border-radius: var(--layout-border-radius-medium);
   opacity: 0.6;
 }
 
