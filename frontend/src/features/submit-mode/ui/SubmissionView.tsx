@@ -22,7 +22,7 @@ export function SubmissionView() {
   const dict = useDictionary();
   const dictSub = dict.submission;
   // Token optional: a public submitter can view a submission on a public-audience form.
-  const { token, initializing } = useKeycloak();
+  const { token, initializing, initStarted } = useKeycloak();
   const formatLongDate = useFormatLongDate();
 
   const submissionIdRaw = params?.submissionId;
@@ -30,9 +30,10 @@ export function SubmissionView() {
     typeof submissionIdRaw === 'string' ? decodeURIComponent(submissionIdRaw) : '';
 
   const { data, isLoading, error } = useMaybeAuthedSWR(
-    // Wait for auth to settle so a signed-in caller sends their token; anonymous proceeds with none.
+    // Wait for Keycloak to answer before reading. Before init, "no token" is the default rather
+    // than an answer, and a read started there is anonymous even for a signed-in caller.
     // The identity is part of the key so signing in does not read the anonymous reader's copy.
-    initializing || !submissionId
+    !initStarted || initializing || !submissionId
       ? null
       : ['submit-submission', submissionId, token ? 'user' : 'anonymous'],
     async (authToken) => {
@@ -55,7 +56,9 @@ export function SubmissionView() {
   const sessionEnded = !!error && isSessionExpired(error);
   const notFound = !!error && !sessionEnded;
 
-  if (initializing) {
+  // Nothing is read until Keycloak answers, and with no read there is no data and no loading, which
+  // would otherwise render as "not found".
+  if (!initStarted || initializing) {
     return <CenteredProgress label={dict.general.loading} />;
   }
 

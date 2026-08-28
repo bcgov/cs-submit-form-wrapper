@@ -16,6 +16,7 @@ import type { PluginNavItem } from '@/src/types/plugins';
 import { WorkspaceModal, WORKSPACE_MODAL_DISMISSED_KEY } from '@/src/components/WorkspaceModal';
 import { forgetListQueries } from '@/src/shared/list/listQueryMemory';
 import { removeSessionValues } from '@/src/shared/storage/sessionStore';
+import { isIdentityEnded } from '@/src/shared/auth/sessionIdentity';
 
 import styles from './Header.module.css';
 
@@ -41,6 +42,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
 
   const headerChromeRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const previousSubjectRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     init();
@@ -64,30 +66,40 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   }, []);
 
   useEffect(() => {
+    const currentSubject =
+      authenticated && typeof idTokenParsed?.sub === 'string' ? idTokenParsed.sub : undefined;
+
+    if (
+      isIdentityEnded({
+        previousSubject: previousSubjectRef.current,
+        currentSubject,
+        authenticated,
+        initStarted,
+        initializing,
+      })
+    ) {
+      // The cache and this tab's view state outlive the session. The next person signing in here
+      // would otherwise be served the previous user's workspaces and their list filters.
+      void mutate(() => true, undefined, { revalidate: false });
+      removeSessionValues((key) => key === WORKSPACE_MODAL_DISMISSED_KEY);
+      forgetListQueries();
+    }
+    // Held past a transient: a rotation between renders must not read as a departure.
+    if (currentSubject !== undefined || (initStarted && !initializing)) {
+      previousSubjectRef.current = currentSubject;
+    }
+
     if (!authenticated || !token) {
-      if (intervalRef) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = undefined;
-      }
-      // Only once Keycloak has answered. Before that, "not authenticated" is the default on every
-      // fresh page load, and wiping there would discard this tab's state on every reload.
-      if (initStarted && !initializing) {
-        // The cache outlives the session. Signing in as someone else in the same tab would
-        // otherwise be served the previous user's workspaces until each key revalidated.
-        void mutate(() => true, undefined, { revalidate: false });
-        // Same reason: the next person signing in here has their own workspaces and their own view
-        // of the lists.
-        removeSessionValues((key) => key === WORKSPACE_MODAL_DISMISSED_KEY);
-        forgetListQueries();
-      }
+      clearInterval(intervalRef.current);
+      intervalRef.current = undefined;
       return;
     }
-    if (authenticated && !intervalRef.current) {
+    if (!intervalRef.current) {
       intervalRef.current = setInterval(() => {
         refresh();
       }, 30000);
     }
-  }, [authenticated, token, refresh, mutate, initStarted, initializing]);
+  }, [authenticated, token, idTokenParsed, refresh, mutate, initStarted, initializing]);
 
   const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces.length]);
   const canCreateWorkspace = currentUser.data?.capabilities?.canCreateWorkspace === true;

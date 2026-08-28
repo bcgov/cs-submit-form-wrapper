@@ -37,7 +37,7 @@ vi.mock('@/src/shared/api/sobaApi', () => ({
 }));
 
 import makeStore from '@/lib/store';
-import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
+import { initKeycloak, setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import { SubmissionView } from '@/src/features/submit-mode/ui/SubmissionView';
 
 let store: ReturnType<typeof makeStore>;
@@ -55,6 +55,13 @@ async function renderView() {
 }
 
 describe('SubmissionView', () => {
+  // Keycloak never runs here, so the init lifecycle is driven directly: nothing is read until it
+  // has answered.
+  function initAnswered() {
+    store.dispatch({ type: initKeycloak.pending.type });
+    store.dispatch({ type: initKeycloak.fulfilled.type, payload: { authenticated: false } });
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     store = makeStore();
@@ -73,6 +80,7 @@ describe('SubmissionView', () => {
   // A public-audience submission is readable without signing in, so the read must go out with no
   // token rather than waiting for one.
   it('renders for an anonymous reader', async () => {
+    initAnswered();
     await renderView();
     await waitFor(() => expect(screen.getByTestId('submission-view-form')).toBeInTheDocument());
     expect(getSubmitSubmission).toHaveBeenCalledWith(undefined, 'sub-1');
@@ -80,6 +88,7 @@ describe('SubmissionView', () => {
   });
 
   it('sends the token when signed in', async () => {
+    initAnswered();
     store.dispatch(setToken('token'));
     store.dispatch(setAuthenticated(true));
     await renderView();
@@ -87,6 +96,7 @@ describe('SubmissionView', () => {
   });
 
   it('says not found when the submission does not resolve', async () => {
+    initAnswered();
     getSubmitSubmission.mockRejectedValue(new Error('Request failed (404)'));
     await renderView();
     await waitFor(() =>
@@ -98,11 +108,20 @@ describe('SubmissionView', () => {
   it('distinguishes an ended session from a missing submission', async () => {
     const expired = new Error('Session expired');
     expired.name = 'SessionExpiredError';
+    initAnswered();
     getSubmitSubmission.mockRejectedValue(expired);
     await renderView();
     await waitFor(() =>
       expect(screen.getByTestId('submission-view-session-expired')).toBeInTheDocument(),
     );
+    expect(screen.queryByTestId('submission-view-notfound')).not.toBeInTheDocument();
+  });
+
+  // Before Keycloak answers, "no token" is the default rather than an answer. Reading there sends a
+  // signed-in visitor's request anonymously, and the confirmation can be refused.
+  it('reads nothing until Keycloak has answered', async () => {
+    await renderView();
+    expect(getSubmitSubmission).not.toHaveBeenCalled();
     expect(screen.queryByTestId('submission-view-notfound')).not.toBeInTheDocument();
   });
 });
