@@ -95,3 +95,8 @@ export async function getSubmitSubmissionData(
   if (response.status === 404) return null;
   return parseJson(response);
 }
+
+/** Delete a submission. */
+export async function deleteSubmitSubmission(token: string | undefined, id: string): Promise<void> {
+  await sobaFetch(`/submit/submissions/${id}`, { token, method: 'DELETE' });
+}

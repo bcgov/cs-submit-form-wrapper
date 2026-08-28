@@ -5,7 +5,12 @@ import { parseJson } from './sobaHelpers';
 import { sobaFetch } from './sobaFetch';
 
 import type { SobaFormType } from '../../types/forms';
-import type { WorkspaceItem, WorkspacesResponse, CreateWorkspaceBody, UpdateWorkspaceBody } from '../../types/workspaces';
+import type {
+  WorkspaceItem,
+  WorkspacesResponse,
+  CreateWorkspaceBody,
+  UpdateWorkspaceBody,
+} from '../../types/workspaces';
 import type { CurrentUserResponse, PatchCurrentUserBody } from '../../types/user';
 
 export type { SobaFormType, WorkspaceItem, WorkspacesResponse, CurrentUserResponse };
@@ -23,6 +28,7 @@ export {
   createFormVersion,
   saveFormVersionSchema,
   getFormVersionSchema,
+  updateSobaForm,
 } from './sobaApiDesign';
 // Submit-mode (public-capable, /submit/*)
 export {
@@ -33,6 +39,7 @@ export {
   submitSobaFormSubmission,
   getSubmitSubmission,
   getSubmitSubmissionData,
+  deleteSubmitSubmission,
 } from './sobaApiSubmit';
 
 export type BuildMeta = {

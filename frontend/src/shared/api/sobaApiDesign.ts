@@ -30,6 +30,19 @@ export async function createSobaFormioForm(
   return parseJson(response);
 }
 
+export async function updateSobaForm(
+  token: string,
+  id: string,
+  data: Partial<SobaFormType>,
+): Promise<SobaResponseFormType> {
+  const response = await sobaFetch(`/design/forms/${id}`, {
+    token,
+    method: 'PATCH',
+    json: data,
+  });
+  return parseJson(response);
+}
+
 /**
  * POST a Form.io schema to the server to normalize it into a clean, portable, builder-ready
  * form definition. Used both for import (file upload) and export (download).

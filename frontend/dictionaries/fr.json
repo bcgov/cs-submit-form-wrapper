@@ -29,7 +29,8 @@
     "loginRequired": "Connexion requise",
     "reference": "Référence:",
     "create": "Créer",
-    "version": "Version"
+    "version": "Version",
+    "clearFilters": "Effacer les filtres"
   },
   "dataTable": {
     "emptyMessage": "Aucun élément trouvé.",
@@ -60,7 +61,7 @@
     "manageHeading": "Gérer l'espace de travail",
     "createHeading": "Créer un espace de travail",
     "settingsTab": "Paramètres",
-    "teamTab": "Équipe",
+    "teamTab": "Accès",
     "nameLabel": "Nom",
     "save": "Enregistrer",
     "create": "Créer",
@@ -160,9 +161,12 @@
     "disclaimerRequired": "Acceptez l'avis de non-responsabilité de l'espace de travail dans les paramètres avant de créer un formulaire.",
     "exportJson": "Exporter JSON",
     "importJson": "Importer JSON",
-    "designerTab": "Concepteur",
+    "designerTab": "Formulaire",
+    "teamTab": "Accès",
     "settingsTab": "Paramètres",
-    "teamTab": "Équipe",
+    "historyTab": "Version l'historique",
+    "submissionTab": "Soumissions",
+    "shareTab": "Partager",
     "readOnlyMode": "Mode lecture seule :",
     "viewingHistoricalVersion": "Vous consultez la version historique",
     "savePublishDisabled": "Les options Sauvegarder et Publier sont désactivées.",
@@ -187,7 +191,11 @@
     "untitledForm": "Formulaire sans titre",
     "closePreview": "Fermer l'aperçu",
     "noFormLayout": "Aucune mise en page de formulaire n'a encore été conçue.",
-    "createForm": "Créer un Formulaire"
+    "createForm": "Créer un Formulaire",
+    "status": "Status",
+    "ministryOrOrg": "Ministère / Organisation",
+    "copy": "Copier Lien",
+    "copiedNotification": "Copié dans le presse-papiers"
   },
   "submission": {
     "submissions": "Soumissions",
@@ -199,6 +207,12 @@
     "noContent": "Aucune réponse soumise à afficher.",
     "notFound": "Soumission introuvable.",
     "workflow": "Flux de travail",
+    "confirmationId": "ID de confirmation",
+    "submittedAt": "Date de Soumission",
+    "submitter": "Soumissionnaire",
+    "deleteConfirm": "Confirmer la suppression",
+    "deleteConfirmText": "Voulez-vous vraiment supprimer cette soumission",
+    "actions": "Actions",
     "columns": {
       "id": "ID de Soumission",
       "formName": "Nom du Formulaire",

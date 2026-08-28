@@ -28,7 +28,8 @@
     "loginRequired": "Login Required",
     "reference": "Reference:",
     "create": "Create",
-    "version": "Version"
+    "version": "Version",
+    "clearFilters": "Reset Filters"
   },
   "dataTable": {
     "emptyMessage": "No items found.",
@@ -59,7 +60,7 @@
     "manageHeading": "Manage Workspace",
     "createHeading": "Create Workspace",
     "settingsTab": "Settings",
-    "teamTab": "Team",
+    "teamTab": "Access",
     "nameLabel": "Name",
     "save": "Save",
     "create": "Create",
@@ -159,9 +160,12 @@
     "disclaimerRequired": "Accept the workspace disclaimer in workspace Settings before creating a form.",
     "exportJson": "Export JSON",
     "importJson": "Import JSON",
-    "designerTab": "Designer",
+    "designerTab": "Form",
+    "teamTab": "Access",
     "settingsTab": "Settings",
-    "teamTab": "Team",
+    "historyTab": "Version History",
+    "submissionTab": "Submissions",
+    "shareTab": "Share",
     "readOnlyMode": "Read-Only Mode:",
     "viewingHistoricalVersion": "You are viewing historical version",
     "savePublishDisabled": "Save and Publish options are disabled.",
@@ -186,7 +190,11 @@
     "untitledForm": "Untitled Form",
     "closePreview": "Close Preview",
     "noFormLayout": "No form layout designed yet.",
-    "createForm": "Create Form"
+    "createForm": "Create Form",
+    "status": "Status",
+    "ministryOrOrg": "Ministry / Organization",
+    "copy": "Copy URL",
+    "copiedNotification": "Copied to clipboard"
   },
   "submission": {
     "submissions": "Submissions",
@@ -198,6 +206,12 @@
     "noContent": "No submitted answers to display.",
     "notFound": "Submission not found.",
     "workflow": "Workflow",
+    "confirmationId": "Confirmation ID",
+    "submittedAt": "Submission Date",
+    "submitter": "Submitter",
+    "deleteConfirm": "Confirm Delete",
+    "deleteConfirmText": "Do you really want to delete submission",
+    "actions": "Actions",
     "columns": {
       "id": "Submission ID",
       "formName": "Form Name",
