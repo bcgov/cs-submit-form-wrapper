@@ -183,8 +183,8 @@ importers:
         specifier: ^0.8.1
         version: 0.8.1(@bcgov/bc-sans@2.1.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@bcgov/design-tokens':
-        specifier: ^3.2.0
-        version: 3.2.0
+        specifier: ^5.0.0
+        version: 5.0.0
       '@bcgov/formio-components':
         specifier: github:bcgov/formio-components#v0.0.1
         version: https://codeload.github.com/bcgov/formio-components/tar.gz/a9d810778c091ab889a13063ec2d9fc4d3a9ab23(@formio/js@5.4.0-api98.1(@popperjs/core@2.11.8))
@@ -510,9 +510,6 @@ packages:
       '@bcgov/bc-sans': ^2.1.0
       react: ^16.14.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0
       react-dom: ^16.14.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0
-
-  '@bcgov/design-tokens@3.2.0':
-    resolution: {integrity: sha512-2D3mPFKTpNLeIp8ER9y8oDKxXE8+rBfcvuF4yFd7uUvDm0izZNFhambUi6sN3OdkmuZoGQO7AjlMtOQzsHtxzA==}
 
   '@bcgov/design-tokens@5.0.0':
     resolution: {integrity: sha512-D4Ub2jZ04Jv7hBUi6gqHTzIYTLtsqdr/FMv+m598IcfMLUy3b6CEVh3UH9ZXZLC/npPC7g05I4j3YMm46IGWjQ==}
@@ -6032,8 +6029,6 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
     optionalDependencies:
       '@rollup/rollup-linux-x64-gnu': 4.61.1
-
-  '@bcgov/design-tokens@3.2.0': {}
 
   '@bcgov/design-tokens@5.0.0': {}
 
