@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
@@ -20,25 +20,66 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import FormDesigner from '@/src/features/designer/ui/FormDesigner';
 import { DynamicForm } from '@/src/features/formio-v5/ui/DynamicForm';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
-import { usePageHeading, usePageNotices } from '@/src/components/PageHeader';
+import { usePageHeading, usePageNotices, type PageNotice } from '@/src/components/PageHeader';
 import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
 import { isWorkspaceManageRole } from '@/src/features/workspaces/workspaceRoles';
 import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { useFormDraft } from '@/src/features/designer/useFormDraft';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 
 import {
   createSobaFormioForm,
   createFormVersion,
   saveFormVersionSchema,
-  getFormVersionSchema,
-  getSobaForm,
-  getSobaFormVersions,
   publishSobaFormVersion,
 } from '@/src/shared/api/sobaApi';
-import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
+import type { SobaFormType } from '@/src/types/forms';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+
+type Dict = ReturnType<typeof useDictionary>;
+
+function draftNotices(args: {
+  dict: Dict;
+  loadError: unknown;
+  isHistoryView: boolean;
+  historicalVersionNo: number | null;
+  isCurrentPublished: boolean;
+  onSwitchToCurrent: () => void;
+}): Array<PageNotice | false> {
+  const { dict, loadError, isHistoryView, historicalVersionNo, isCurrentPublished } = args;
+  return [
+    !!loadError && {
+      id: 'load-error',
+      variant: 'danger' as const,
+      body: isSessionExpired(loadError)
+        ? dict.general.sessionExpired
+        : dict.form.loadFormError || 'Failed to load form.',
+    },
+    isHistoryView && {
+      id: 'history-view',
+      variant: 'info' as const,
+      title: dict.form.readOnlyMode || 'Read-Only Mode:',
+      body: `${dict.form.viewingHistoricalVersion || 'You are viewing historical version'} v${historicalVersionNo}. ${dict.form.savePublishDisabled || 'Save and Publish options are disabled.'}`,
+      action: {
+        label:
+          dict.form.switchToCurrentDraft ||
+          'Switch to ' + (dict.form.currentDraft || 'Current Draft'),
+        onPress: args.onSwitchToCurrent,
+      },
+    },
+    !isHistoryView &&
+      isCurrentPublished && {
+        id: 'published-version',
+        variant: 'info' as const,
+        title: dict.form.publishedVersion || 'Published Version:',
+        body:
+          dict.form.publishedVersionCannotBeModified ||
+          'This version is published and cannot be modified',
+      },
+  ];
+}
 
 function FormForm({ formId }: { formId?: string }) {
   const dict = useDictionary();
@@ -57,180 +98,71 @@ function FormForm({ formId }: { formId?: string }) {
     [writableWorkspaces],
   );
   // Not seeded from the forms-list filter: that scopes what you are looking at, not where a
-  // new form belongs. Edit mode sets this from the loaded form below.
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-
-  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
-  const canManageWorkspace = !!activeWorkspace && isWorkspaceManageRole(activeWorkspace.role);
+  // new form belongs. An existing form's workspace is the one it was created in.
+  const [pickedWorkspaceId, setPickedWorkspaceId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('designer');
-  const [formName, setFormName] = useState('');
-  const [formWorkspaceId, setFormWorkspaceId] = useState('');
-  const [formDesc, setFormDesc] = useState('');
-  const [formSchema, setFormSchema] = useState<FormType | null>(null);
-  const [currentVersion, setCurrentVersion] = useState<SobaFormVersionType | null>(null);
-
-  const [versions, setVersions] = useState<SobaFormVersionType[]>([]);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
-  const [isHistoryView, setIsHistoryView] = useState(false);
-  const [historicalVersionNo, setHistoricalVersionNo] = useState<number | null>(null);
-
-  const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  // Load once per form. `token` is a dep (the load needs one), but a rotation mints a new token for
-  // the same user — reloading on that would blank the builder and drop unsaved edits with isDirty.
-  const loadedFormRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (formId && token && loadedFormRef.current !== formId) {
-      loadedFormRef.current = formId;
-      async function loadForm() {
-        setLoading(true);
-        try {
-          const [form, versionsData] = await Promise.all([
-            getSobaForm(token as string, formId as string),
-            getSobaFormVersions(token as string, formId as string),
-          ]);
-
-          setFormName(form?.name ?? '');
-          setFormWorkspaceId(form?.workspaceId ?? '');
-          setFormDesc(form?.description ?? '');
-          if (form?.workspaceId) setSelectedWorkspaceId(form.workspaceId);
-
-          const items = versionsData.items || [];
-          setVersions(items);
-
-          // Default to the highest versionNo (the current/latest version).
-          const current = items.reduce<SobaFormVersionType | null>(
-            (acc, v) => (!acc || v.versionNo > acc.versionNo ? v : acc),
-            null,
-          );
-          setCurrentVersion(current);
-          setSelectedVersionId('current');
-          setIsHistoryView(false);
-
-          if (current?.id) {
-            const schema = await getFormVersionSchema(token as string, current.id);
-            setFormSchema((schema as FormType) ?? null);
-          } else {
-            setFormSchema(null);
-          }
-          setIsDirty(false);
-        } catch (e: unknown) {
-          addNotification({
-            text: isSessionExpired(e)
-              ? dict.general.sessionExpired
-              : `${dict.form.loadFormError || 'Failed to load form:'} ${(e as Error).message}`,
-            type: 'error',
-            consoleError: e,
-          });
-        } finally {
-          setLoading(false);
-        }
-      }
-      loadForm();
-    }
-  }, [formId, token, dict.form.loadFormError, dict.general.sessionExpired, addNotification]);
-
-  const handleNameChange = useCallback((name: string) => {
-    setFormName(name);
-    setIsDirty(true);
-  }, []);
-
-  const updateFormSchema = useCallback((data: FormType) => {
-    setFormSchema(data);
-    setIsDirty(true);
-  }, []);
-
-  const loadVersionSchema = async (version: SobaFormVersionType) => {
-    setLoading(true);
-    try {
-      const schema = await getFormVersionSchema(token as string, version.id);
-      setFormSchema((schema as FormType) ?? null);
-      setIsDirty(false);
-    } catch (err) {
-      addNotification({
-        text: dict.form.loadVersionSchemaError || 'Failed to load version schema.',
-        type: 'error',
-        consoleError: err,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVersionChange = async (versionId: string) => {
-    if (!token) return;
-
-    if (versionId === 'current') {
-      setIsHistoryView(false);
-      setSelectedVersionId('current');
-      setHistoricalVersionNo(null);
-      if (currentVersion) await loadVersionSchema(currentVersion);
-      return;
-    }
-
-    const targetVersion = versions.find((v: SobaFormVersionType) => v.id === versionId);
-    if (!targetVersion) return;
-
-    setIsHistoryView(true);
-    setSelectedVersionId(versionId);
-    setHistoricalVersionNo(targetVersion.versionNo);
-    await loadVersionSchema(targetVersion);
-  };
+  const {
+    form,
+    versions,
+    currentVersion,
+    isHistoryView,
+    historicalVersionNo,
+    selectedVersionId,
+    schema: formSchema,
+    name: formName,
+    description: formDesc,
+    isDirty,
+    loading,
+    error: loadError,
+    setName,
+    setSchema,
+    discardEdits,
+    selectVersion,
+    refreshForm,
+    refreshVersions,
+  } = useFormDraft(formId);
 
   const isCurrentPublished = currentVersion?.state === 'published';
+
+  const selectedWorkspaceId = formId ? (form?.workspaceId ?? null) : pickedWorkspaceId;
+  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
+  const canManageWorkspace = !!activeWorkspace && isWorkspaceManageRole(activeWorkspace.role);
 
   usePageHeading({
     // Editing claims no heading until the name arrives, so the page's own stands rather than
     // flashing the create-form label on an existing form.
     heading: formId ? formName || undefined : dict.form.createForm,
-    eyebrow: formId && formWorkspaceId ? activeWorkspace?.name || formWorkspaceId : undefined,
+    eyebrow: formId && selectedWorkspaceId ? activeWorkspace?.name || selectedWorkspaceId : undefined,
   });
 
-  usePageNotices([
-    isHistoryView && {
-      id: 'history-view',
-      variant: 'info' as const,
-      title: dict.form.readOnlyMode || 'Read-Only Mode:',
-      body: `${dict.form.viewingHistoricalVersion || 'You are viewing historical version'} v${historicalVersionNo}. ${dict.form.savePublishDisabled || 'Save and Publish options are disabled.'}`,
-      action: {
-        label:
-          dict.form.switchToCurrentDraft ||
-          'Switch to ' + (dict.form.currentDraft || 'Current Draft'),
-        onPress: () => handleVersionChange('current'),
-      },
-    },
-    !isHistoryView &&
-      isCurrentPublished && {
-        id: 'published-version',
-        variant: 'info' as const,
-        title: dict.form.publishedVersion || 'Published Version:',
-        body:
-          dict.form.publishedVersionCannotBeModified ||
-          'This version is published and cannot be modified',
-      },
-  ]);
+  usePageNotices(
+    draftNotices({
+      dict,
+      loadError,
+      isHistoryView,
+      historicalVersionNo,
+      isCurrentPublished,
+      onSwitchToCurrent: () => selectVersion('current'),
+    }),
+  );
 
   const createNewVersion = async () => {
     if (isSaving || loading || !token) return;
     if (!formId) return;
     setIsSaving(true);
-    setLoading(true);
 
     try {
       // The engine strips engine-managed fields on save, so the raw schema can be submitted as-is.
       const newVersion = await createFormVersion(token as string, formId);
       await saveFormVersionSchema(token as string, newVersion.id, (formSchema ?? {}) as FormType);
 
-      // Refresh the version list and select the new draft in-page.
-      const versionsData = await getSobaFormVersions(token as string, formId);
-      setVersions(versionsData.items || []);
-      setCurrentVersion(newVersion);
-      setSelectedVersionId('current');
-      setIsHistoryView(false);
-      setIsDirty(false);
+      // Refresh the version list and select the new draft in-page. The new version has the highest
+      // versionNo, so it becomes the current one as soon as the list comes back.
+      await refreshVersions();
+      selectVersion('current');
 
       addNotification({
         text: (
@@ -246,7 +178,6 @@ function FormForm({ formId }: { formId?: string }) {
       });
     } finally {
       setIsSaving(false);
-      setLoading(false);
     }
   };
 
@@ -264,7 +195,7 @@ function FormForm({ formId }: { formId?: string }) {
     const created = await createSobaFormioForm(
       token as string,
       data,
-      selectedWorkspaceId || undefined,
+      pickedWorkspaceId || undefined,
     );
     const versionId = created.formVersion?.id;
     if (versionId) {
@@ -280,7 +211,7 @@ function FormForm({ formId }: { formId?: string }) {
     if (isSaving || loading) return;
     // Creating a form is workspace-scoped: without a selected workspace the backend
     // rejects the request with a generic error, so surface a clear message instead.
-    if (!formId && !selectedWorkspaceId) {
+    if (!formId && !pickedWorkspaceId) {
       addNotification({ text: dict.form.noActiveWorkspaceError, type: 'error' });
       return;
     }
@@ -298,11 +229,13 @@ function FormForm({ formId }: { formId?: string }) {
         await createAndProvisionForm(schema, publish);
       }
 
+      // The name is server-owned once saved, so re-read it rather than leaving the edit in place.
+      await refreshForm();
       addNotification({
         text: publish ? dict.form.published || 'Form published successfully!' : dict.form.saved,
         type: 'success',
       });
-      setIsDirty(false);
+      discardEdits();
     } catch (e: unknown) {
       addNotification({ text: dict.form.saveError, type: 'error', consoleError: e });
     } finally {
@@ -347,7 +280,7 @@ function FormForm({ formId }: { formId?: string }) {
     if (!formId) {
       return (
         <FormDesigner
-          onUpdateModel={updateFormSchema}
+          onUpdateModel={setSchema}
           initialModel={null}
           formName={formName}
           isDirty={isDirty}
@@ -362,7 +295,7 @@ function FormForm({ formId }: { formId?: string }) {
     }
     return (
       <FormDesigner
-        onUpdateModel={updateFormSchema}
+        onUpdateModel={setSchema}
         initialModel={formSchema}
         formName={formName}
         versionNo={currentVersion?.versionNo ?? null}
@@ -395,7 +328,7 @@ function FormForm({ formId }: { formId?: string }) {
         <TextField
           label={dict.form.nameLabel}
           value={formName}
-          onChange={handleNameChange}
+          onChange={setName}
           isDisabled={isHistoryView || isCurrentPublished}
         />
 
@@ -404,16 +337,17 @@ function FormForm({ formId }: { formId?: string }) {
             label={dict.workspaces.workspace}
             workspaces={creatableWorkspaces}
             selectedWorkspaceId={selectedWorkspaceId}
-            onChange={(id) => setSelectedWorkspaceId(id as string)}
+            onChange={(id) => setPickedWorkspaceId(id as string)}
             size="medium"
           />
         )}
 
         {versions.length > 0 && (
           <Select
+            data-testid="form-version-select"
             label={dict.form.formVersion || 'Form Version'}
             selectedKey={selectedVersionId || 'current'}
-            onSelectionChange={(key) => handleVersionChange(String(key))}
+            onSelectionChange={(key) => selectVersion(String(key))}
             items={[
               {
                 id: 'current',

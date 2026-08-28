@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => ({ authenticated: true, token: 'token', initializing: false }),
@@ -32,14 +32,17 @@ const { mockWorkspaceState } = vi.hoisted(() => ({
   mockWorkspaceState: {
     workspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
     writableWorkspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
+    versions: [] as Array<{ id: string; versionNo: number; state: string }>,
   },
 }));
 
 // Mock the soba API functions used by FormForm
 vi.mock('@/src/shared/api/sobaApi', () => ({
   getSobaForm: vi.fn().mockResolvedValue({ id: 'f1', name: 'Test', description: '' }),
-  getSobaFormVersions: vi.fn().mockResolvedValue({ items: [] }),
-  getFormVersionSchema: vi.fn().mockResolvedValue(null),
+  getSobaFormVersions: vi.fn(() =>
+    Promise.resolve({ items: mockWorkspaceState.versions }),
+  ),
+  getFormVersionSchema: vi.fn().mockResolvedValue({ components: [] }),
   fetchWorkspaces: vi.fn((_token: string, requiredPermission?: string) =>
     Promise.resolve({
       items: requiredPermission ? mockWorkspaceState.writableWorkspaces : mockWorkspaceState.workspaces,
@@ -66,6 +69,7 @@ import { SWRConfig } from 'swr';
 import makeStore from '@/lib/store';
 import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import FormForm from '@/src/features/designer/ui/FormForm';
+import { PageLayout } from '@/src/components/PageLayout';
 
 let store: ReturnType<typeof makeStore>;
 
@@ -73,7 +77,9 @@ function renderForm(props: { formId?: string } = {}) {
   return render(
     <Provider store={store}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <FormForm {...props} />
+        <PageLayout headingId="designer-heading" heading="Form Designer">
+          <FormForm {...props} />
+        </PageLayout>
       </SWRConfig>
     </Provider>,
   );
@@ -87,6 +93,7 @@ describe('FormForm', () => {
     store.dispatch(setAuthenticated(true));
     mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: true }];
     mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: true }];
+    mockWorkspaceState.versions = [];
   });
 
   it('renders designer tab content when authenticated and not initializing', async () => {
@@ -142,5 +149,49 @@ describe('FormForm', () => {
     renderForm();
     expect(await screen.findByTestId('disclaimer-required-alert')).toBeInTheDocument();
     expect(screen.queryByTestId('form-designer')).not.toBeInTheDocument();
+  });
+
+  // The highest versionNo is the current one, and its schema is what the builder is fed.
+  it('reads the schema of the current version', async () => {
+    mockWorkspaceState.versions = [
+      { id: 'v1', versionNo: 1, state: 'published' },
+      { id: 'v2', versionNo: 2, state: 'draft' },
+    ];
+    renderForm({ formId: 'f1' });
+
+    const { getFormVersionSchema } = await import('@/src/shared/api/sobaApi');
+    await waitFor(() => expect(getFormVersionSchema).toHaveBeenCalledWith('token', 'v2'));
+    expect(getFormVersionSchema).not.toHaveBeenCalledWith('token', 'v1');
+  });
+
+  // The loaded name is server truth and the typed one is the user's unsaved edit. A re-read must
+  // never win over what has been typed.
+  it('keeps a typed name over the loaded one', async () => {
+    renderForm({ formId: 'f1' });
+    const input = (await screen.findByDisplayValue('Test')) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Renamed' } });
+    expect(await screen.findByDisplayValue('Renamed')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Test')).not.toBeInTheDocument();
+  });
+
+  // Switching versions changes which schema is read, and the read-only notice explains why save is
+  // off. Selecting the current draft again returns to it.
+  it('reads the selected version schema when switching to history', async () => {
+    mockWorkspaceState.versions = [
+      { id: 'v1', versionNo: 1, state: 'published' },
+      { id: 'v2', versionNo: 2, state: 'draft' },
+    ];
+    renderForm({ formId: 'f1' });
+
+    const { getFormVersionSchema } = await import('@/src/shared/api/sobaApi');
+    await waitFor(() => expect(getFormVersionSchema).toHaveBeenCalledWith('token', 'v2'));
+
+    const picker = (await screen.findByTestId('form-version-select')).querySelector(
+      'select',
+    ) as HTMLSelectElement;
+    fireEvent.change(picker, { target: { value: 'v1' } });
+
+    await waitFor(() => expect(getFormVersionSchema).toHaveBeenCalledWith('token', 'v1'));
+    expect(await screen.findByTestId('page-notice-history-view')).toBeInTheDocument();
   });
 });
