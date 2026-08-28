@@ -94,22 +94,23 @@ function FormList({
   const { workspaces, loaded: workspacesLoaded } = useWorkspaces();
   const { workspaces: writableWorkspaces } = useWritableWorkspaces();
 
-  // Restored during render, not from an effect: an effect would let the first request go out
-  // unscoped and land another workspace's rows before the correction.
   // Only a link from inside the app asks for the list as the user left it. A bare URL is a bookmark
-  // or someone else's link, and means the unfiltered list.
-  const [restored, setRestored] = useState<ListQueryParams | null>(() =>
-    isNavArrival(searchParams) && !urlHasListParams(FORMS_LIST_QUERY, searchParams)
-      ? recallListQuery(FORMS_LIST_QUERY)
-      : null,
+  // or someone else's link, and means the unfiltered list. Read during render, not from an effect:
+  // an effect would let the first request go out unscoped and land another workspace's rows first.
+  // Not keyed on mount, because clicking the nav link while already on this page does not remount.
+  const arrivalQuery = useMemo(
+    () =>
+      isNavArrival(searchParams) && !urlHasListParams(FORMS_LIST_QUERY, searchParams)
+        ? recallListQuery(FORMS_LIST_QUERY)
+        : null,
+    [searchParams],
   );
 
-  // The URL wins as soon as it says anything. The restored query covers only the renders before it
-  // is written there, and any explicit change drops it - otherwise clearing a filter would read as
-  // "nothing set, restore again".
+  // The URL wins as soon as it says anything, so a cleared filter stays cleared rather than reading
+  // as "nothing set, restore again".
   const workspaceParam = urlHasListParams(FORMS_LIST_QUERY, searchParams)
     ? searchParams.get('workspace')
-    : (restored?.workspace ?? null);
+    : (arrivalQuery?.workspace ?? null);
   // The filter comes from the URL, so it can name a workspace that does not exist or that this user
   // cannot see. Resolve it against their own list before it reaches the request.
   const selectedWorkspaceId =
@@ -160,31 +161,38 @@ function FormList({
 
   const applyListParams = useCallback(
     (next: ListQueryParams) => {
-      setRestored(null);
+      // A different scope means a different set of rows, so the page number no longer refers to
+      // anything the user chose.
+      setCurrentPage(1);
       writeListParams(next);
     },
     [writeListParams],
   );
 
-  // Mount only. Re-running would undo a filter the user has since cleared, because a cleared filter
-  // and a fresh arrival both look like a URL with no params.
-  const restoreDone = useRef(false);
+  // Each distinct URL is handled once. Re-running on an in-page change would undo a filter the user
+  // just cleared, because a cleared filter and a fresh arrival both look like a URL with no params.
+  const handledSearch = useRef<string | null>(null);
   useEffect(() => {
-    if (restoreDone.current) return;
-    restoreDone.current = true;
-    // Writing also drops the nav marker, so it never survives into a URL the user might copy.
-    if (restored) {
-      writeListParams(restored);
+    const search = searchParams.toString();
+    if (handledSearch.current === search) return;
+    const firstArrival = handledSearch.current === null;
+    handledSearch.current = search;
+
+    // Writing drops the nav marker, so it never survives into a URL the user might copy.
+    if (arrivalQuery) {
+      writeListParams(arrivalQuery);
       return;
     }
     if (isNavArrival(searchParams)) {
       writeListParams(readUrlParams(FORMS_LIST_QUERY, searchParams));
-    } else if (urlHasListParams(FORMS_LIST_QUERY, searchParams)) {
-      // A link that names a scope is a choice, wherever it came from. A bare one is a visit, and
-      // must not erase the view the user set for this tab.
+      return;
+    }
+    // A link that names a scope is a choice, wherever it came from. A bare one is a visit, and must
+    // not erase the view the user set for this tab. Later in-page changes record themselves.
+    if (firstArrival && urlHasListParams(FORMS_LIST_QUERY, searchParams)) {
       rememberListQuery(FORMS_LIST_QUERY, readUrlParams(FORMS_LIST_QUERY, searchParams));
     }
-  }, [restored, searchParams, writeListParams]);
+  }, [arrivalQuery, searchParams, writeListParams]);
 
   // The picker filters this list only; a new form is targeted in the designer. So creation
   // depends on having any workspace the user can create in with its disclaimer accepted.

@@ -84,8 +84,9 @@ function seed(workspaces: TestWorkspace[], writable: TestWorkspace[] = workspace
 }
 
 async function renderList() {
+  let view: ReturnType<typeof render> | undefined;
   await act(async () => {
-    render(
+    view = render(
       <Provider store={store}>
         <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
           <PageLayout headingId="forms-heading" heading="Forms">
@@ -95,6 +96,19 @@ async function renderList() {
       </Provider>,
     );
   });
+  return view!;
+}
+
+function listTree() {
+  return (
+    <Provider store={store}>
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <PageLayout headingId="forms-heading" heading="Forms">
+          <FormList />
+        </PageLayout>
+      </SWRConfig>
+    </Provider>
+  );
 }
 
 describe('FormList', () => {
@@ -247,13 +261,18 @@ describe('FormList', () => {
       { id: 'ws1', disclaimerAccepted: true },
       { id: 'ws2', disclaimerAccepted: true },
     ]);
-    await renderList();
+    const view = await renderList();
     await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
 
-    search.value = '';
     const picker = screen.getByTestId('workspace-select').querySelector('select')!;
     await act(async () => {
       fireEvent.change(picker, { target: { value: 'all' } });
+    });
+    // Next syncs useSearchParams with the replaceState the component just made; the mock does not,
+    // so the test does it.
+    search.value = '';
+    await act(async () => {
+      view.rerender(listTree());
     });
 
     await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
@@ -300,5 +319,29 @@ describe('FormList', () => {
     await waitFor(() =>
       expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument(),
     );
+  });
+
+  // Clicking the nav link while already on this page is a query-only navigation: the App Router
+  // re-renders rather than remounting, so a mount-only restore never runs.
+  it('restores on a nav arrival that does not remount', async () => {
+    search.value = 'workspace=ws2';
+    seed([
+      { id: 'ws1', disclaimerAccepted: true },
+      { id: 'ws2', disclaimerAccepted: true },
+    ]);
+    const view = await renderList();
+    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
+
+    const replaceState = vi.spyOn(window.history, 'replaceState');
+    search.value = 'from=nav';
+    await act(async () => {
+      view.rerender(listTree());
+    });
+
+    await waitFor(() => expect(getSobaForms).toHaveBeenLastCalledWith('token', 'ws2'));
+    // The marker is consumed on arrival; leaving it in the URL would make a copied link restore
+    // the reader's own view.
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/en/forms?workspace=ws2');
+    replaceState.mockRestore();
   });
 });
