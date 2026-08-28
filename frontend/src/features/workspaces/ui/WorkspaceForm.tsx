@@ -18,7 +18,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces, loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
+import { useRefreshWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { createWorkspace, selectWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
@@ -39,6 +39,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   const locale = getLocaleFromPath(pathname);
   const { authenticated, token, initializing } = useKeycloak();
   const dispatch = useAppDispatch();
+  const refreshWorkspaces = useRefreshWorkspaces();
   const { addNotification } = useNotificationStore();
   const { data: currentUser, status: currentUserStatus } = useAppSelector(
     (state) => state.currentUser,
@@ -170,12 +171,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         });
       }
 
-      // The writable list carries the disclaimer flag that gates form creation, so it goes
-      // stale on the same edits as the full list and has to be refreshed alongside it.
-      await Promise.all([
-        dispatch(loadWorkspaces(token)),
-        dispatch(loadWritableWorkspaces(token)),
-      ]);
+      await refreshWorkspaces();
       router.push(`/${locale}/workspaces`);
     } catch (error) {
       addNotification({
@@ -196,7 +192,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     loadedName,
     disclaimerAccepted,
     loadedDisclaimer,
-    dispatch,
+    refreshWorkspaces,
     router,
     locale,
     addNotification,

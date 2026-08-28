@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
-import { loadWorkspaces, loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
+import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { needsWorkspaceOnboarding } from '@/src/features/onboarding/workspaceOnboarding';
 import type { AppSessionSnapshot } from './appRoutePolicy';
 
@@ -12,13 +12,8 @@ export function useAppSession(): AppSessionSnapshot {
   const { authenticated, token, initializing, initStarted } = useKeycloak();
   const dispatch = useAppDispatch();
 
-  const {
-    workspaces,
-    status: workspaceStatus,
-    writableStatus,
-    loadedOnce: workspacesLoadedOnce,
-    writableLoadedOnce,
-  } = useAppSelector((state) => state.workspace);
+  const { workspaces, loaded: workspacesLoaded, error: workspacesError } = useWorkspaces();
+  const { loaded: writableLoaded, error: writableError } = useWritableWorkspaces();
   const {
     data: currentUser,
     status: currentUserStatus,
@@ -26,36 +21,34 @@ export function useAppSession(): AppSessionSnapshot {
   } = useAppSelector((state) => state.currentUser);
 
   useEffect(() => {
-    if (authenticated && token && workspaceStatus === 'idle') {
-      dispatch(loadWorkspaces(token));
-    }
-    if (authenticated && token && writableStatus === 'idle') {
-      dispatch(loadWritableWorkspaces(token));
-    }
-  }, [authenticated, token, workspaceStatus, writableStatus, dispatch]);
-
-  useEffect(() => {
     if (authenticated && token && currentUserStatus === 'idle') {
       dispatch(loadCurrentUser(token));
     }
   }, [authenticated, token, currentUserStatus, dispatch]);
 
+  // Survives a failed reload: SWR keeps the last data on error, and the slice keeps its own flag.
+  // Both only reset when the session ends, which is when the guard should stop rendering the route
+  // anyway. This is why the reads must not be keyed on the token - a rotation would clear them.
+  const loadedOnce = workspacesLoaded && writableLoaded && currentUserLoadedOnce;
+
   return useMemo(() => {
     // The same three loads throughout: one that can fail the session has to be waited for too.
     const sessionReady = authenticated
       ? !initializing &&
-        workspaceStatus === 'succeeded' &&
-        writableStatus === 'succeeded' &&
+        workspacesLoaded &&
+        !workspacesError &&
+        writableLoaded &&
+        !writableError &&
         currentUserStatus === 'succeeded'
       : !initializing;
 
     const sessionFailed =
-      authenticated && (workspaceStatus === 'failed' || writableStatus === 'failed' || currentUserStatus === 'failed');
+      authenticated && (!!workspacesError || !!writableError || currentUserStatus === 'failed');
 
     const needsOnboarding = needsWorkspaceOnboarding({
       authenticated,
       initializing,
-      workspaceStatus,
+      workspacesLoaded,
       currentUserStatus,
       workspaces,
       currentUser,
@@ -66,9 +59,7 @@ export function useAppSession(): AppSessionSnapshot {
       initializing,
       initStarted,
       sessionReady,
-      // Data survives a refetch, so this stays true through a background reload; the guard uses it
-      // to avoid unmounting the route. Miss a load here and its failure never reaches the user.
-      sessionLoadedOnce: workspacesLoadedOnce && writableLoadedOnce && currentUserLoadedOnce,
+      sessionLoadedOnce: loadedOnce,
       sessionFailed,
       needsOnboarding,
       canCreateWorkspace: currentUser?.capabilities?.canCreateWorkspace === true,
@@ -78,12 +69,12 @@ export function useAppSession(): AppSessionSnapshot {
     authenticated,
     initializing,
     initStarted,
-    workspaceStatus,
-    workspacesLoadedOnce,
-    writableLoadedOnce,
-    writableStatus,
+    workspacesLoaded,
+    workspacesError,
+    writableLoaded,
+    writableError,
     currentUserStatus,
-    currentUserLoadedOnce,
+    loadedOnce,
     workspaces,
     currentUser,
   ]);

@@ -6,6 +6,7 @@ import { Button } from '@bcgov/design-system-react-components';
 import { usePathname } from 'next/navigation';
 import { useDictionary } from '../[lang]/Providers';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
+import { navLink } from '@/src/shared/list/listQueryMemory';
 import {
   FaRegMessage,
   FaRegCircleQuestion,
@@ -32,7 +33,7 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
   const navItems = [];
   if (showHome) {
     navItems.push({
-      href: authenticated ? `/${locale}/forms` : `/`,
+      href: authenticated ? navLink(`/${locale}/forms`) : `/`,
       title: authenticated ? dict.general.forms : dict.general.home,
       testId: 'home-nav',
       icon: <FaHouse className={styles.iconOutlineBootstrap} size={20} />,

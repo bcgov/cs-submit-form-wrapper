@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Button as DSButton,
 } from '@bcgov/design-system-react-components';
@@ -17,8 +17,18 @@ import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
 import { usePageNotices } from '@/src/components/PageHeader';
-import { useAppSelector } from '@/lib/store';
 import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
+import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
+import {
+  FORMS_LIST_QUERY,
+  NAV_MARKER,
+  isNavArrival,
+  readUrlParams,
+  recallListQuery,
+  rememberListQuery,
+  urlHasListParams,
+  type ListQueryParams,
+} from '@/src/shared/list/listQueryMemory';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { FaFolder, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
@@ -81,14 +91,25 @@ function FormList({
 
   const locale = getLocaleFromPath(pathname);
 
-  const {
-    workspaces,
-    writableWorkspaces,
-    status: workspaceStatus,
-  } = useAppSelector((state) => state.workspace);
+  const { workspaces, loaded: workspacesLoaded } = useWorkspaces();
+  const { workspaces: writableWorkspaces } = useWritableWorkspaces();
 
-  const workspacesLoaded = workspaceStatus === 'succeeded';
-  const workspaceParam = searchParams.get('workspace');
+  // Restored during render, not from an effect: an effect would let the first request go out
+  // unscoped and land another workspace's rows before the correction.
+  // Only a link from inside the app asks for the list as the user left it. A bare URL is a bookmark
+  // or someone else's link, and means the unfiltered list.
+  const [restored, setRestored] = useState<ListQueryParams | null>(() =>
+    isNavArrival(searchParams) && !urlHasListParams(FORMS_LIST_QUERY, searchParams)
+      ? recallListQuery(FORMS_LIST_QUERY)
+      : null,
+  );
+
+  // The URL wins as soon as it says anything. The restored query covers only the renders before it
+  // is written there, and any explicit change drops it - otherwise clearing a filter would read as
+  // "nothing set, restore again".
+  const workspaceParam = urlHasListParams(FORMS_LIST_QUERY, searchParams)
+    ? searchParams.get('workspace')
+    : (restored?.workspace ?? null);
   // The filter comes from the URL, so it can name a workspace that does not exist or that this user
   // cannot see. Resolve it against their own list before it reaches the request.
   const selectedWorkspaceId =
@@ -117,18 +138,53 @@ function FormList({
     return loadError instanceof Error ? loadError.message : String(loadError);
   }, [loadError, dict.general.sessionExpired]);
 
-  const setWorkspaceParam = useCallback(
-    (next: string | null) => {
+  const writeListParams = useCallback(
+    (next: ListQueryParams) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (next) params.set('workspace', next);
-      else params.delete('workspace');
+      // Consumed on arrival; leaving it in would make a copied URL restore the reader's own view.
+      params.delete(NAV_MARKER);
+      for (const name of FORMS_LIST_QUERY.params) {
+        if (next[name]) params.set(name, next[name]);
+        else params.delete(name);
+      }
       const qs = params.toString();
       // Next keeps useSearchParams in sync with replaceState. A router navigation would re-run the
       // page's server component for what is only a client-side filter change.
       window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname);
+      // Recorded from the choice, not from the URL: reading it back would race the replaceState
+      // above and record the pre-change query.
+      rememberListQuery(FORMS_LIST_QUERY, next);
     },
     [searchParams, pathname],
   );
+
+  const applyListParams = useCallback(
+    (next: ListQueryParams) => {
+      setRestored(null);
+      writeListParams(next);
+    },
+    [writeListParams],
+  );
+
+  // Mount only. Re-running would undo a filter the user has since cleared, because a cleared filter
+  // and a fresh arrival both look like a URL with no params.
+  const restoreDone = useRef(false);
+  useEffect(() => {
+    if (restoreDone.current) return;
+    restoreDone.current = true;
+    // Writing also drops the nav marker, so it never survives into a URL the user might copy.
+    if (restored) {
+      writeListParams(restored);
+      return;
+    }
+    if (isNavArrival(searchParams)) {
+      writeListParams(readUrlParams(FORMS_LIST_QUERY, searchParams));
+    } else if (urlHasListParams(FORMS_LIST_QUERY, searchParams)) {
+      // A link that names a scope is a choice, wherever it came from. A bare one is a visit, and
+      // must not erase the view the user set for this tab.
+      rememberListQuery(FORMS_LIST_QUERY, readUrlParams(FORMS_LIST_QUERY, searchParams));
+    }
+  }, [restored, searchParams, writeListParams]);
 
   // The picker filters this list only; a new form is targeted in the designer. So creation
   // depends on having any workspace the user can create in with its disclaimer accepted.
@@ -140,8 +196,8 @@ function FormList({
   const needsDisclaimer = writableWorkspaces.length > 0 && !canCreate;
 
   const handleWorkspaceChange = useCallback(
-    (key: string | number | null) => setWorkspaceParam(key ? String(key) : null),
-    [setWorkspaceParam],
+    (key: string | number | null) => applyListParams(key ? { workspace: String(key) } : {}),
+    [applyListParams],
   );
 
   const filteredForms = useMemo(() => {
@@ -186,7 +242,7 @@ function FormList({
       body: dict.workspaces.unavailableFilter,
       action: {
         label: dict.workspaces.clearFilter,
-        onPress: () => setWorkspaceParam(null),
+        onPress: () => applyListParams({}),
       },
     },
     needsDisclaimer && {

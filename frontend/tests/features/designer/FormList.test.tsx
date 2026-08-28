@@ -59,13 +59,14 @@ vi.mock('next/navigation', async () => {
 });
 
 const getSobaForms = vi.fn();
+const fetchWorkspaces = vi.fn();
 vi.mock('@/src/shared/api/sobaApi', () => ({
   getSobaForms: (...args: unknown[]) => getSobaForms(...args),
+  fetchWorkspaces: (...args: unknown[]) => fetchWorkspaces(...args),
 }));
 
 import makeStore from '@/lib/store';
 import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
-import { loadWorkspaces, loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
 import FormList from '@/src/features/designer/ui/FormList';
 import { PageLayout } from '@/src/components/PageLayout';
 
@@ -76,8 +77,10 @@ let store: ReturnType<typeof makeStore>;
 function seed(workspaces: TestWorkspace[], writable: TestWorkspace[] = workspaces) {
   store.dispatch(setToken('token'));
   store.dispatch(setAuthenticated(true));
-  store.dispatch({ type: loadWorkspaces.fulfilled.type, payload: workspaces });
-  store.dispatch({ type: loadWritableWorkspaces.fulfilled.type, payload: writable });
+  // The writable list is the same endpoint with a required-permission filter.
+  fetchWorkspaces.mockImplementation((_token: string, requiredPermission?: string) =>
+    Promise.resolve({ items: requiredPermission ? writable : workspaces }),
+  );
 }
 
 async function renderList() {
@@ -97,6 +100,7 @@ async function renderList() {
 describe('FormList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     search.value = '';
     store = makeStore();
     getSobaForms.mockResolvedValue({
@@ -206,6 +210,85 @@ describe('FormList', () => {
     await renderList();
     await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
     expect(screen.getByTestId('page-notice-workspace-filter')).toBeInTheDocument();
+  });
+
+  // The nav link back to the list is a bare href, so the filter has to be remembered per tab or
+  // it is lost every time the user leaves the page.
+  it('restores the last filter on a nav arrival, and scopes the first request', async () => {
+    search.value = 'from=nav';
+    sessionStorage.setItem('soba.listQuery.forms', JSON.stringify({ workspace: 'ws2' }));
+    seed([
+      { id: 'ws1', disclaimerAccepted: true },
+      { id: 'ws2', disclaimerAccepted: true },
+    ]);
+    await renderList();
+    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
+    // The unscoped read must never happen, or another workspace's rows land on screen first.
+    expect(getSobaForms).not.toHaveBeenCalledWith('token', undefined);
+  });
+
+  it('does not restore a filter the user cleared', async () => {
+    search.value = 'from=nav';
+    sessionStorage.setItem('soba.listQuery.forms', JSON.stringify({}));
+    seed([
+      { id: 'ws1', disclaimerAccepted: true },
+      { id: 'ws2', disclaimerAccepted: true },
+    ]);
+    await renderList();
+    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
+  });
+
+  // Clearing removes the param, which looks exactly like a fresh arrival. Restoring more than once
+  // puts the filter straight back and the picker cannot be set to All Workspaces.
+  it('lets the user clear a restored filter', async () => {
+    search.value = 'from=nav';
+    sessionStorage.setItem('soba.listQuery.forms', JSON.stringify({ workspace: 'ws2' }));
+    seed([
+      { id: 'ws1', disclaimerAccepted: true },
+      { id: 'ws2', disclaimerAccepted: true },
+    ]);
+    await renderList();
+    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
+
+    search.value = '';
+    const picker = screen.getByTestId('workspace-select').querySelector('select')!;
+    await act(async () => {
+      fireEvent.change(picker, { target: { value: 'all' } });
+    });
+
+    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
+    expect(sessionStorage.getItem('soba.listQuery.forms')).toBe(JSON.stringify({}));
+  });
+
+  // A bare URL is a bookmark or someone else's link. Restoring there would show them a filtered
+  // table they did not ask for.
+  it('does not restore on a bare URL with no nav marker', async () => {
+    sessionStorage.setItem('soba.listQuery.forms', JSON.stringify({ workspace: 'ws2' }));
+    seed([
+      { id: 'ws1', disclaimerAccepted: true },
+      { id: 'ws2', disclaimerAccepted: true },
+    ]);
+    await renderList();
+    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
+    expect(getSobaForms).not.toHaveBeenCalledWith('token', 'ws2');
+    // Visiting a bare link is not a choice, so it must not erase the view set for this tab.
+    expect(sessionStorage.getItem('soba.listQuery.forms')).toBe(
+      JSON.stringify({ workspace: 'ws2' }),
+    );
+  });
+
+  it('remembers the filter the URL arrived with', async () => {
+    search.value = 'workspace=ws2';
+    seed([
+      { id: 'ws1', disclaimerAccepted: true },
+      { id: 'ws2', disclaimerAccepted: true },
+    ]);
+    await renderList();
+    await waitFor(() =>
+      expect(sessionStorage.getItem('soba.listQuery.forms')).toBe(
+        JSON.stringify({ workspace: 'ws2' }),
+      ),
+    );
   });
 
   it('reports an ended session instead of the raw error', async () => {

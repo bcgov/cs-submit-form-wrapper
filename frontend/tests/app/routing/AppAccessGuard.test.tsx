@@ -2,46 +2,32 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { AppSessionSnapshot } from '@/src/app/routing/appRoutePolicy';
 
 // Mutable test doubles shared with the hoisted vi.mock factories below.
 const h = vi.hoisted(() => ({
   dispatch: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
-  state: {
-    authenticated: true,
-    initializing: false,
-    token: 'token' as string | undefined,
-    workspace: {
-      workspaces: [] as Array<Record<string, unknown>>,
-      status: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
-      writableStatus: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
-      loadedOnce: false,
-      writableLoadedOnce: false,
-      activeWorkspaceId: null as string | null,
-      error: null as string | null,
-    },
-    currentUser: {
-      data: null as Record<string, unknown> | null,
-      status: 'idle' as 'idle' | 'loading' | 'succeeded' | 'failed',
-      loadedOnce: false,
-    },
-  },
+  refreshWorkspaces: vi.fn(),
+  session: {} as AppSessionSnapshot,
 }));
 
 vi.mock('@/lib/hooks/useKeycloak', () => ({
-  useKeycloak: () => ({
-    authenticated: h.state.authenticated,
-    token: h.state.token,
-    initializing: h.state.initializing,
-    refresh: h.refresh,
-  }),
+  useKeycloak: () => ({ refresh: h.refresh }),
 }));
 
 vi.mock('@/lib/store', () => ({
   useAppDispatch: () => h.dispatch,
-  useAppSelector: (fn: (s: unknown) => unknown) =>
-    fn({ workspace: h.state.workspace, currentUser: h.state.currentUser }),
+}));
+
+vi.mock('@/src/shared/api/useWorkspaces', () => ({
+  useRefreshWorkspaces: () => h.refreshWorkspaces,
+}));
+
+// The guard is the route policy; what feeds it is covered in useAppSession's own tests.
+vi.mock('@/src/app/routing/useAppSession', () => ({
+  useAppSession: () => h.session,
 }));
 
 vi.mock('@/app/[lang]/Providers', () => ({
@@ -65,33 +51,40 @@ vi.mock('next/navigation', async () => {
 
 import { AppAccessGuard } from '@/src/app/routing/AppAccessGuard';
 import { clearCurrentUser } from '@/lib/slices/currentUserSlice';
-import { clearWorkspaceState } from '@/lib/slices/workspaceSlice';
+
+const READY: AppSessionSnapshot = {
+  authenticated: true,
+  initializing: false,
+  initStarted: true,
+  sessionReady: true,
+  sessionLoadedOnce: true,
+  sessionFailed: false,
+  needsOnboarding: false,
+  canCreateWorkspace: true,
+  hasWorkspaces: true,
+};
+
+function renderGuard() {
+  return render(
+    <AppAccessGuard locale="en" workspacesEnabled={true}>
+      visible child
+    </AppAccessGuard>,
+  );
+}
 
 describe('AppAccessGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     h.refresh.mockResolvedValue(undefined);
-    h.state.authenticated = true;
-    h.state.initializing = false;
-    h.state.token = 'token';
-    h.state.workspace = {
-      workspaces: [],
-      status: 'idle',
-      writableStatus: 'idle',
-      loadedOnce: false,
-      writableLoadedOnce: false,
-      activeWorkspaceId: null,
-      error: null,
-    };
-    h.state.currentUser = { data: null, status: 'idle', loadedOnce: false };
+    h.refreshWorkspaces.mockResolvedValue([]);
+    h.session = { ...READY };
   });
 
   it('shows the spinner (not the error) while bootstrap loads are pending', async () => {
-    h.state.workspace.status = 'loading';
-    h.state.currentUser.status = 'loading';
+    h.session = { ...READY, sessionReady: false, sessionLoadedOnce: false };
 
     await act(async () => {
-      render(<AppAccessGuard locale="en" workspacesEnabled={true}>child</AppAccessGuard>);
+      renderGuard();
     });
 
     expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
@@ -99,53 +92,37 @@ describe('AppAccessGuard', () => {
   });
 
   it('renders the error + retry instead of an infinite spinner when a load fails', async () => {
-    h.state.workspace.status = 'failed';
-    h.state.currentUser.status = 'succeeded';
+    h.session = { ...READY, sessionReady: false, sessionLoadedOnce: false, sessionFailed: true };
 
     await act(async () => {
-      render(<AppAccessGuard locale="en" workspacesEnabled={true}>child</AppAccessGuard>);
+      renderGuard();
     });
 
     expect(screen.getByText('We could not load your session.')).toBeInTheDocument();
     expect(screen.getByTestId('session-error-retry')).toBeInTheDocument();
-    // No spinner, and no redirect fired (sessionReady is false on failure).
     expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
     expect(h.replace).not.toHaveBeenCalled();
   });
 
-  it('retry refreshes the token then resets both slices so the loads re-fire', async () => {
-    h.state.workspace.status = 'failed';
-    h.state.currentUser.status = 'succeeded';
+  // A partial retry leaves the other reads failed, so the alert never clears and the button
+  // looks dead.
+  it('retry refreshes the token then re-reads every bootstrap load', async () => {
+    h.session = { ...READY, sessionReady: false, sessionLoadedOnce: false, sessionFailed: true };
 
     await act(async () => {
-      render(<AppAccessGuard locale="en" workspacesEnabled={true}>child</AppAccessGuard>);
+      renderGuard();
     });
 
     await userEvent.click(screen.getByTestId('session-error-retry'));
 
     expect(h.refresh).toHaveBeenCalledTimes(1);
     expect(h.dispatch).toHaveBeenCalledWith(clearCurrentUser());
-    expect(h.dispatch).toHaveBeenCalledWith(clearWorkspaceState());
+    expect(h.refreshWorkspaces).toHaveBeenCalledTimes(1);
   });
 
   it('renders children once the session is ready', async () => {
-    h.state.workspace = {
-      workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
-      status: 'succeeded',
-      writableStatus: 'succeeded',
-      loadedOnce: true,
-      writableLoadedOnce: true,
-      activeWorkspaceId: 'ws1',
-      error: null,
-    };
-    h.state.currentUser = {
-      data: { capabilities: { canCreateWorkspace: true } },
-      status: 'succeeded',
-      loadedOnce: true,
-    };
-
     await act(async () => {
-      render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
+      renderGuard();
     });
 
     expect(screen.getByText('visible child')).toBeInTheDocument();
@@ -153,82 +130,30 @@ describe('AppAccessGuard', () => {
     expect(screen.queryByTestId('loading-indicator')).not.toBeInTheDocument();
   });
 
-  it('waits for the writable-workspaces load before rendering children', async () => {
-    h.state.workspace = {
-      workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
-      status: 'succeeded',
-      writableStatus: 'loading',
-      loadedOnce: true,
-      writableLoadedOnce: false,
-      activeWorkspaceId: 'ws1',
-      error: null,
-    };
-    h.state.currentUser = {
-      data: { capabilities: { canCreateWorkspace: true } },
-      status: 'succeeded',
-      loadedOnce: true,
-    };
+  it('redirects to onboarding and holds the route while it does', async () => {
+    h.session = { ...READY, needsOnboarding: true, hasWorkspaces: false };
 
     await act(async () => {
-      render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
+      renderGuard();
     });
 
-    expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
-    expect(screen.queryByText('visible child')).not.toBeInTheDocument();
-  });
-
-  // Every load that can set sessionFailed must also gate sessionLoadedOnce, or its failure is
-  // swallowed and the app renders degraded with no retry.
-  it('shows the error when only the writable-workspaces bootstrap fails', async () => {
-    h.state.workspace = {
-      workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
-      status: 'succeeded',
-      writableStatus: 'failed',
-      loadedOnce: true,
-      writableLoadedOnce: false,
-      activeWorkspaceId: 'ws1',
-      error: null,
-    };
-    h.state.currentUser = {
-      data: { capabilities: { canCreateWorkspace: true } },
-      status: 'succeeded',
-      loadedOnce: true,
-    };
-
-    await act(async () => {
-      render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
-    });
-
-    expect(screen.getByTestId('session-error-retry')).toBeInTheDocument();
+    expect(h.replace).toHaveBeenCalledWith('/en/onboarding');
     expect(screen.queryByText('visible child')).not.toBeInTheDocument();
   });
 
   // Swapping children for the spinner unmounts the route: a form being filled loses its answers.
   it('keeps children mounted when a background load runs after bootstrap', async () => {
-    h.state.workspace = {
-      workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
-      status: 'succeeded',
-      writableStatus: 'succeeded',
-      loadedOnce: true,
-      writableLoadedOnce: true,
-      activeWorkspaceId: 'ws1',
-      error: null,
-    };
-    h.state.currentUser = {
-      data: { capabilities: { canCreateWorkspace: true } },
-      status: 'succeeded',
-      loadedOnce: true,
-    };
-
-    const view = await act(async () => {
-      return render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
-    });
+    const view = await act(async () => renderGuard());
     expect(screen.getByText('visible child')).toBeInTheDocument();
 
     // A token rotation re-reads /me: ready drops, but the session never stopped being valid.
-    h.state.currentUser.status = 'loading';
+    h.session = { ...READY, sessionReady: false };
     await act(async () => {
-      view.rerender(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
+      view.rerender(
+        <AppAccessGuard locale="en" workspacesEnabled={true}>
+          visible child
+        </AppAccessGuard>,
+      );
     });
 
     expect(screen.getByText('visible child')).toBeInTheDocument();
@@ -236,31 +161,15 @@ describe('AppAccessGuard', () => {
   });
 
   it('keeps children mounted when a background load FAILS after bootstrap', async () => {
-    h.state.workspace = {
-      workspaces: [{ id: 'ws1', kind: 'personal', role: 'owner' }],
-      status: 'succeeded',
-      writableStatus: 'succeeded',
-      loadedOnce: true,
-      writableLoadedOnce: true,
-      activeWorkspaceId: 'ws1',
-      error: null,
-    };
-    h.state.currentUser = {
-      data: { capabilities: { canCreateWorkspace: true } },
-      status: 'succeeded',
-      loadedOnce: true,
-    };
+    const view = await act(async () => renderGuard());
 
-    const view = await act(async () => {
-      return render(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
-    });
-
-    // loadCurrentUser.rejected nulls `data` but leaves loadedOnce true — that is what keeps the
-    // route mounted rather than swapping it for the retry alert.
-    h.state.currentUser.status = 'failed';
-    h.state.currentUser.data = null;
+    h.session = { ...READY, sessionReady: false, sessionFailed: true };
     await act(async () => {
-      view.rerender(<AppAccessGuard locale="en" workspacesEnabled={true}>visible child</AppAccessGuard>);
+      view.rerender(
+        <AppAccessGuard locale="en" workspacesEnabled={true}>
+          visible child
+        </AppAccessGuard>,
+      );
     });
 
     expect(screen.getByText('visible child')).toBeInTheDocument();

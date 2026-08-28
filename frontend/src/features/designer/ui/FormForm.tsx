@@ -25,7 +25,7 @@ import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
 import { isWorkspaceManageRole } from '@/src/features/workspaces/workspaceRoles';
-import { useAppSelector } from '@/lib/store';
+import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 
 import {
@@ -47,9 +47,8 @@ function FormForm({ formId }: { formId?: string }) {
   const lang = params.lang as string;
 
   const { authenticated, token, initializing } = useKeycloak();
-  const { status: workspaceStatus, workspaces, writableWorkspaces } = useAppSelector(
-    (state) => state.workspace,
-  );
+  const { workspaces } = useWorkspaces();
+  const { workspaces: writableWorkspaces, loaded: writableLoaded } = useWritableWorkspaces();
   const { addNotification } = useNotificationStore();
   // A new form can only go to a workspace the user can create in whose disclaimer is accepted
   // (the backend rejects the rest), so those are the only ones ever offered.
@@ -322,7 +321,8 @@ function FormForm({ formId }: { formId?: string }) {
   // New-form mode requires a workspace to own the form. Once workspaces have loaded and none
   // qualifies, block designer access with a clear prompt instead of a save failure. Having the
   // permission but no accepted disclaimer is actionable, so it gets its own message.
-  if (!formId && workspaceStatus === 'succeeded' && creatableWorkspaces.length === 0) {
+  // The gate reads the writable list, which is where creatableWorkspaces comes from.
+  if (!formId && writableLoaded && creatableWorkspaces.length === 0) {
     const blocked = writableWorkspaces.length
       ? {
           variant: 'warning' as const,

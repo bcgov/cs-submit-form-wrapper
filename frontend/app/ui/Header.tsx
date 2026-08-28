@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useMemo } from 'react';
+import { useSWRConfig } from 'swr';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Dropdown } from 'react-bootstrap';
@@ -9,13 +10,14 @@ import { useAppDispatch } from '@/lib/store';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useCurrentUser } from '@/lib/useCurrentUser';
 import { clearCurrentUser, loadCurrentUser } from '@/lib/slices/currentUserSlice';
-import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
-import { useAppSelector } from '@/lib/store';
+import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { useDictionary } from '../[lang]/Providers';
 import { LoginButton } from './LoginButton';
 import { LanguageSelector, type LanguageOption } from './LanguageSelector';
 import type { PluginNavItem } from '@/src/types/plugins';
-import { WorkspaceModal } from '@/src/components/WorkspaceModal';
+import { WorkspaceModal, WORKSPACE_MODAL_DISMISSED_KEY } from '@/src/components/WorkspaceModal';
+import { forgetListQueries } from '@/src/shared/list/listQueryMemory';
+import { removeSessionValues } from '@/src/shared/storage/sessionStore';
 
 import styles from './Header.module.css';
 
@@ -34,18 +36,14 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   );
   const pathname = usePathname();
   const router = useRouter();
-  const { authenticated, idTokenParsed, token, logout, init, refresh } = useKeycloak();
+  const { authenticated, idTokenParsed, token, logout, init, refresh, initStarted, initializing } =
+    useKeycloak();
   const currentUser = useCurrentUser();
-  const {
-    workspaces,
-    status: workspaceStatus,
-    canceledDefaultModal,
-  } = useAppSelector((state) => state.workspace);
+  const { workspaces, loaded: workspacesLoaded } = useWorkspaces();
+  const { mutate } = useSWRConfig();
 
   const headerChromeRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
-
-  const { data: currentStateUser } = useAppSelector((state) => state.currentUser);
 
   useEffect(() => {
     init();
@@ -75,6 +73,17 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
         intervalRef.current = undefined;
       }
       dispatch(clearCurrentUser());
+      // Only once Keycloak has answered. Before that, "not authenticated" is the default on every
+      // fresh page load, and wiping there would discard this tab's state on every reload.
+      if (initStarted && !initializing) {
+        // The cache outlives the session. Signing in as someone else in the same tab would
+        // otherwise be served the previous user's workspaces until each key revalidated.
+        void mutate(() => true, undefined, { revalidate: false });
+        // Same reason: the next person signing in here has their own workspaces and their own view
+        // of the lists.
+        removeSessionValues((key) => key === WORKSPACE_MODAL_DISMISSED_KEY);
+        forgetListQueries();
+      }
       return;
     }
     // Keyed on load state, not on the token: a rotation mints a new token for the same user, and
@@ -88,19 +97,23 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
         refresh();
       }, 30000);
     }
-  }, [authenticated, token, currentUser.status, dispatch, refresh]);
-
-  useEffect(() => {
-    if (authenticated && token && workspaceStatus === 'idle') {
-      dispatch(loadWorkspaces(token));
-    }
-  }, [authenticated, token, workspaceStatus, dispatch]);
+  }, [
+    authenticated,
+    token,
+    currentUser.status,
+    dispatch,
+    refresh,
+    mutate,
+    initStarted,
+    initializing,
+  ]);
 
   const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces.length]);
-  const canCreateWorkspace = currentStateUser?.capabilities?.canCreateWorkspace === true;
+  const canCreateWorkspace = currentUser.data?.capabilities?.canCreateWorkspace === true;
 
   const handleLogout = () => {
     dispatch(clearCurrentUser());
+    void mutate(() => true, undefined, { revalidate: false });
     logout();
   };
 
@@ -204,7 +217,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
           </div>
         </div>
       </BCHeader>
-      {showWorkspaces && workspaceStatus === 'succeeded' && !hasWorkspaces && !canceledDefaultModal && (
+      {showWorkspaces && workspacesLoaded && !hasWorkspaces && (
         <WorkspaceModal canCreateWorkspace={canCreateWorkspace} />
       )}
     </div>

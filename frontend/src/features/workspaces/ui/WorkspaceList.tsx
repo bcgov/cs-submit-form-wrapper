@@ -11,7 +11,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
+import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
@@ -66,20 +66,10 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
 
   const locale = getLocaleFromPath(pathname);
 
-  const {
-    workspaces,
-    status: workspaceStatus,
-    error: workspaceError,
-  } = useAppSelector((state) => state.workspace);
+  const { workspaces, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces();
   const { data: currentUser, status: currentUserStatus } = useAppSelector(
     (state) => state.currentUser,
   );
-
-  useEffect(() => {
-    if (authenticated && token && workspaceStatus === 'idle') {
-      dispatch(loadWorkspaces(token));
-    }
-  }, [authenticated, token, workspaceStatus, dispatch]);
 
   useEffect(() => {
     if (authenticated && token && currentUserStatus === 'idle') {
@@ -178,7 +168,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
     [handleSelect, handleAction, dictWorkspaces, showFormsAction],
   );
 
-  const loading = workspaceStatus === 'loading' || workspaceStatus === 'idle';
+  const loading = workspacesLoading;
   const showCreateAction = currentUser?.capabilities?.canCreateWorkspace === true;
 
   if (!authenticated && !initializing) {
@@ -208,7 +198,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
         data={paginatedWorkspaces}
         columns={columns}
         loading={loading || initializing}
-        error={workspaceError}
+        error={workspacesError ? dictWorkspaces.loadError : null}
         emptyMessage={dictWorkspaces.empty}
         loadingMessage={dict.general.loading}
         itemName="items"

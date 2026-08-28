@@ -4,7 +4,7 @@ import type { WorkspaceItem } from '@/src/types/workspaces';
 type WorkspaceOnboardingInput = {
   authenticated: boolean;
   initializing: boolean;
-  workspaceStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  workspacesLoaded: boolean;
   currentUserStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   workspaces: WorkspaceItem[];
   currentUser: CurrentUserResponse | null;
@@ -14,13 +14,13 @@ type WorkspaceOnboardingInput = {
 export function needsWorkspaceOnboarding({
   authenticated,
   initializing,
-  workspaceStatus,
+  workspacesLoaded,
   currentUserStatus,
   workspaces,
   currentUser,
 }: WorkspaceOnboardingInput): boolean {
   if (!authenticated || initializing) return false;
-  if (workspaceStatus !== 'succeeded' || currentUserStatus !== 'succeeded') return false;
+  if (!workspacesLoaded || currentUserStatus !== 'succeeded') return false;
   if (workspaces.length > 0) return false;
   return currentUser?.capabilities?.canCreateWorkspace !== true;
 }

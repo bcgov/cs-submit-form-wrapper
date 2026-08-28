@@ -43,68 +43,65 @@ vi.mock('next/navigation', async () => {
   };
 });
 
-const mockDispatch = vi.fn();
-const mockUnwrap = vi.fn().mockResolvedValue('ws1');
-
-vi.mock('@/lib/store', () => ({
-  useAppDispatch: () => mockDispatch,
-  useAppSelector: (fn: (s: unknown) => unknown) =>
-    fn({
-      workspace: {
-        activeWorkspaceId: 'ws1',
-        status: 'succeeded',
-        error: null,
-        workspaces: [
-          {
-            id: 'ws1',
-            name: 'Personal Workspace',
-            kind: 'personal',
-            role: 'owner',
-            status: 'active',
-          },
-          {
-            id: 'ws2',
-            name: 'Team Workspace',
-            kind: 'enterprise',
-            role: 'member',
-            status: 'active',
-          },
-        ],
-      },
-      currentUser: {
-        data: {
-          actor: { id: 'user-1', displayLabel: 'User', status: 'active' },
-          profile: { displayName: 'User', email: null, preferredUsername: null },
-          preferences: { defaultWorkspaceId: 'ws1' },
-          capabilities: { canCreateWorkspace: true },
-        },
-        status: 'succeeded',
-      },
-    }),
+const fetchWorkspaces = vi.fn();
+const fetchCurrentUser = vi.fn();
+vi.mock('@/src/shared/api/sobaApi', () => ({
+  fetchWorkspaces: (...args: unknown[]) => fetchWorkspaces(...args),
+  fetchCurrentUser: (...args: unknown[]) => fetchCurrentUser(...args),
 }));
 
 vi.mock('@/lib/hooks/useNotificationStore', () => ({
   useNotificationStore: () => ({ addNotification: vi.fn() }),
 }));
 
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import WorkspaceList from '@/src/features/workspaces/ui/WorkspaceList';
+
+const WORKSPACES = [
+  { id: 'ws1', name: 'Personal Workspace', kind: 'personal', role: 'owner', status: 'active' },
+  { id: 'ws2', name: 'Team Workspace', kind: 'enterprise', role: 'member', status: 'active' },
+];
+
+let store: ReturnType<typeof makeStore>;
+
+function renderList(props: { showFormsAction?: boolean } = {}) {
+  return render(
+    <Provider store={store}>
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <WorkspaceList {...props} />
+      </SWRConfig>
+    </Provider>,
+  );
+}
 
 describe('WorkspaceList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDispatch.mockReturnValue({ unwrap: mockUnwrap });
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
+    fetchWorkspaces.mockResolvedValue({ items: WORKSPACES });
+    fetchCurrentUser.mockResolvedValue({
+      actor: { id: 'user-1', displayLabel: 'User', status: 'active' },
+      profile: { displayName: 'User', email: null, preferredUsername: null },
+      preferences: { defaultWorkspaceId: 'ws1' },
+      capabilities: { canCreateWorkspace: true },
+    });
   });
 
   it('renders the search input', async () => {
     await act(async () => {
-      render(<WorkspaceList />);
+      renderList();
     });
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
   });
 
   it('displays workspace rows with roles', async () => {
     await act(async () => {
-      render(<WorkspaceList />);
+      renderList();
     });
     expect(screen.getByText('Personal Workspace')).toBeInTheDocument();
     expect(screen.getByText('Team Workspace')).toBeInTheDocument();
@@ -116,7 +113,7 @@ describe('WorkspaceList', () => {
   // so the chosen workspace travels in the URL as the forms-list filter.
   it('navigates to forms when workspace name is clicked', async () => {
     await act(async () => {
-      render(<WorkspaceList />);
+      renderList();
     });
     await userEvent.click(screen.getByTestId('workspace-link-ws2'));
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?workspace=ws2'));
@@ -125,7 +122,7 @@ describe('WorkspaceList', () => {
   it('navigates to manage page on Manage action', async () => {
     let container: HTMLElement | null = null;
     await act(async () => {
-      const res = render(<WorkspaceList />);
+      const res = renderList();
       container = res.container;
     });
     expect(container!.querySelector('[data-testid="manage-ws2-button"]')).toBeNull();
@@ -140,7 +137,7 @@ describe('WorkspaceList', () => {
   it('navigates to forms on Forms action', async () => {
     let container: HTMLElement | null = null;
     await act(async () => {
-      const res = render(<WorkspaceList showFormsAction={true} />);
+      const res = renderList({ showFormsAction: true });
       container = res.container;
     });
     const btn = container!.querySelector(
@@ -153,7 +150,7 @@ describe('WorkspaceList', () => {
 
   it('search filters workspaces', async () => {
     await act(async () => {
-      render(<WorkspaceList />);
+      renderList();
     });
     const input = screen
       .getByTestId('search-workspaces-text')
@@ -165,7 +162,7 @@ describe('WorkspaceList', () => {
 
   it('navigates to create page on Create action', async () => {
     await act(async () => {
-      render(<WorkspaceList />);
+      renderList();
     });
     await userEvent.click(screen.getByTestId('create-workspace-button'));
     expect(mockPush).toHaveBeenCalledWith('/en/workspace');

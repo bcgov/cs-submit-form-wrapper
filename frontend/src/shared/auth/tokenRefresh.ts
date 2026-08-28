@@ -1,6 +1,6 @@
 /**
  * Keeps sobaFetch out of the slice graph: importing keycloakSlice would close a cycle
- * (sobaFetch → keycloakSlice → workspaceSlice → sobaApi). The app registers a refresher instead.
+ * (sobaFetch -> keycloakSlice -> sobaApi). The app registers a refresher instead.
  */
 
 /**

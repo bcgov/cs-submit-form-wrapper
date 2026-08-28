@@ -4,14 +4,21 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const mockPush = vi.fn();
-const { mockCreateWorkspace, mockUpdateWorkspace, mockSelectWorkspace, mockDispatch, mockUnwrap } =
-  vi.hoisted(() => ({
-    mockCreateWorkspace: vi.fn(),
-    mockUpdateWorkspace: vi.fn(),
-    mockSelectWorkspace: vi.fn(),
-    mockDispatch: vi.fn(),
-    mockUnwrap: vi.fn().mockResolvedValue({}),
-  }));
+const {
+  mockCreateWorkspace,
+  mockUpdateWorkspace,
+  mockSelectWorkspace,
+  mockDispatch,
+  mockUnwrap,
+  mockRefreshWorkspaces,
+} = vi.hoisted(() => ({
+  mockCreateWorkspace: vi.fn(),
+  mockUpdateWorkspace: vi.fn(),
+  mockSelectWorkspace: vi.fn(),
+  mockDispatch: vi.fn(),
+  mockUnwrap: vi.fn().mockResolvedValue({}),
+  mockRefreshWorkspaces: vi.fn().mockResolvedValue([]),
+}));
 
 vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => ({ authenticated: true, token: 'token', initializing: false }),
@@ -90,15 +97,9 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/en/workspace',
 }));
 
-// Stub the loaders so a dispatch can be attributed to one list or the other.
-vi.mock('@/lib/slices/workspaceSlice', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/slices/workspaceSlice')>();
-  return {
-    ...actual,
-    loadWorkspaces: () => ({ type: 'test/loadWorkspaces' }),
-    loadWritableWorkspaces: () => ({ type: 'test/loadWritableWorkspaces' }),
-  };
-});
+vi.mock('@/src/shared/api/useWorkspaces', () => ({
+  useRefreshWorkspaces: () => mockRefreshWorkspaces,
+}));
 
 vi.mock('@/lib/store', () => ({
   useAppDispatch: () => mockDispatch,
@@ -204,7 +205,7 @@ describe('WorkspaceForm', () => {
         useCase: 'testUseCase',
         org: 'testOrg',
       });
-      expect(mockDispatch).toHaveBeenCalled();
+      expect(mockRefreshWorkspaces).toHaveBeenCalled();
       expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
     });
   });
@@ -301,9 +302,7 @@ describe('WorkspaceForm', () => {
     });
   });
 
-  // The writable list carries the disclaimer flag that gates form creation. Refreshing only the
-  // full list leaves the designer offering a workspace whose disclaimer was just revoked.
-  it('refreshes both workspace lists after saving', async () => {
+  it('refreshes the workspace lists after saving', async () => {
     await act(async () => {
       render(<WorkspaceForm workspaceId="ws2" />);
     });
@@ -311,9 +310,6 @@ describe('WorkspaceForm', () => {
     await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({ type: 'test/loadWorkspaces' });
-      expect(mockDispatch).toHaveBeenCalledWith({ type: 'test/loadWritableWorkspaces' });
-    });
+    await waitFor(() => expect(mockRefreshWorkspaces).toHaveBeenCalled());
   });
 });

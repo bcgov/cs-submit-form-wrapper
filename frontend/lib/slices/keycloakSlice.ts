@@ -2,7 +2,6 @@ import Keycloak from 'keycloak-js';
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { AppDispatch } from '../store';
-import { clearWorkspaceState } from './workspaceSlice';
 import { loadFrontendRuntimeConfig } from '@/src/shared/config/runtimeConfig';
 import { disableFormioBrowserAuth } from '@/src/features/formio-v5/disableFormioBrowserAuth';
 import type { RefreshOutcome } from '@/src/shared/auth/tokenRefresh';
@@ -181,7 +180,6 @@ export const logout = () => (dispatch: AppDispatch) => {
   }
   kcInstance = null;
   disableFormioBrowserAuth();
-  dispatch(clearWorkspaceState());
   dispatch(clear());
 };
 
