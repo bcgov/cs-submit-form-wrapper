@@ -37,7 +37,9 @@ export default async function Page({ params }: PageProps) {
       heading={dict.general.formDesigner}
       width="wide"
     >
-      <FormDesignerLoader formId={formId} />
+      {/* Keyed so navigating between two forms remounts rather than carrying the previous form's
+          selected version and unsaved edits across. */}
+      <FormDesignerLoader key={formId} formId={formId} />
     </PageLayout>
   );
 }

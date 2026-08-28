@@ -108,6 +108,7 @@ function FormForm({ formId }: { formId?: string }) {
     form,
     versions,
     currentVersion,
+    activeVersion,
     isHistoryView,
     historicalVersionNo,
     selectedVersionId,
@@ -120,6 +121,7 @@ function FormForm({ formId }: { formId?: string }) {
     setName,
     setSchema,
     discardEdits,
+    commitSchema,
     selectVersion,
     refreshForm,
     refreshVersions,
@@ -157,7 +159,9 @@ function FormForm({ formId }: { formId?: string }) {
     try {
       // The engine strips engine-managed fields on save, so the raw schema can be submitted as-is.
       const newVersion = await createFormVersion(token as string, formId);
-      await saveFormVersionSchema(token as string, newVersion.id, (formSchema ?? {}) as FormType);
+      const newSchema = (formSchema ?? {}) as FormType;
+      await saveFormVersionSchema(token as string, newVersion.id, newSchema);
+      await commitSchema(newVersion.id, newSchema);
 
       // Refresh the version list and select the new draft in-page. The new version has the highest
       // versionNo, so it becomes the current one as soon as the list comes back.
@@ -224,9 +228,16 @@ function FormForm({ formId }: { formId?: string }) {
         await saveFormVersionSchema(token as string, currentVersion.id, schema);
         if (publish) {
           await publishSobaFormVersion(token as string, currentVersion.id);
+          // Publishing changes the version's state, which gates Save and the read-only notice.
+          await refreshVersions();
         }
-      } else {
+        await commitSchema(currentVersion.id, schema);
+      } else if (!formId) {
         await createAndProvisionForm(schema, publish);
+      } else {
+        // An existing form whose versions have not arrived. Creating here would file the edits
+        // under a second form.
+        return;
       }
 
       // The name is server-owned once saved, so re-read it rather than leaving the edit in place.
@@ -295,6 +306,9 @@ function FormForm({ formId }: { formId?: string }) {
     }
     return (
       <FormDesigner
+        // FormDesigner takes its model once at mount. Switching to a version already in the cache
+        // produces no loading frame, so without this the previous version stays on screen.
+        key={activeVersion?.id}
         onUpdateModel={setSchema}
         initialModel={formSchema}
         formName={formName}

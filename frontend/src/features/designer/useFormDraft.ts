@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import type { FormType } from '@formio/react';
 import {
   getFormVersionSchema,
@@ -10,6 +11,8 @@ import {
 import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
 import { sessionReadConfig } from '@/src/shared/api/swrConfig';
 import type { SobaFormVersionType } from '@/src/types/forms';
+
+const schemaKey = (versionId: string) => ['form-version-schema', versionId];
 
 /**
  * What the designer is editing: the form, its versions, the selected version's schema, and the
@@ -59,9 +62,22 @@ export function useFormDraft(formId?: string) {
     isLoading: schemaLoading,
     error: schemaError,
   } = useAuthedSWR(
-    activeVersion?.id ? ['form-version-schema', activeVersion.id] : null,
+    activeVersion?.id ? schemaKey(activeVersion.id) : null,
     (token) => getFormVersionSchema(token, activeVersion?.id as string),
     sessionReadConfig,
+  );
+
+  const { mutate: globalMutate } = useSWRConfig();
+
+  /**
+   * The schema just written to a version, as the new cached value. Without this a save drops back
+   * to the pre-save body: the read never revalidates, so the next save or new version would post
+   * the schema as it was before the edits.
+   */
+  const commitSchema = useCallback(
+    (versionId: string, next: FormType) =>
+      globalMutate(schemaKey(versionId), next, { revalidate: false }),
+    [globalMutate],
   );
 
   const [editedSchema, setEditedSchema] = useState<FormType | null>(null);
@@ -93,11 +109,14 @@ export function useFormDraft(formId?: string) {
     name: editedName ?? form?.name ?? '',
     description: form?.description ?? '',
     isDirty: editedSchema !== null || editedName !== null,
-    loading: schemaLoading,
+    // The draft is not assembled until the form and its versions have answered. A form whose
+    // versions are still loading has no schema key yet, so schemaLoading alone reports ready.
+    loading: !!formId && (form === undefined || versionsData === undefined || schemaLoading),
     error: formError ?? versionsError ?? schemaError ?? null,
     setName: setEditedName,
     setSchema: setEditedSchema,
     discardEdits,
+    commitSchema,
     selectVersion,
     refreshForm,
     refreshVersions,
