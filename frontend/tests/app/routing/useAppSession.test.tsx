@@ -30,7 +30,12 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 const WORKSPACES = [{ id: 'ws1', kind: 'personal', role: 'owner' }];
-const USER = { capabilities: { canCreateWorkspace: true } };
+const USER = {
+  actor: { id: 'user-1', displayLabel: 'User', status: 'active' },
+  profile: { displayName: 'User', email: null, preferredUsername: null },
+  preferences: { defaultWorkspaceId: null },
+  capabilities: { canCreateWorkspace: true },
+};
 
 function respond({ writableFails = false } = {}) {
   fetchWorkspaces.mockImplementation((_token: string, requiredPermission?: string) => {
@@ -88,7 +93,7 @@ describe('useAppSession', () => {
 
   it('needs onboarding with no workspaces and no way to create one', async () => {
     fetchWorkspaces.mockResolvedValue({ items: [] });
-    fetchCurrentUser.mockResolvedValue({ capabilities: { canCreateWorkspace: false } });
+    fetchCurrentUser.mockResolvedValue({ ...USER, capabilities: { canCreateWorkspace: false } });
     const { result } = renderHook(() => useAppSession(), { wrapper });
     await waitFor(() => expect(result.current.needsOnboarding).toBe(true));
   });

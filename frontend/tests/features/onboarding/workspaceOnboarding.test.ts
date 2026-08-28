@@ -5,7 +5,7 @@ const readyContext = {
   authenticated: true,
   initializing: false,
   workspacesLoaded: true,
-  currentUserStatus: 'succeeded' as const,
+  currentUserLoaded: true,
 };
 
 describe('workspaceOnboarding', () => {

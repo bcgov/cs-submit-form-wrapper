@@ -5,7 +5,7 @@ type WorkspaceOnboardingInput = {
   authenticated: boolean;
   initializing: boolean;
   workspacesLoaded: boolean;
-  currentUserStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  currentUserLoaded: boolean;
   workspaces: WorkspaceItem[];
   currentUser: CurrentUserResponse | null;
 };
@@ -15,12 +15,12 @@ export function needsWorkspaceOnboarding({
   authenticated,
   initializing,
   workspacesLoaded,
-  currentUserStatus,
+  currentUserLoaded,
   workspaces,
   currentUser,
 }: WorkspaceOnboardingInput): boolean {
   if (!authenticated || initializing) return false;
-  if (!workspacesLoaded || currentUserStatus !== 'succeeded') return false;
+  if (!workspacesLoaded || !currentUserLoaded) return false;
   if (workspaces.length > 0) return false;
   return currentUser?.capabilities?.canCreateWorkspace !== true;
 }

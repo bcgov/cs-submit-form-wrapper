@@ -6,10 +6,10 @@ import type { AppSessionSnapshot } from '@/src/app/routing/appRoutePolicy';
 
 // Mutable test doubles shared with the hoisted vi.mock factories below.
 const h = vi.hoisted(() => ({
-  dispatch: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
   refreshWorkspaces: vi.fn(),
+  refreshCurrentUser: vi.fn(),
   session: {} as AppSessionSnapshot,
 }));
 
@@ -17,12 +17,12 @@ vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => ({ refresh: h.refresh }),
 }));
 
-vi.mock('@/lib/store', () => ({
-  useAppDispatch: () => h.dispatch,
-}));
-
 vi.mock('@/src/shared/api/useWorkspaces', () => ({
   useRefreshWorkspaces: () => h.refreshWorkspaces,
+}));
+
+vi.mock('@/src/shared/api/useCurrentUser', () => ({
+  useRefreshCurrentUser: () => h.refreshCurrentUser,
 }));
 
 // The guard is the route policy; what feeds it is covered in useAppSession's own tests.
@@ -50,7 +50,6 @@ vi.mock('next/navigation', async () => {
 });
 
 import { AppAccessGuard } from '@/src/app/routing/AppAccessGuard';
-import { clearCurrentUser } from '@/lib/slices/currentUserSlice';
 
 const READY: AppSessionSnapshot = {
   authenticated: true,
@@ -77,6 +76,7 @@ describe('AppAccessGuard', () => {
     vi.clearAllMocks();
     h.refresh.mockResolvedValue(undefined);
     h.refreshWorkspaces.mockResolvedValue([]);
+    h.refreshCurrentUser.mockResolvedValue(undefined);
     h.session = { ...READY };
   });
 
@@ -116,8 +116,8 @@ describe('AppAccessGuard', () => {
     await userEvent.click(screen.getByTestId('session-error-retry'));
 
     expect(h.refresh).toHaveBeenCalledTimes(1);
-    expect(h.dispatch).toHaveBeenCalledWith(clearCurrentUser());
     expect(h.refreshWorkspaces).toHaveBeenCalledTimes(1);
+    expect(h.refreshCurrentUser).toHaveBeenCalledTimes(1);
   });
 
   it('renders children once the session is ready', async () => {

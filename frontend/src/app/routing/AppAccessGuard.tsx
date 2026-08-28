@@ -5,10 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Button, InlineAlert } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { useDictionary } from '@/app/[lang]/Providers';
-import { useAppDispatch } from '@/lib/store';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { clearCurrentUser } from '@/lib/slices/currentUserSlice';
 import { useRefreshWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { useRefreshCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { resolveRedirect } from './appRoutePolicy';
 import { useAppSession } from './useAppSession';
 
@@ -27,9 +26,9 @@ export function AppAccessGuard({
   const dict = useDictionary();
   const router = useRouter();
   const pathname = usePathname();
-  const dispatch = useAppDispatch();
   const { refresh } = useKeycloak();
   const refreshWorkspaces = useRefreshWorkspaces();
+  const refreshCurrentUser = useRefreshCurrentUser();
   const session = useAppSession();
 
   const redirectTarget = useMemo(() => {
@@ -51,9 +50,8 @@ export function AppAccessGuard({
     // clears auth, which redirects the user to sign in again. Every bootstrap read is then retried,
     // since a partial retry leaves the others failed and the alert on screen.
     await refresh();
-    dispatch(clearCurrentUser());
-    await refreshWorkspaces();
-  }, [refresh, dispatch, refreshWorkspaces]);
+    await Promise.all([refreshWorkspaces(), refreshCurrentUser()]);
+  }, [refresh, refreshWorkspaces, refreshCurrentUser]);
 
   // Same rule as the spinner below: once bootstrapped, a failed background reload must not replace
   // the route either — the retry lives on the next full load.

@@ -17,9 +17,8 @@ import { usePageHeading } from '@/src/components/PageHeader';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
-import { useAppDispatch, useAppSelector } from '@/lib/store';
 import { useRefreshWorkspaces } from '@/src/shared/api/useWorkspaces';
-import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
+import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { createWorkspace, selectWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
 import { isWorkspaceManageRole } from '../workspaceRoles';
@@ -38,12 +37,9 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
   const { authenticated, token, initializing } = useKeycloak();
-  const dispatch = useAppDispatch();
   const refreshWorkspaces = useRefreshWorkspaces();
   const { addNotification } = useNotificationStore();
-  const { data: currentUser, status: currentUserStatus } = useAppSelector(
-    (state) => state.currentUser,
-  );
+  const { data: currentUser, loaded: currentUserLoaded } = useCurrentUser();
 
   const [name, setName] = useState('');
   const [loadedName, setLoadedName] = useState('');
@@ -62,13 +58,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   }, [name, useCase, org]);
 
   useEffect(() => {
-    if (authenticated && token && currentUserStatus === 'idle') {
-      dispatch(loadCurrentUser(token));
-    }
-  }, [authenticated, token, currentUserStatus, dispatch]);
-
-  useEffect(() => {
-    if (!authenticated || initializing || currentUserStatus !== 'succeeded') {
+    if (!authenticated || initializing || !currentUserLoaded) {
       return;
     }
     if (isCreate && !currentUser?.capabilities?.canCreateWorkspace) {
@@ -81,7 +71,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   }, [
     isCreate,
     currentUser,
-    currentUserStatus,
+    currentUserLoaded,
     authenticated,
     initializing,
     addNotification,

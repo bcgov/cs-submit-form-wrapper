@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button as DSButton } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
@@ -10,9 +10,8 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
-import { useAppDispatch, useAppSelector } from '@/lib/store';
 import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
-import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
+import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
 import { isWorkspaceManageRole } from '../workspaceRoles';
@@ -55,7 +54,6 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
   const dict = useDictionary();
   const dictWorkspaces = dict.workspaces;
   const { authenticated, token, initializing } = useKeycloak();
-  const dispatch = useAppDispatch();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -67,15 +65,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
   const locale = getLocaleFromPath(pathname);
 
   const { workspaces, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces();
-  const { data: currentUser, status: currentUserStatus } = useAppSelector(
-    (state) => state.currentUser,
-  );
-
-  useEffect(() => {
-    if (authenticated && token && currentUserStatus === 'idle') {
-      dispatch(loadCurrentUser(token));
-    }
-  }, [authenticated, token, currentUserStatus, dispatch]);
+  const { data: currentUser } = useCurrentUser();
 
   const filteredWorkspaces = useMemo(() => {
     if (!searchQuery.trim()) return workspaces;

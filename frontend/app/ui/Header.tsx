@@ -6,10 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Dropdown } from 'react-bootstrap';
 import { Header as BCHeader } from '@bcgov/design-system-react-components';
 import { FaUser } from 'react-icons/fa6';
-import { useAppDispatch } from '@/lib/store';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { useCurrentUser } from '@/lib/useCurrentUser';
-import { clearCurrentUser, loadCurrentUser } from '@/lib/slices/currentUserSlice';
+import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { useDictionary } from '../[lang]/Providers';
 import { LoginButton } from './LoginButton';
@@ -28,7 +26,6 @@ type HeaderProps = {
 };
 
 function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
-  const dispatch = useAppDispatch();
   const dict = useDictionary();
   const locale = dict.locale === 'en' || dict.locale === 'fr' ? dict.locale : 'en';
   const languageOptions: LanguageOption[] = Object.entries(dict.header.languages).map(
@@ -72,7 +69,6 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
         clearInterval(intervalRef.current);
         intervalRef.current = undefined;
       }
-      dispatch(clearCurrentUser());
       // Only once Keycloak has answered. Before that, "not authenticated" is the default on every
       // fresh page load, and wiping there would discard this tab's state on every reload.
       if (initStarted && !initializing) {
@@ -86,33 +82,17 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
       }
       return;
     }
-    // Keyed on load state, not on the token: a rotation mints a new token for the same user, and
-    // re-reading /me for it flips the session out of 'ready' and unmounts whatever is on screen.
-    if (currentUser.status === 'idle') {
-      dispatch(loadCurrentUser(token));
-    }
-
     if (authenticated && !intervalRef.current) {
       intervalRef.current = setInterval(() => {
         refresh();
       }, 30000);
     }
-  }, [
-    authenticated,
-    token,
-    currentUser.status,
-    dispatch,
-    refresh,
-    mutate,
-    initStarted,
-    initializing,
-  ]);
+  }, [authenticated, token, refresh, mutate, initStarted, initializing]);
 
   const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces.length]);
   const canCreateWorkspace = currentUser.data?.capabilities?.canCreateWorkspace === true;
 
   const handleLogout = () => {
-    dispatch(clearCurrentUser());
     void mutate(() => true, undefined, { revalidate: false });
     logout();
   };
@@ -127,7 +107,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   };
 
   const authActions = () => {
-    // The slice is cleared on sign-out, so anything loaded belongs to the current session. Matching
+    // The cache is cleared on sign-out, so anything loaded belongs to the current session. Matching
     // on the token instead would blank the name every time the token rotates.
     const backendDisplayName = currentUser.displayName;
     const keycloakDisplayName =
@@ -140,7 +120,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
       displayName = backendDisplayName;
     } else if (currentUser.hasError) {
       displayName = keycloakDisplayName ?? 'Authenticated User';
-    } else if (currentUser.isLoaded) {
+    } else if (currentUser.loaded) {
       displayName = 'Authenticated User';
     } else {
       displayName = null;

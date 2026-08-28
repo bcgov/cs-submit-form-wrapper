@@ -1,35 +1,23 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
 import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { needsWorkspaceOnboarding } from '@/src/features/onboarding/workspaceOnboarding';
 import type { AppSessionSnapshot } from './appRoutePolicy';
 
 export function useAppSession(): AppSessionSnapshot {
-  const { authenticated, token, initializing, initStarted } = useKeycloak();
-  const dispatch = useAppDispatch();
+  const { authenticated, initializing, initStarted } = useKeycloak();
 
   const { workspaces, loaded: workspacesLoaded, error: workspacesError } = useWorkspaces();
   const { loaded: writableLoaded, error: writableError } = useWritableWorkspaces();
-  const {
-    data: currentUser,
-    status: currentUserStatus,
-    loadedOnce: currentUserLoadedOnce,
-  } = useAppSelector((state) => state.currentUser);
+  const { data: currentUser, loaded: currentUserLoaded, error: currentUserError } = useCurrentUser();
 
-  useEffect(() => {
-    if (authenticated && token && currentUserStatus === 'idle') {
-      dispatch(loadCurrentUser(token));
-    }
-  }, [authenticated, token, currentUserStatus, dispatch]);
-
-  // Survives a failed reload: SWR keeps the last data on error, and the slice keeps its own flag.
-  // Both only reset when the session ends, which is when the guard should stop rendering the route
-  // anyway. This is why the reads must not be keyed on the token - a rotation would clear them.
-  const loadedOnce = workspacesLoaded && writableLoaded && currentUserLoadedOnce;
+  // Survives a failed reload: SWR keeps the last data on error. It only resets when the session
+  // ends, which is when the guard should stop rendering the route anyway. This is why the reads
+  // must not be keyed on the token - a rotation would clear them.
+  const loadedOnce = workspacesLoaded && writableLoaded && currentUserLoaded;
 
   return useMemo(() => {
     // The same three loads throughout: one that can fail the session has to be waited for too.
@@ -39,17 +27,18 @@ export function useAppSession(): AppSessionSnapshot {
         !workspacesError &&
         writableLoaded &&
         !writableError &&
-        currentUserStatus === 'succeeded'
+        currentUserLoaded &&
+        !currentUserError
       : !initializing;
 
     const sessionFailed =
-      authenticated && (!!workspacesError || !!writableError || currentUserStatus === 'failed');
+      authenticated && (!!workspacesError || !!writableError || !!currentUserError);
 
     const needsOnboarding = needsWorkspaceOnboarding({
       authenticated,
       initializing,
       workspacesLoaded,
-      currentUserStatus,
+      currentUserLoaded,
       workspaces,
       currentUser,
     });
@@ -73,7 +62,8 @@ export function useAppSession(): AppSessionSnapshot {
     workspacesError,
     writableLoaded,
     writableError,
-    currentUserStatus,
+    currentUserLoaded,
+    currentUserError,
     loadedOnce,
     workspaces,
     currentUser,

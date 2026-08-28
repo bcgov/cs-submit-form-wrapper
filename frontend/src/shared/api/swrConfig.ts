@@ -15,3 +15,13 @@ export const swrConfig: SWRConfiguration = {
   shouldRetryOnError: (err: unknown) => !isSessionExpired(err),
   errorRetryCount: 2,
 };
+
+/**
+ * Bootstrap reads. The route policy reads these, so an ambient refetch answering with an empty list
+ * or an error would redirect a signed-in user mid-session. Re-read only through an explicit mutate.
+ */
+export const sessionReadConfig: SWRConfiguration = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  revalidateIfStale: false,
+};

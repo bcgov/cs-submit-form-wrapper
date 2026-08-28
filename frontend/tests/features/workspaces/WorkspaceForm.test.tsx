@@ -8,15 +8,11 @@ const {
   mockCreateWorkspace,
   mockUpdateWorkspace,
   mockSelectWorkspace,
-  mockDispatch,
-  mockUnwrap,
   mockRefreshWorkspaces,
 } = vi.hoisted(() => ({
   mockCreateWorkspace: vi.fn(),
   mockUpdateWorkspace: vi.fn(),
   mockSelectWorkspace: vi.fn(),
-  mockDispatch: vi.fn(),
-  mockUnwrap: vi.fn().mockResolvedValue({}),
   mockRefreshWorkspaces: vi.fn().mockResolvedValue([]),
 }));
 
@@ -101,22 +97,14 @@ vi.mock('@/src/shared/api/useWorkspaces', () => ({
   useRefreshWorkspaces: () => mockRefreshWorkspaces,
 }));
 
-vi.mock('@/lib/store', () => ({
-  useAppDispatch: () => mockDispatch,
-  useAppSelector: (fn: (s: unknown) => unknown) =>
-    fn({
-      currentUser: {
-        data: {
-          preferences: { defaultWorkspaceId: 'ws1' },
-          capabilities: { canCreateWorkspace: true },
-        },
-        status: 'succeeded',
-      },
-      workspace: {
-        status: 'succeeded',
-        workspaces: [{ id: 'ws1', role: 'owner' }],
-      },
-    }),
+vi.mock('@/src/shared/api/useCurrentUser', () => ({
+  useCurrentUser: () => ({
+    data: {
+      preferences: { defaultWorkspaceId: 'ws1' },
+      capabilities: { canCreateWorkspace: true },
+    },
+    loaded: true,
+  }),
 }));
 
 vi.mock('@/lib/hooks/useNotificationStore', () => ({
@@ -134,7 +122,6 @@ import WorkspaceForm from '@/src/features/workspaces/ui/WorkspaceForm';
 describe('WorkspaceForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDispatch.mockReturnValue({ unwrap: mockUnwrap });
     mockCreateWorkspace.mockResolvedValue({
       id: 'ws-new',
       name: 'New Team',
@@ -250,8 +237,6 @@ describe('WorkspaceForm', () => {
       });
       expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
     });
-    // Only updateDefaultWorkspace calls .unwrap(); loadWorkspaces does not.
-    expect(mockUnwrap).not.toHaveBeenCalled();
   });
 
   it('cancel navigates back without saving', async () => {
