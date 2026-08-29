@@ -1,21 +1,19 @@
 /*
  * The design system caps its header content at 1100px and centres it, so the branding drifts with
- * the viewport and lines up with nothing. Pin it left instead, then inset both ends to where the
- * page content starts and stops, so the header and the page share one pair of edges.
+ * the viewport and lines up with nothing. Move the gutters onto the container and pin it left.
+ *
+ * The gutters belong on the container, not on the logo link: padding there would enlarge the home
+ * link's hit area, and the skip links are absolutely positioned off the container's content box,
+ * so they would stop lining up with the logo.
  */
 .chrome :global(.bcds-header) {
-  justify-content: flex-start;
-  padding-left: var(--layout-padding-none);
+  padding-inline: var(--layout-padding-none);
 }
 
 /* Repeats the design system's own selector, which is otherwise an even specificity match. */
 .chrome :global(.bcds-header > .bcds-header--container) {
   max-width: none;
-}
-
-.chrome :global([data-testid='bcgov-header-logo']) {
-  flex: none;
-  padding-left: var(--layout-padding-medium);
+  padding-inline: var(--layout-padding-medium);
 }
 
 /* The acronym stands in for the title, which otherwise wraps to three lines on a phone. */
@@ -23,24 +21,25 @@
   display: none;
 }
 
-/* Clears the nav column and its divider, then takes the same insets .main takes at this width. */
 @media (min-width: 768px) {
-  .chrome :global(.bcds-header) {
-    padding-right: var(--app-page-inset);
-  }
-
-  .chrome :global([data-testid='bcgov-header-logo']) {
-    padding-left: calc(
-      var(--app-nav-width) + var(--layout-border-width-small) + var(--app-page-inset)
-    );
-  }
-
   .titleFull {
     display: inline;
   }
 
   .titleShort {
     display: none;
+  }
+}
+
+/*
+ * The header takes the page content's own edges: the branding clears the nav column and its
+ * divider, the controls stop where the content stops. Narrower than this the indent leaves too
+ * little room for the title, which wraps and pushes the controls off screen.
+ */
+@media (min-width: 1280px) {
+  .chrome :global(.bcds-header > .bcds-header--container) {
+    padding-left: var(--app-content-inset-start);
+    padding-right: var(--app-content-inset-end);
   }
 }
 
@@ -88,7 +87,7 @@
   height: 1.25rem;
   background: var(--app-border);
   border-radius: var(--layout-border-radius-medium);
-  opacity: 0.6;
+  opacity: var(--surface-opacity-60);
 }
 
 @media (min-width: 768px) {

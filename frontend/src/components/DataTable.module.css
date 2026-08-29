@@ -34,7 +34,6 @@
 }
 
 .headerRow {
-  background-color: var(--surface-color-background-light-blue);
   --bs-table-bg: var(--surface-color-background-light-blue);
 }
 
@@ -51,7 +50,7 @@
   --bs-table-bg: var(--app-hover);
 }
 
-/* Footer (pagination): darker grey, bordered to match the header. */
+/* Footer (pagination): bordered to match the header. */
 .pagination {
   background-color: var(--surface-color-background-light-blue);
   color: var(--app-text);

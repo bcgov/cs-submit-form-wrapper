@@ -23,15 +23,31 @@
   --app-page-inset: calc(var(--layout-margin-xxlarge) + var(--layout-padding-xlarge));
   /* Shorter than the sides: PageLayout's eyebrow row adds 32px above the heading. */
   --app-page-inset-top: var(--layout-margin-xxxlarge);
-  /* Width of the nav column. AppAside measures the real value and overrides this; until it does,
-     the collapsed width is the safer guess. */
-  --app-nav-width: 88px;
+  /* Width of the nav column. AppAside measures the real value and overrides this. The seed is the
+     English expanded width, the state the nav mounts in; other locales settle after measuring. */
+  --app-nav-width: 194px;
+  /* PageLayout's default content width. */
+  --app-page-max-width: 75rem;
+  /* The edges page content sits between. The header and footer take the same pair, so the three
+     line up. The end backs off further once the content stops short of the inset under its cap. */
+  --app-content-inset-start: calc(
+    var(--app-nav-width) + var(--layout-border-width-small) + var(--app-page-inset)
+  );
+  --app-content-inset-end: max(
+    var(--app-page-inset),
+    calc(100% - var(--app-content-inset-start) - var(--app-page-max-width))
+  );
+}
+
+/* The header is sticky, so anchor and focus scrolling has to clear it. */
+html {
+  scroll-padding-top: var(--app-header-height, 0px);
 }
 
 body {
   background: var(--app-bg);
   color: var(--app-text);
-  font-family: 'BC Sans', 'Noto Sans', Arial, Helvetica, sans-serif;
+  font-family: var(--typography-font-families-bc-sans), 'Noto Sans', Arial, Helvetica, sans-serif;
 }
 
 a {

@@ -39,7 +39,7 @@
   width: 4px;
 }
 :global(.builder-sidebar::-webkit-scrollbar-thumb) {
-  background: var(--theme-gray-60);
+  background: var(--theme-gray-50);
   border-radius: var(--layout-border-radius-medium);
 }
 

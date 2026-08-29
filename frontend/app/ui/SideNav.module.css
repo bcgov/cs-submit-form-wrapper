@@ -46,7 +46,8 @@
   min-height: 48px;
   border-left: none;
   border-color: var(--app-border);
-  border-radius: 0 var(--layout-border-radius-medium) var(--layout-border-radius-medium) 0;
+  border-radius: var(--layout-border-radius-none) var(--layout-border-radius-medium)
+    var(--layout-border-radius-medium) var(--layout-border-radius-none);
   color: var(--typography-color-secondary);
   box-shadow: var(--surface-shadow-none);
 }

@@ -5,5 +5,5 @@
  * the button's `font` shorthand (which carries its own weight).
  */
 .main :global(.bcds-react-aria-Button) {
-  font-weight: 700 !important;
+  font-weight: var(--typography-font-weights-bold) !important;
 }
