@@ -22,7 +22,7 @@ interface FormSubmissionTabProps {
   dict: Dictionary;
 }
 
-export default function FormSubmissionTab({ dict }: FormSubmissionTabProps) {
+export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabProps>) {
   const { submissions, loading } = useAppSelector((state) => state.form);
   const dispatch = useAppDispatch();
   const [pageSize, setPageSize] = useState(10);

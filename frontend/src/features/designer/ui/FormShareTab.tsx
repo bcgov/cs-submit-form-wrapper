@@ -12,7 +12,7 @@ interface FormShareTabProps {
   dict: Dictionary;
 }
 
-export default function FormShareTab({ dict }: FormShareTabProps) {
+export default function FormShareTab({ dict }: Readonly<FormShareTabProps>) {
   const { formId, formName, formDesc, formWorkspaceId } = useAppSelector((state) => state.form);
   const { workspaces } = useAppSelector((state) => state.workspace);
   const pathname = usePathname();

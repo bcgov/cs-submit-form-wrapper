@@ -24,13 +24,28 @@ function stateToColour(state: string): TagColor {
   return 'grey';
 }
 
-export default function FormHistoryTab({ dict, onNavigateToDesigner }: FormHistoryTabProps) {
+export default function FormHistoryTab({
+  dict,
+  onNavigateToDesigner,
+}: Readonly<FormHistoryTabProps>) {
   const { versions, formId, loading } = useAppSelector((state) => state.form);
   const dispatch = useAppDispatch();
   const { token } = useKeycloak();
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const formatLongDate = useFormatLongDate();
+
+  const newVersionFromCallback = useCallback((version: SobaFormVersionType) => {
+    if (!token || !formId) return;
+    dispatch(loadVersionSchemaThunk({ token, version })).then((actionResult) => {
+      const payload = actionResult.payload as { schema: FormType | null };
+      if (payload?.schema) {
+        dispatch(createNewVersionThunk({ token, formId, formSchema: payload.schema })).then(() => {
+          if (onNavigateToDesigner) onNavigateToDesigner();
+        });
+      }
+    });
+  }, []);
 
   const columns: Column<SobaFormVersionType>[] = useMemo(
     () => [
@@ -78,17 +93,7 @@ export default function FormHistoryTab({ dict, onNavigateToDesigner }: FormHisto
             <Link
               className="bcds-react-aria-Link medium false me-2"
               onPress={() => {
-                if (!token || !formId) return;
-                dispatch(loadVersionSchemaThunk({ token, version })).then((actionResult) => {
-                  const payload = actionResult.payload as { schema: FormType | null };
-                  if (payload?.schema) {
-                    dispatch(
-                      createNewVersionThunk({ token, formId, formSchema: payload.schema }),
-                    ).then(() => {
-                      if (onNavigateToDesigner) onNavigateToDesigner();
-                    });
-                  }
-                });
+                newVersionFromCallback(version);
               }}
             >
               New Version From
@@ -106,24 +111,22 @@ export default function FormHistoryTab({ dict, onNavigateToDesigner }: FormHisto
   }, []);
 
   return (
-    <>
-      <DataTable<SobaFormVersionType>
-        data={versions}
-        columns={columns}
-        loading={loading}
-        error=""
-        emptyMessage="No forms found matching your criteria."
-        loadingMessage={dict.general.loading}
-        itemName="items"
-        caption={dict.general.forms}
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalItems={columns.length}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={handlePageSizeChange}
-        pageSizeOptions={[5, 10, 25, 50]}
-        keyExtractor={(version) => version.id}
-      />
-    </>
+    <DataTable<SobaFormVersionType>
+      data={versions}
+      columns={columns}
+      loading={loading}
+      error=""
+      emptyMessage="No forms found matching your criteria."
+      loadingMessage={dict.general.loading}
+      itemName="items"
+      caption={dict.general.forms}
+      pageSize={pageSize}
+      currentPage={currentPage}
+      totalItems={columns.length}
+      onPageChange={setCurrentPage}
+      onPageSizeChange={handlePageSizeChange}
+      pageSizeOptions={[5, 10, 25, 50]}
+      keyExtractor={(version) => version.id}
+    />
   );
 }
