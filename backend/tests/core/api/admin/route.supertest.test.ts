@@ -80,16 +80,11 @@ describe('adminRouter feature-scope routes', () => {
     expect(listFeatureScopesMock).not.toHaveBeenCalled();
   });
 
-  it('validates list query limit bounds', async () => {
-    const res = await request(createAdminApp(true)).get('/feature-scopes?limit=201');
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe('Invalid request query');
-    expect(listFeatureScopesMock).not.toHaveBeenCalled();
-  });
-
-  it('validates list query enums', async () => {
-    const res = await request(createAdminApp(true)).get('/feature-scopes?scopeType=group');
+  it.each([
+    ['limit bounds', '/feature-scopes?limit=201'],
+    ['enums', '/feature-scopes?scopeType=group'],
+  ])('validates list query %s', async (_scenario, url) => {
+    const res = await request(createAdminApp(true)).get(url);
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Invalid request query');
