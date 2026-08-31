@@ -55,8 +55,6 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
       let msg = e instanceof Error ? e.message : dict.submission.deleteFailure;
       if (e === dict.submission.deleteFailure && typeof e === 'string') {
         msg = e;
-      } else if (e === null && (e as unknown)?.message) {
-        msg = (e as unknown).message;
       }
       addNotification({ text: msg, type: 'error' });
     }
