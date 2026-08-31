@@ -11,13 +11,24 @@ it.
 `SubmissionList` is the smallest example:
 
 ```tsx
+const listQuery = useListQuery(SUBMISSIONS_LIST_QUERY);
+
 const {
   data,
   isLoading,
   error: loadError,
 } = useAuthedSWR(
-  formId ? ['submissions', formId] : null,
-  (token) => getSobaSubmissions(token, { formId: formId as string }),
+  formId
+    ? ['submissions', formId, listQuery.offset, listQuery.pageSize, listQuery.sort, listQuery.q]
+    : null,
+  (token) =>
+    getSobaSubmissions(token, {
+      offset: listQuery.offset,
+      limit: listQuery.pageSize,
+      sort: listQuery.sort,
+      q: listQuery.q,
+      formId: formId as string,
+    }),
 );
 
 const submissions: SubmissionListItem[] = useMemo(
@@ -31,6 +42,9 @@ Three things to copy:
 Return `null` for the key when the request is not ready. That replaces the old
 `if (authenticated && token)` guard. Here there is no request to make without a form,
 because the endpoint rejects an unscoped list.
+
+Everything that changes the rows is in the key. A page, sort or search change is a
+different request, not a different slice of one.
 
 Take the token as a fetcher argument. Never put it in the key. See below.
 
@@ -82,12 +96,16 @@ requests.
 export function useWorkspaces() {
   const { data, isLoading, error, mutate } = useAuthedSWR<WorkspaceItem[]>(
     WORKSPACES_KEY,
-    async (token) => toItems((await fetchWorkspaces(token)).items),
+    async (token) => toItems((await fetchWorkspaces(token, PICKER_QUERY)).items),
     sessionReadConfig,
   );
   return { workspaces: data ?? EMPTY, loaded: data !== undefined, isLoading, error, mutate };
 }
 ```
+
+A picker is not a list. It asks for one page at the endpoint's cap, because a permission gate
+reading page one would be wrong rather than merely short, and a user with more than the cap sees a
+truncated picker.
 
 Existing hooks, in `src/shared/api/`:
 
@@ -158,10 +176,34 @@ spinner unmounts the route, and a form being filled loses its answers.
 `authenticated` is `false` by default, and acting on it sends a deep link to the landing
 page and drops its query string.
 
-## List filters in the URL
+## List queries in the URL
 
-The forms list keeps its workspace filter in `?workspace=<id>`. If you add a filter to a
-list, follow the same shape.
+Search, filters, sort, page and page size are resolved by the server and carried in the
+URL. `useListQuery(spec)` owns that: it reads them, validates them, and returns the
+`offset`, `limit`, `sort` and `q` a list request takes, plus the setters a screen wires to
+the table. A screen holds no list state of its own.
+
+The spec in `src/shared/list/listQueryMemory.ts` declares what a list owns: its filters,
+the sort tokens its endpoint accepts, and the default sort. A list that gains a filter
+declares it there and nothing else changes.
+
+Two values are checked before they can reach a request. A sort the endpoint does not
+declare falls back to the list default. A page size outside the offered options falls back
+to the default, because the API rejects one it does not allow and the table would be left
+empty with no way back.
+
+The page resets whenever the rows underneath it change: a new filter, sort or search term.
+Page 4 of one query is not page 4 of another.
+
+`q` reaches the URL after the user stops typing, or immediately via `commitSearch` when the user
+presses Enter or the Search button. Keying on every keystroke is a request per character. The term
+is trimmed on the way out: the API trims and then rejects an empty one, so a whitespace-only term
+is a cleared search, not a search for a space.
+
+Paged reads pass `listReadConfig`. SWR drops `data` when the key changes, and the table draws its
+paging controls from the total in that data, so without it the footer unmounts mid-request and
+takes the keyboard focus with it. `isLoading` still reports the in-flight page, so screens read
+progress from it as usual.
 
 Resolve an id from the URL before it reaches a request. It can name something the user
 cannot see:
@@ -181,11 +223,10 @@ navigation re-runs the page's server component, which re-reads the features and 
 metadata for what is only a client-side change. Next keeps `useSearchParams` in sync with
 `replaceState`.
 
-`src/shared/list/listQueryMemory.ts` remembers a list's query per tab, so leaving and
-coming back returns it as the user left it. Declare the params your list owns in a
-`ListQuerySpec`. Links from inside the app carry `?from=nav` (use `navLink()`); a URL
-without it is a bookmark or someone else's link and means the unfiltered list. A URL that
-names a scope counts as a choice wherever it came from. A bare one does not touch the
+`listQueryMemory` also remembers a list's query per tab, so leaving and coming back returns
+it as the user left it. Links from inside the app carry `?from=nav` (use `navLink()`); a
+URL without it is a bookmark or someone else's link and means the unfiltered list. A URL
+that names a query counts as a choice wherever it came from. A bare one does not touch the
 memory.
 
 ## Screens with their own loading
@@ -230,11 +271,6 @@ prerendered: the segment has no `generateStaticParams`, and the layout awaits tw
 `no-store` fetches. Adding either would turn the client-side-rendering bailout into a build
 failure on every list page.
 
-Search, page size, page and sort are still resolved client-side over a capped fetch and are
-not in the URL. They move when the list endpoints can answer them: offset paging with a
-total, per-resource sort options, and search on the endpoints that lack it.
-
-How much of a screen changes then depends on where its key and fetcher live. Put them in a
-resource hook, as `useWorkspaces` and `useFormDraft` do, and the screen does not move at
-all. `FormList` and `SubmissionList` still call `useAuthedSWR` inline, so those two will be
-edited directly.
+Pickers are not lists. `useWorkspaces` asks for a single page at the endpoint's cap because
+a permission gate reading page one would be wrong, not just short. A user in more
+workspaces than that cap sees a truncated picker.
