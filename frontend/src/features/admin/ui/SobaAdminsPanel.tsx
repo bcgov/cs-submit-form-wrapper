@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Form, TextField } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageToolbar } from '@/src/components/ListPageLayout';
-import { MutedHint } from '@/src/components/MutedHint';
 import { RowActionButton } from '@/src/components/RowActionButton';
+import { SecondaryText } from '@/src/components/SecondaryText';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
@@ -118,7 +118,7 @@ export function SobaAdminsPanel() {
         render: (admin) => (
           <span className="d-inline-flex flex-column">
             <span>{admin.displayLabel ?? dictAdmin.admins.unknownUser}</span>
-            <MutedHint>{admin.userId}</MutedHint>
+            <SecondaryText>{admin.userId}</SecondaryText>
           </span>
         ),
       },
@@ -137,7 +137,7 @@ export function SobaAdminsPanel() {
         label: dictAdmin.admins.columns.actions,
         render: (admin) =>
           admin.source === SOURCE_IDP ? (
-            <MutedHint>{dictAdmin.admins.idpManaged}</MutedHint>
+            <SecondaryText>{dictAdmin.admins.idpManaged}</SecondaryText>
           ) : (
             <RowActionButton
               data-testid={`remove-admin-${admin.userId}`}

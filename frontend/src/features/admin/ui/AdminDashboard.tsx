@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Tab, Tabs } from 'react-bootstrap';
+import { Heading } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
-import { ListPageAuthGate, ListPageLayout } from '@/src/components/ListPageLayout';
+import { ListPageAuthGate } from '@/src/components/ListPageLayout';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useIsSobaAdmin } from '../useIsSobaAdmin';
@@ -44,8 +44,10 @@ export function AdminDashboard({
   }
 
   return (
-    <ListPageLayout>
-      <DsPageHeading id="admin-heading">{dictAdmin.heading}</DsPageHeading>
+    <div>
+      <Heading level={1} id="admin-heading">
+        {dictAdmin.heading}
+      </Heading>
       <Tabs
         activeKey={activeTab}
         onSelect={(key) => setActiveTab(key ?? 'admins')}
@@ -66,7 +68,7 @@ export function AdminDashboard({
           </Tab>
         ) : null}
       </Tabs>
-    </ListPageLayout>
+    </div>
   );
 }
 

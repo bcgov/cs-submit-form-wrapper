@@ -5,8 +5,8 @@ import { Button, InlineAlert, Switch } from '@bcgov/design-system-react-componen
 import { usePathname, useRouter } from 'next/navigation';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageToolbar } from '@/src/components/ListPageLayout';
-import { MutedHint } from '@/src/components/MutedHint';
 import { RowActionButton } from '@/src/components/RowActionButton';
+import { SecondaryText } from '@/src/components/SecondaryText';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
@@ -141,7 +141,7 @@ export function FeatureScopeListPanel({
         render: (featureScope) => (
           <span className="d-inline-flex flex-column">
             <span>{featureScope.featureCode}</span>
-            <MutedHint>{featureScope.id}</MutedHint>
+            <SecondaryText>{featureScope.id}</SecondaryText>
           </span>
         ),
       },
@@ -153,7 +153,7 @@ export function FeatureScopeListPanel({
       {
         key: 'scopeId',
         label: dictScopes.columns.scopeId,
-        render: (featureScope) => <MutedHint>{featureScope.scopeId}</MutedHint>,
+        render: (featureScope) => <SecondaryText>{featureScope.scopeId}</SecondaryText>,
       },
       {
         key: 'status',

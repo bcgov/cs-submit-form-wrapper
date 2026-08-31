@@ -5,13 +5,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Button,
   Form,
+  Heading,
   InlineAlert,
   Select,
   TextField,
 } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
-import { ListPageAuthGate, ListPageLayout } from '@/src/components/ListPageLayout';
+import { ListPageAuthGate } from '@/src/components/ListPageLayout';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
@@ -134,8 +134,10 @@ export function FeatureScopePanel({
   const heading = isEdit ? dictScopes.manageHeading : dictScopes.createHeading;
 
   return (
-    <ListPageLayout>
-      <DsPageHeading id="feature-scope-form-heading">{heading}</DsPageHeading>
+    <div>
+      <Heading level={1} id="feature-scope-form-heading">
+        {heading}
+      </Heading>
       <p className={styles.panelIntro}>{dictScopes.intro}</p>
       {formUnavailable ? (
         <InlineAlert
@@ -229,7 +231,7 @@ export function FeatureScopePanel({
           </div>
         </Form>
       )}
-    </ListPageLayout>
+    </div>
   );
 }
 

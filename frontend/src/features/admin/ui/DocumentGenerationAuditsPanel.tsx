@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Button, Form, TextField } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
-import { MutedHint } from '@/src/components/MutedHint';
+import { SecondaryText } from '@/src/components/SecondaryText';
 import { StatusTag } from '@/src/components/StatusTag';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
@@ -61,7 +61,6 @@ export function DocumentGenerationAuditsPanel() {
         label: dictAudits.columns.outcome,
         render: (audit) => (
           <StatusTag
-            id={`${audit.id}-outcome`}
             label={audit.outcome}
             variant={audit.outcome === 'success' ? 'success' : 'neutral'}
             data-testid={`audit-outcome-${audit.id}`}
@@ -82,14 +81,16 @@ export function DocumentGenerationAuditsPanel() {
         render: (audit) => (
           <span className="d-inline-flex flex-column">
             <span>{audit.errorDetail ?? '—'}</span>
-            {audit.httpStatus !== null ? <MutedHint>HTTP {audit.httpStatus}</MutedHint> : null}
+            {audit.httpStatus !== null ? (
+              <SecondaryText>HTTP {audit.httpStatus}</SecondaryText>
+            ) : null}
           </span>
         ),
       },
       {
         key: 'submissionId',
         label: dictAudits.columns.submission,
-        render: (audit) => <MutedHint>{audit.submissionId}</MutedHint>,
+        render: (audit) => <SecondaryText>{audit.submissionId}</SecondaryText>,
       },
     ],
     [dictAudits.columns, dict.locale],
@@ -140,7 +141,7 @@ export function DocumentGenerationAuditsPanel() {
           keyExtractor={(audit) => audit.id}
         />
       ) : (
-        <MutedHint>{dictAudits.prompt}</MutedHint>
+        <SecondaryText>{dictAudits.prompt}</SecondaryText>
       )}
     </div>
   );
