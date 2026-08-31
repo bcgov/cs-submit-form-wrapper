@@ -36,14 +36,12 @@ describe('offsetQueryFields', () => {
     expect(schema.safeParse({ limit: 101 }).success).toBe(false);
   });
 
-  // Past the cap the caller is scanning, and the count behind it scans too.
   it('rejects an offset past the cap', () => {
     expect(schema.safeParse({ offset: MAX_LIST_OFFSET }).success).toBe(true);
     expect(schema.safeParse({ offset: MAX_LIST_OFFSET + 1 }).success).toBe(false);
   });
 });
 
-// Answering a cursor request with page one looks like success and silently restarts a paging loop.
 describe('rejectedCursorField', () => {
   const schema = z.object({ cursor: rejectedCursorField });
 

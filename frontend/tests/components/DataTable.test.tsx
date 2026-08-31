@@ -100,8 +100,6 @@ describe('DataTable', () => {
     expect(screen.getByText(/61 - 70/)).toBeInTheDocument();
   });
 
-  // A page past the end reads as an empty table whose footer contradicts it, and the page menu
-  // renders blank because the number is not one of its options.
   it('clamps a page past the end and tells the caller', () => {
     const onPageChange = vi.fn();
     render(

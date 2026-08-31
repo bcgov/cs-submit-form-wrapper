@@ -12,9 +12,8 @@ interface SortableColumn {
   /** Rows with no value sort last in both directions. */
   nullable?: boolean;
   /**
-   * Order by the folded value, so "Budget" and "budget" sort together. Search is `ilike`, so a
-   * case-sensitive sort would separate rows the same search returns. An index for such a sort has
-   * to be on `lower(column)`.
+   * Order by the folded value, so "Budget" and "budget" sort together as the `ilike` search returns
+   * them. An index for such a sort has to be on `lower(column)`.
    */
   caseInsensitive?: boolean;
 }

@@ -27,10 +27,9 @@ export const sessionReadConfig: SWRConfiguration = {
 };
 
 /**
- * Paged list reads. A page change is a new key, and SWR drops `data` on a key change: the table
- * would lose the total it draws its paging controls from, unmounting the button under the cursor
- * and dropping keyboard focus to the document. Keeping the previous page holds them in place, and
- * `isLoading` still reports the in-flight page, so screens read progress from it as usual.
+ * Paged list reads. SWR drops `data` on a key change, and the table draws its paging controls from
+ * the total in that data, so without this the footer unmounts mid-request and takes keyboard focus
+ * with it.
  */
 export const listReadConfig: SWRConfiguration = {
   keepPreviousData: true,

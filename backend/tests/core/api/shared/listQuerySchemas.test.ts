@@ -152,7 +152,6 @@ describe.each([
     expectParseFailure(schema, { ...anchor, limit: 101 });
   });
 
-  // Answering a cursor request with page one looks like success and restarts a caller's paging loop.
   it('rejects a leftover cursor', () => {
     expectParseFailure(schema, { ...anchor, cursor: 'eyJtIjoiaWQifQ' });
     expectParseFailure(schema, { ...anchor, cursor: '' });

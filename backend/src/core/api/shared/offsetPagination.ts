@@ -25,9 +25,9 @@ export const offsetQueryFields = {
 };
 
 /**
- * These endpoints paged by cursor before. Answering a cursor request with page one would look like
- * success and silently restart a caller's paging loop. Declared as a string rather than `never` so
- * the generated document still has a type for it.
+ * Answering a cursor request with page one would look like success and silently restart a caller's
+ * paging loop. Typed as a string because `never` has no OpenAPI representation and breaks the
+ * generated document.
  */
 export const rejectedCursorField = z
   .string()

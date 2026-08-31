@@ -56,7 +56,6 @@ export function useWorkspaceList(query: ListQueryArgs) {
       const response = await fetchWorkspaces(token, query);
       return { items: toItems(response.items), page: response.page ?? EMPTY_LIST_PAGE };
     },
-    // The total outlives the request, so the paging controls stay mounted and keep keyboard focus.
     listReadConfig,
   );
   return {
