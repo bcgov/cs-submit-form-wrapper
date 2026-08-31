@@ -41,6 +41,7 @@ import {
   setFormSchema,
   setSelectedVersionId,
   setFormWorkspaceId,
+  clearFormState,
 } from '@/lib/slices/formSlice';
 
 function FormForm({ formId }: { formId?: string }) {
@@ -108,6 +109,12 @@ function FormForm({ formId }: { formId?: string }) {
       dispatch(loadForm({ token: token as string, formId }));
     }
   }, [formId, token, dispatch]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearFormState());
+    };
+  }, [dispatch]);
 
   useEffect(() => {
     if (error) {

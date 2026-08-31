@@ -29,6 +29,7 @@ export {
   saveFormVersionSchema,
   getFormVersionSchema,
   updateSobaForm,
+  deleteSobaSubmission,
 } from './sobaApiDesign';
 // Submit-mode (public-capable, /submit/*)
 export {

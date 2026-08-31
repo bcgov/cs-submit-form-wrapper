@@ -178,3 +178,7 @@ export async function getFormVersionSchema(token: string, id: string): Promise<F
   if (response.status === 404) return null;
   return parseJson(response);
 }
+
+export async function deleteSobaSubmission(token: string, id: string): Promise<void> {
+  await sobaFetch(`/design/submissions/${id}`, { token, method: 'DELETE' });
+}

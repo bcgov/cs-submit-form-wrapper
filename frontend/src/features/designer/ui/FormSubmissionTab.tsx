@@ -12,6 +12,7 @@ import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { Tag } from '@/src/components/Tag';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
+import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { deleteFormSubmissionThunk } from '@/lib/slices/formSlice';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import {
@@ -35,16 +36,23 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [deleteId, setDeleteId] = useState<string>('');
+  const { addNotification } = useNotificationStore();
 
   const deletePress = useCallback((submissionId: string) => {
     setShowDeleteConfirm(true);
     setDeleteId(submissionId);
   }, []);
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     setShowDeleteConfirm(false);
-    dispatch(deleteFormSubmissionThunk({ token, submissionId: deleteId }));
-  }, [token, deleteId, dispatch]);
+    try {
+      await dispatch(deleteFormSubmissionThunk({ token, submissionId: deleteId })).unwrap();
+      addNotification({ text: dict.submission.deleteSuccess || 'Submission deleted successfully', type: 'success' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : (e as any)?.message || 'Failed to delete submission';
+      addNotification({ text: msg, type: 'error' });
+    }
+  }, [token, deleteId, dispatch, addNotification, dict]);
 
   const columns: Column<SubmissionListItem>[] = useMemo(
     () => [

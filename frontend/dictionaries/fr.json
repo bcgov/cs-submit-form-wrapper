@@ -220,6 +220,7 @@
     "view": "Voir",
     "actions": "Actions",
     "emptyList": "Aucune soumission",
+    "deleteSuccess": "Soumission supprimée avec succès",
     "columns": {
       "id": "ID de Soumission",
       "formName": "Nom du Formulaire",

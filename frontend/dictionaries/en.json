@@ -219,6 +219,7 @@
     "view": "View",
     "actions": "Actions",
     "emptyList": "No submissions",
+    "deleteSuccess": "Submission deleted successfully",
     "columns": {
       "id": "Submission ID",
       "formName": "Form Name",

@@ -10,7 +10,7 @@ import {
   createSobaFormioForm,
   updateSobaForm,
   getSobaSubmissions,
-  deleteSubmitSubmission,
+  deleteSobaSubmission,
 } from '@/src/shared/api/sobaApi';
 import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
 import type { SubmissionListItem } from '@/src/types/submissions';
@@ -64,7 +64,7 @@ export const loadForm = createAsyncThunk(
       const [form, versionsData, submissionsData] = await Promise.all([
         getSobaForm(token, formId),
         getSobaFormVersions(token, formId),
-        getSobaSubmissions(token, { formId }),
+        getSobaSubmissions(token, { formId }).catch(() => ({ items: [] })),
       ]);
 
       const items = versionsData.items || [];
@@ -115,7 +115,7 @@ export const deleteFormSubmissionThunk = createAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      await deleteSubmitSubmission(token, submissionId);
+      await deleteSobaSubmission(token as string, submissionId);
       return { submissionId };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to delete submission';
