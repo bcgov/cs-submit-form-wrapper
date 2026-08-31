@@ -7,6 +7,7 @@ import type { Dictionary } from '@/src/types/plugins';
 import { useAppSelector } from '@/lib/store';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
+import { getSubmitAppBaseUrl } from '@/src/shared/config/runtimeConfig';
 
 interface FormShareTabProps {
   dict: Dictionary;
@@ -25,8 +26,8 @@ export default function FormShareTab({ dict }: Readonly<FormShareTabProps>) {
   }, [workspaces, formWorkspaceId]);
 
   const link = useMemo(() => {
-    return `${window.location.origin}/${locale}/form/${formId}`;
-  }, [locale, formId]);
+    return `${getSubmitAppBaseUrl()}/${locale}/form/${formId}`;
+  }, [locale, formId, getSubmitAppBaseUrl]);
 
   const copyToClipboard = useCallback(() => {
     addNotification({ text: dict.form.copiedNotification, type: 'success' });

@@ -79,6 +79,9 @@ export const FrontendConfigMetaResponseSchema = z
     api: z.object({
       baseUrl: z.string(),
     }),
+    app: z.object({
+      submitUrl: z.string().optional(),
+    }).optional(),
     build: z.object({
       name: z.string(),
       version: z.string(),

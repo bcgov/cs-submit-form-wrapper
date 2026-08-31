@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState, useCallback } from 'react';
+import { FaRegTrashCan, FaFile } from 'react-icons/fa6';
 import { Link, Button } from '@bcgov/design-system-react-components';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -93,19 +94,21 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
           <>
             <Link
               className="bcds-react-aria-Link medium false me-2"
+              aria-label={dict.submission.view}
               data-testid={`${sub.id}-view-link`}
               onPress={() => router.push(`/${locale}/submission/${sub.id}`)}
             >
-              {dict.submission.view}
+              <FaFile />
             </Link>
             <Link
               className="bcds-react-aria-Link medium false danger"
               data-testid={`${sub.id}-delete-link`}
+              aria-label={dict.submission.delete}
               onPress={() => {
                 deletePress(sub.id);
               }}
             >
-              {dict.submission.delete}
+              <FaRegTrashCan />
             </Link>
           </>
         ),
@@ -152,6 +155,8 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
             variant="secondary"
             data-testid="cancel-delete-button"
             className="bcds-react-aria-Button medium secondary me-2"
+            aria-label={dict.workspaces.cancel}
+            isIconButton
             onPress={() => {
               setShowDeleteConfirm(false);
             }}
@@ -161,6 +166,8 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
           <Button
             variant="secondary"
             data-testid="confirm-delete-button"
+            aria-label={dict.submission.confirm}
+            isIconButton
             danger
             onPress={() => {
               confirmDelete();

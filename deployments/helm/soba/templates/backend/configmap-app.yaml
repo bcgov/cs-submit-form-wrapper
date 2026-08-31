@@ -77,3 +77,4 @@ data:
   DB_MIGRATION_READY_ATTEMPTS: {{ .Values.database.migrationReadyAttempts | quote }}
   DB_MIGRATION_READY_SLEEP_MS: {{ .Values.database.migrationReadySleepMs | quote }}
   # Pipeline performance fix: Revert if needed.
+  SUBMIT_APP_URL: {{ .Values.frontend.forms.host | quote }}

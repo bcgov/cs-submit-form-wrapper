@@ -119,6 +119,9 @@ export class MetaApiService {
       api: {
         baseUrl: env.getOptionalEnv('SOBA_API_BASE_URL') ?? 'http://localhost:4000/api/v1',
       },
+      app: {
+        submitUrl: env.getOptionalEnv('SUBMIT_APP_URL') ?? 'http://localhost:3000',
+      },
       build: {
         name: packageJson.name,
         version: resolveAppVersion(),

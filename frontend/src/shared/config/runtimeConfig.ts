@@ -12,6 +12,9 @@ export type FrontendRuntimeConfig = {
   api: {
     baseUrl: string;
   };
+  app: {
+    submitUrl: string;
+  };
   build: {
     name: string;
     version: string;
@@ -98,6 +101,11 @@ export function getSobaApiBaseUrl(): string {
   // public ingress, and under Docker Compose it resolves to the frontend container itself.
   if (typeof window === 'undefined') return getBootstrapApiBaseUrl();
   return cachedConfig?.api.baseUrl ?? getBootstrapApiBaseUrl();
+}
+
+export function getSubmitAppBaseUrl(): string {
+  if (typeof window === 'undefined') return cachedConfig?.app.submitUrl ?? '';
+  return cachedConfig?.app.submitUrl ?? window.location.origin;
 }
 
 /**

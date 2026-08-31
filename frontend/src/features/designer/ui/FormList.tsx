@@ -35,7 +35,7 @@ const CustomActionButtons = ({
   const sobaFormId = form.id;
 
   const actions = [];
-  if (submitModeEnabled) {
+  if (!submitModeEnabled) {
     actions.push(
       { name: 'submit', icon: <FaLink /> },
       { name: 'submissions', icon: <FaDatabase /> },
@@ -163,7 +163,11 @@ function FormList({
   const handleAction = useCallback(
     (name: string, id: string) => {
       if (name === 'manage') {
-        router.push(`/${locale}/designer/${id}`);
+        if (designModeEnabled) {
+          router.push(`/${locale}/designer/${id}`);
+        } else {
+          router.push(`/${locale}/form/${id}`);
+        }
       } else if (name === 'submit') {
         router.push(`/${locale}/designer/${id}?tab=share`);
       } else if (name === 'submissions') {
@@ -192,7 +196,7 @@ function FormList({
         label: dictFormList?.columns?.name || dictForm?.nameLabel || 'Form Name',
         width: '40%',
         render: (form: SobaFormSummary) => {
-          return designModeEnabled ? (
+          return (
             <RowActionButton
               main
               data-testid={'form-link-' + form.id}
@@ -200,8 +204,6 @@ function FormList({
             >
               {form.name || dictForm?.nameLabel || 'Untitled Form'}
             </RowActionButton>
-          ) : (
-            <span>{form.name || dictForm?.nameLabel || 'Untitled Form'}</span>
           );
         },
       },
