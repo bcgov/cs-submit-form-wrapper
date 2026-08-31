@@ -1,21 +1,29 @@
-import { and, desc, eq, ilike, inArray, isNull, lt, ne, or } from 'drizzle-orm';
+import { and, count, eq, ilike, inArray, isNull, ne } from 'drizzle-orm';
 import { db, type DbOrTx } from '../client';
 import { forms, formVersions } from '../schema';
+import { likePattern, orderByForSort, type SortColumns, type SortToken } from '../listSort';
+import { readListPage } from '../listRead';
 
-export type FormListSort = 'id:desc' | 'updatedAt:desc';
-export type FormCursorMode = 'id' | 'ts_id';
+export const FORM_SORT_FIELDS = ['name', 'status', 'createdAt', 'updatedAt'] as const;
+export type FormListSortField = (typeof FORM_SORT_FIELDS)[number];
+export type FormListSort = SortToken<FormListSortField>;
+
+const FORM_SORT_COLUMNS: SortColumns<FormListSortField> = {
+  name: { column: forms.name, caseInsensitive: true },
+  status: { column: forms.status },
+  createdAt: { column: forms.createdAt },
+  updatedAt: { column: forms.updatedAt },
+};
 
 export interface ListFormsForWorkspaceInput {
   /** Workspace resolved from the list scope anchor. */
   workspaceIds: string[];
+  offset: number;
   limit: number;
   formId?: string;
   q?: string;
   status?: string;
   sort: FormListSort;
-  cursorMode: FormCursorMode;
-  afterId?: string;
-  afterUpdatedAt?: Date;
 }
 
 export interface FormListRow {
@@ -65,10 +73,10 @@ interface UpdateFormInput {
 
 export const listFormsForWorkspace = async (
   input: ListFormsForWorkspaceInput,
-): Promise<{ items: FormListRow[]; hasMore: boolean }> => {
+): Promise<{ items: FormListRow[]; total: number }> => {
   // An empty scope means the actor holds the permission in no workspace, never "all workspaces".
   if (input.workspaceIds.length === 0) {
-    return { items: [], hasMore: false };
+    return { items: [], total: 0 };
   }
   const whereClauses = [inArray(forms.workspaceId, input.workspaceIds), isNull(forms.deletedAt)];
 
@@ -81,48 +89,31 @@ export const listFormsForWorkspace = async (
   }
 
   if (input.q) {
-    const searchPattern = `%${input.q}%`;
-    whereClauses.push(ilike(forms.name, searchPattern));
+    whereClauses.push(ilike(forms.name, likePattern(input.q)));
   }
 
-  if (input.cursorMode === 'id' && input.afterId) {
-    whereClauses.push(lt(forms.id, input.afterId));
-  }
+  const where = and(...whereClauses);
 
-  if (input.cursorMode === 'ts_id' && input.afterId && input.afterUpdatedAt) {
-    whereClauses.push(
-      or(
-        lt(forms.updatedAt, input.afterUpdatedAt),
-        and(eq(forms.updatedAt, input.afterUpdatedAt), lt(forms.id, input.afterId)),
-      ),
-    );
-  }
-
-  const rows = await db
-    .select({
-      id: forms.id,
-      workspaceId: forms.workspaceId,
-      name: forms.name,
-      status: forms.status,
-      createdAt: forms.createdAt,
-      updatedAt: forms.updatedAt,
-      createdBy: forms.createdBy,
-      updatedBy: forms.updatedBy,
-    })
-    .from(forms)
-    .where(and(...whereClauses))
-    .orderBy(
-      input.cursorMode === 'ts_id' || input.sort === 'updatedAt:desc'
-        ? desc(forms.updatedAt)
-        : desc(forms.id),
-      desc(forms.id),
-    )
-    .limit(input.limit + 1);
-
-  return {
-    items: rows.slice(0, input.limit),
-    hasMore: rows.length > input.limit,
-  };
+  return readListPage(async (tx) => {
+    const items = await tx
+      .select({
+        id: forms.id,
+        workspaceId: forms.workspaceId,
+        name: forms.name,
+        status: forms.status,
+        createdAt: forms.createdAt,
+        updatedAt: forms.updatedAt,
+        createdBy: forms.createdBy,
+        updatedBy: forms.updatedBy,
+      })
+      .from(forms)
+      .where(where)
+      .orderBy(...orderByForSort(FORM_SORT_COLUMNS, input.sort, forms.id))
+      .limit(input.limit)
+      .offset(input.offset);
+    const totals = await tx.select({ total: count() }).from(forms).where(where);
+    return { items, total: totals[0]?.total ?? 0 };
+  });
 };
 
 export const getFormById = async (

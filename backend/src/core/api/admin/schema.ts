@@ -1,5 +1,14 @@
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
+import {
+  makeSortEnum,
+  offsetQueryFields,
+  rejectedCursorField,
+  searchQueryField,
+  OffsetPageSchema,
+  OFFSET_DRIFT_NOTE,
+} from '../shared/offsetPagination';
+import { SOBA_ADMIN_SORT_FIELDS } from '../../db/repos/sobaAdminRepo';
 
 extendZodWithOpenApi(z);
 
@@ -13,22 +22,28 @@ export const SobaAdminItemSchema = z
   })
   .openapi('Admin_SobaAdminItem');
 
+export const SobaAdminSortSchema =
+  makeSortEnum(SOBA_ADMIN_SORT_FIELDS).openapi('Admin_SobaAdminSort');
+
 export const ListSobaAdminsQuerySchema = z
   .object({
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    cursor: z.string().min(1).optional(),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
+    source: z.string().trim().min(1).optional(),
+    q: searchQueryField.openapi({ description: 'Matches anywhere in the admin display label.' }),
+    sort: SobaAdminSortSchema.default('displayLabel:asc'),
   })
   .openapi('Admin_ListSobaAdminsQuery');
 
 export const ListSobaAdminsResponseSchema = z
   .object({
     items: z.array(SobaAdminItemSchema),
-    page: z.object({
-      limit: z.number().int().min(1),
-      hasMore: z.boolean(),
-      nextCursor: z.string().nullable(),
-      cursorMode: z.enum(['id']),
+    page: OffsetPageSchema,
+    filters: z.object({
+      source: z.string().optional(),
+      q: z.string().optional(),
     }),
+    sort: SobaAdminSortSchema,
   })
   .openapi('Admin_ListSobaAdminsResponse');
 
@@ -57,14 +72,14 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: {
-        description: 'List SOBA platform admins with cursor pagination',
+        description: `List SOBA platform admins with search and offset pagination. ${OFFSET_DRIFT_NOTE}`,
         content: {
           'application/json': {
             schema: ListSobaAdminsResponseSchema,
           },
         },
       },
-      400: { description: 'Invalid query or cursor' },
+      400: { description: 'Invalid query' },
     },
   });
 

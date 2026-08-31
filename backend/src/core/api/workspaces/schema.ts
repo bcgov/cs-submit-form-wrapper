@@ -1,6 +1,14 @@
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
-import { CursorSortSchema } from '../shared/pagination';
+import {
+  makeSortEnum,
+  offsetQueryFields,
+  rejectedCursorField,
+  searchQueryField,
+  OffsetPageSchema,
+  OFFSET_DRIFT_NOTE,
+} from '../shared/offsetPagination';
+import { WORKSPACE_SORT_FIELDS } from '../../db/repos/membershipRepo';
 import { WORKSPACE_NAME_TAKEN } from '../../messages';
 import { WorkspaceScopedQuerySchema } from '../shared/schema';
 
@@ -19,31 +27,35 @@ export const WorkspaceItemSchema = z
   })
   .openapi('Workspaces_WorkspaceItem');
 
+export const WorkspaceSortSchema = makeSortEnum(WORKSPACE_SORT_FIELDS).openapi(
+  'Workspaces_WorkspaceSort',
+);
+
 export const ListWorkspacesQuerySchema = z
   .object({
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    cursor: z.string().min(1).optional(),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
     kind: z.string().trim().min(1).optional(),
     status: z.string().trim().min(1).optional(),
+    q: searchQueryField.openapi({
+      description: 'Matches anywhere in the workspace name or organization.',
+    }),
     requiredPermission: z.string().trim().min(1).optional(),
-    sort: CursorSortSchema.default('id:desc'),
+    sort: WorkspaceSortSchema.default('name:asc'),
   })
   .openapi('Workspaces_ListWorkspacesQuery');
 
 export const ListWorkspacesResponseSchema = z
   .object({
     items: z.array(WorkspaceItemSchema),
-    page: z.object({
-      limit: z.number().int().min(1),
-      hasMore: z.boolean(),
-      nextCursor: z.string().nullable(),
-      cursorMode: z.enum(['id', 'ts_id']),
-    }),
+    page: OffsetPageSchema,
     filters: z.object({
       kind: z.string().optional(),
       status: z.string().optional(),
+      q: z.string().optional(),
+      requiredPermission: z.string().optional(),
     }),
-    sort: CursorSortSchema,
+    sort: WorkspaceSortSchema,
   })
   .openapi('Workspaces_ListWorkspacesResponse');
 
@@ -100,14 +112,14 @@ export const registerWorkspacesOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: {
-        description: 'List workspaces for the current user with cursor pagination',
+        description: `List workspaces for the current user with search and offset pagination. ${OFFSET_DRIFT_NOTE}`,
         content: {
           'application/json': {
             schema: ListWorkspacesResponseSchema,
           },
         },
       },
-      400: { description: 'Invalid query or cursor' },
+      400: { description: 'Invalid query' },
     },
   });
 

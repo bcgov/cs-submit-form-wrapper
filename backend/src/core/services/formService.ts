@@ -1,6 +1,5 @@
 import {
   createForm,
-  FormCursorMode,
   FormRecord,
   FormListSort,
   formNameExistsInWorkspace,
@@ -32,14 +31,12 @@ interface DeleteInput {
 interface ListInput {
   workspaceIds: string[];
   actorId: string;
+  offset: number;
   limit: number;
   formId?: string;
   q?: string;
   status?: string;
   sort: FormListSort;
-  cursorMode: FormCursorMode;
-  afterId?: string;
-  afterUpdatedAt?: Date;
 }
 
 interface CreateInput {

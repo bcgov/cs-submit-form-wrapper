@@ -1,6 +1,8 @@
-import { and, desc, eq, inArray, isNull, lt, ne, or } from 'drizzle-orm';
+import { and, count, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { db } from '../client';
 import { submissionRevisions, submissions, forms, formVersions } from '../schema';
+import { likePattern, orderByForSort, type SortColumns, type SortToken } from '../listSort';
+import { readListPage } from '../listRead';
 import {
   SubmissionEventType,
   SubmissionWorkflowState,
@@ -59,22 +61,35 @@ interface SaveSubmissionInput {
   afterEngineSubmissionRef: string;
 }
 
-export type SubmissionListSort = 'id:desc' | 'updatedAt:desc';
-export type SubmissionCursorMode = 'id' | 'ts_id';
+export const SUBMISSION_SORT_FIELDS = [
+  'formName',
+  'submittedAt',
+  'createdAt',
+  'updatedAt',
+] as const;
+export type SubmissionListSortField = (typeof SUBMISSION_SORT_FIELDS)[number];
+export type SubmissionListSort = SortToken<SubmissionListSortField>;
+
+const SUBMISSION_SORT_COLUMNS: SortColumns<SubmissionListSortField> = {
+  formName: { column: forms.name, caseInsensitive: true },
+  // Only a submitted submission has one, so an unsubmitted row never leads either direction.
+  submittedAt: { column: submissions.submittedAt, nullable: true },
+  createdAt: { column: submissions.createdAt },
+  updatedAt: { column: submissions.updatedAt },
+};
 
 export interface ListSubmissionsInput {
   /** Workspace resolved from the list scope anchor. */
   workspaceIds: string[];
+  offset: number;
   limit: number;
   formId?: string;
   formVersionId?: string;
   submissionId?: string;
   workflowState?: string;
   createdBy?: string;
+  q?: string;
   sort: SubmissionListSort;
-  cursorMode: SubmissionCursorMode;
-  afterId?: string;
-  afterUpdatedAt?: Date;
 }
 
 /**
@@ -234,9 +249,9 @@ export const getSubmissionWorkspaceAndState = async (
 
 export const listSubmissionsForWorkspace = async (
   input: ListSubmissionsInput,
-): Promise<{ items: SubmissionListRow[]; hasMore: boolean }> => {
+): Promise<{ items: SubmissionListRow[]; total: number }> => {
   if (input.workspaceIds.length === 0) {
-    return { items: [], hasMore: false };
+    return { items: [], total: 0 };
   }
   const whereClauses = [
     inArray(submissions.workspaceId, input.workspaceIds),
@@ -266,48 +281,46 @@ export const listSubmissionsForWorkspace = async (
     whereClauses.push(eq(submissions.createdBy, input.createdBy));
   }
 
-  if (input.cursorMode === 'id' && input.afterId) {
-    whereClauses.push(lt(submissions.id, input.afterId));
-  }
-
-  if (input.cursorMode === 'ts_id' && input.afterId && input.afterUpdatedAt) {
+  if (input.q) {
+    const pattern = likePattern(input.q);
     whereClauses.push(
-      or(
-        lt(submissions.updatedAt, input.afterUpdatedAt),
-        and(eq(submissions.updatedAt, input.afterUpdatedAt), lt(submissions.id, input.afterId)),
-      ),
+      or(ilike(forms.name, pattern), sql`${submissions.id}::text ilike ${pattern}`),
     );
   }
 
-  const rows = await db
-    .select({
-      id: submissions.id,
-      formId: submissions.formId,
-      form: { name: forms.name },
-      formVersionId: submissions.formVersionId,
-      formVersion: { versionNo: formVersions.versionNo },
-      workflowState: submissions.workflowState,
-      engineSyncStatus: submissions.engineSyncStatus,
-      submittedAt: submissions.submittedAt,
-      createdAt: submissions.createdAt,
-      updatedAt: submissions.updatedAt,
-    })
-    .from(submissions)
-    .innerJoin(forms, eq(submissions.formId, forms.id))
-    .innerJoin(formVersions, eq(submissions.formVersionId, formVersions.id))
-    .where(and(...whereClauses))
-    .orderBy(
-      input.cursorMode === 'ts_id' || input.sort === 'updatedAt:desc'
-        ? desc(submissions.updatedAt)
-        : desc(submissions.id),
-      desc(submissions.id),
-    )
-    .limit(input.limit + 1);
+  const where = and(...whereClauses);
 
-  return {
-    items: rows.slice(0, input.limit),
-    hasMore: rows.length > input.limit,
-  };
+  return readListPage(async (tx) => {
+    const items = await tx
+      .select({
+        id: submissions.id,
+        formId: submissions.formId,
+        form: { name: forms.name },
+        formVersionId: submissions.formVersionId,
+        formVersion: { versionNo: formVersions.versionNo },
+        workflowState: submissions.workflowState,
+        engineSyncStatus: submissions.engineSyncStatus,
+        submittedAt: submissions.submittedAt,
+        createdAt: submissions.createdAt,
+        updatedAt: submissions.updatedAt,
+      })
+      .from(submissions)
+      .innerJoin(forms, eq(submissions.formId, forms.id))
+      .innerJoin(formVersions, eq(submissions.formVersionId, formVersions.id))
+      .where(where)
+      .orderBy(...orderByForSort(SUBMISSION_SORT_COLUMNS, input.sort, submissions.id))
+      .limit(input.limit)
+      .offset(input.offset);
+
+    // Both parent ids are not-null with validated foreign keys, so the joins can neither drop nor
+    // multiply a row. The count only needs `forms`, and only when the search reads its name.
+    const countQuery = tx.select({ total: count() }).from(submissions);
+    const totals = await (input.q
+      ? countQuery.innerJoin(forms, eq(submissions.formId, forms.id)).where(where)
+      : countQuery.where(where));
+
+    return { items, total: totals[0]?.total ?? 0 };
+  });
 };
 
 export const updateSubmissionDraft = async (

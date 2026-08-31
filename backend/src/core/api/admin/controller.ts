@@ -9,27 +9,21 @@ import {
 import { db } from '../../db/client';
 import { appUsers } from '../../db/schema';
 import { asyncHandler } from '../shared/asyncHandler';
-import { decodeCursor, encodeCursor } from '../shared/pagination';
-import { AddSobaAdminBodySchema } from './schema';
+import { AddSobaAdminBodySchema, ListSobaAdminsQuerySchema } from './schema';
 import type { Request } from 'express';
 
 type AddSobaAdminBody = z.infer<typeof AddSobaAdminBodySchema>;
+type ListSobaAdminsQuery = z.infer<typeof ListSobaAdminsQuerySchema>;
 
 export const listSobaAdminsHandler = asyncHandler(async (req: Request, res: Response) => {
-  const limit = Number(req.query.limit) || 20;
-  const cursorRaw = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
-  let afterUserId: string | undefined;
-  if (cursorRaw) {
-    try {
-      const decoded = decodeCursor(cursorRaw);
-      if (decoded.m === 'id') afterUserId = decoded.id;
-    } catch {
-      // invalid cursor; first page
-    }
-  }
-  const { items, hasMore } = await listSobaAdmins({ limit, afterUserId });
-  const lastItem = items[items.length - 1];
-  const nextCursor = hasMore && lastItem ? encodeCursor({ m: 'id', id: lastItem.userId }) : null;
+  const query = req.query as unknown as ListSobaAdminsQuery;
+  const { items, total } = await listSobaAdmins({
+    offset: query.offset,
+    limit: query.limit,
+    sort: query.sort,
+    source: query.source,
+    q: query.q,
+  });
   res.json({
     items: items.map((r) => ({
       userId: r.userId,
@@ -39,11 +33,15 @@ export const listSobaAdminsHandler = asyncHandler(async (req: Request, res: Resp
       displayLabel: r.displayLabel,
     })),
     page: {
-      limit,
-      hasMore,
-      nextCursor,
-      cursorMode: 'id' as const,
+      offset: query.offset,
+      limit: query.limit,
+      total,
     },
+    filters: {
+      source: query.source,
+      q: query.q,
+    },
+    sort: query.sort,
   });
 });
 

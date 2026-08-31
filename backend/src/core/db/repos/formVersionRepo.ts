@@ -1,6 +1,8 @@
-import { and, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db, type DbOrTx } from '../client';
 import { formVersionRevisions, formVersions } from '../schema';
+import { orderByForSort, type SortColumns, type SortToken } from '../listSort';
+import { readListPage } from '../listRead';
 
 interface CreateDraftInput {
   workspaceId: string;
@@ -19,20 +21,26 @@ interface SaveRevisionInput {
   engineSchemaRef?: string | null;
 }
 
-export type FormVersionListSort = 'id:desc' | 'updatedAt:desc';
-export type FormVersionCursorMode = 'id' | 'ts_id';
+export const FORM_VERSION_SORT_FIELDS = ['versionNo', 'state', 'createdAt', 'updatedAt'] as const;
+export type FormVersionListSortField = (typeof FORM_VERSION_SORT_FIELDS)[number];
+export type FormVersionListSort = SortToken<FormVersionListSortField>;
+
+const FORM_VERSION_SORT_COLUMNS: SortColumns<FormVersionListSortField> = {
+  versionNo: { column: formVersions.versionNo },
+  state: { column: formVersions.state },
+  createdAt: { column: formVersions.createdAt },
+  updatedAt: { column: formVersions.updatedAt },
+};
 
 export interface ListFormVersionsInput {
   /** Workspace resolved from the list scope anchor. */
   workspaceIds: string[];
+  offset: number;
   limit: number;
   formId?: string;
   formVersionId?: string;
   state?: string;
   sort: FormVersionListSort;
-  cursorMode: FormVersionCursorMode;
-  afterId?: string;
-  afterUpdatedAt?: Date;
 }
 
 export interface FormVersionListRow {
@@ -129,10 +137,10 @@ export const getFormVersionById = async (workspaceId: string, formVersionId: str
 
 export const listFormVersionsForWorkspace = async (
   input: ListFormVersionsInput,
-): Promise<{ items: FormVersionListRow[]; hasMore: boolean }> => {
+): Promise<{ items: FormVersionListRow[]; total: number }> => {
   // An empty scope means the actor holds the permission in no workspace, never "all workspaces".
   if (input.workspaceIds.length === 0) {
-    return { items: [], hasMore: false };
+    return { items: [], total: 0 };
   }
   const whereClauses = [
     inArray(formVersions.workspaceId, input.workspaceIds),
@@ -151,46 +159,30 @@ export const listFormVersionsForWorkspace = async (
     whereClauses.push(eq(formVersions.state, input.state));
   }
 
-  if (input.cursorMode === 'id' && input.afterId) {
-    whereClauses.push(lt(formVersions.id, input.afterId));
-  }
+  const where = and(...whereClauses);
 
-  if (input.cursorMode === 'ts_id' && input.afterId && input.afterUpdatedAt) {
-    whereClauses.push(
-      or(
-        lt(formVersions.updatedAt, input.afterUpdatedAt),
-        and(eq(formVersions.updatedAt, input.afterUpdatedAt), lt(formVersions.id, input.afterId)),
-      ),
-    );
-  }
-
-  const rows = await db
-    .select({
-      id: formVersions.id,
-      formId: formVersions.formId,
-      versionNo: formVersions.versionNo,
-      state: formVersions.state,
-      engineSyncStatus: formVersions.engineSyncStatus,
-      engineSchemaRef: formVersions.engineSchemaRef,
-      createdAt: formVersions.createdAt,
-      updatedAt: formVersions.updatedAt,
-      createdBy: formVersions.createdBy,
-      updatedBy: formVersions.updatedBy,
-    })
-    .from(formVersions)
-    .where(and(...whereClauses))
-    .orderBy(
-      input.cursorMode === 'ts_id' || input.sort === 'updatedAt:desc'
-        ? desc(formVersions.updatedAt)
-        : desc(formVersions.id),
-      ...(input.cursorMode === 'ts_id' ? [desc(formVersions.id)] : []),
-    )
-    .limit(input.limit + 1);
-
-  return {
-    items: rows.slice(0, input.limit),
-    hasMore: rows.length > input.limit,
-  };
+  return readListPage(async (tx) => {
+    const items = await tx
+      .select({
+        id: formVersions.id,
+        formId: formVersions.formId,
+        versionNo: formVersions.versionNo,
+        state: formVersions.state,
+        engineSyncStatus: formVersions.engineSyncStatus,
+        engineSchemaRef: formVersions.engineSchemaRef,
+        createdAt: formVersions.createdAt,
+        updatedAt: formVersions.updatedAt,
+        createdBy: formVersions.createdBy,
+        updatedBy: formVersions.updatedBy,
+      })
+      .from(formVersions)
+      .where(where)
+      .orderBy(...orderByForSort(FORM_VERSION_SORT_COLUMNS, input.sort, formVersions.id))
+      .limit(input.limit)
+      .offset(input.offset);
+    const totals = await tx.select({ total: count() }).from(formVersions).where(where);
+    return { items, total: totals[0]?.total ?? 0 };
+  });
 };
 
 export const updateFormVersionDraft = async (

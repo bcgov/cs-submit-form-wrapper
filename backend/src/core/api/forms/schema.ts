@@ -1,6 +1,15 @@
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
-import { CursorSortSchema } from '../shared/pagination';
+import {
+  makeSortEnum,
+  offsetQueryFields,
+  rejectedCursorField,
+  searchQueryField,
+  OffsetPageSchema,
+  OFFSET_DRIFT_NOTE,
+} from '../shared/offsetPagination';
+import { FORM_SORT_FIELDS } from '../../db/repos/formRepo';
+import { FORM_VERSION_SORT_FIELDS } from '../../db/repos/formVersionRepo';
 import { FORM_NAME_TAKEN } from '../../messages';
 import {
   workspaceIdQueryField,
@@ -79,15 +88,17 @@ export const NormalizeSchemaResponseSchema = z
   })
   .openapi('Forms_NormalizeSchemaResponse');
 
+export const FormSortSchema = makeSortEnum(FORM_SORT_FIELDS).openapi('Forms_FormSort');
+
 export const ListFormsQuerySchema = z
   .object({
     workspaceId: workspaceIdQueryField.optional(),
     formId: formIdQueryField,
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    cursor: z.string().min(1).optional(),
-    q: z.string().trim().min(1).optional(),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
+    q: searchQueryField.openapi({ description: 'Matches anywhere in the form name.' }),
     status: z.string().trim().min(1).optional(),
-    sort: CursorSortSchema.default('id:desc'),
+    sort: FormSortSchema.default('createdAt:desc'),
   })
   .openapi('Forms_ListFormsQuery');
 
@@ -141,31 +152,29 @@ export const FormWithPermissionsResponseSchema = FormResponseSchema.extend({
 export const ListFormsResponseSchema = z
   .object({
     items: z.array(FormListItemSchema),
-    page: z.object({
-      limit: z.number().int().min(1),
-      hasMore: z.boolean(),
-      nextCursor: z.string().nullable(),
-      cursorMode: z.enum(['id', 'ts_id']),
-    }),
+    page: OffsetPageSchema,
     filters: z.object({
       workspaceId: z.string().optional(),
       formId: z.string().optional(),
       q: z.string().optional(),
       status: z.string().optional(),
     }),
-    sort: CursorSortSchema,
+    sort: FormSortSchema,
   })
   .openapi('Forms_ListFormsResponse');
+
+export const FormVersionSortSchema =
+  makeSortEnum(FORM_VERSION_SORT_FIELDS).openapi('Forms_FormVersionSort');
 
 export const ListFormVersionsQuerySchema = z
   .object({
     workspaceId: workspaceIdQueryField.optional(),
     formId: formIdQueryField,
     formVersionId: formVersionIdQueryField,
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    cursor: z.string().min(1).optional(),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
     state: z.string().trim().min(1).optional(),
-    sort: CursorSortSchema.default('id:desc'),
+    sort: FormVersionSortSchema.default('versionNo:desc'),
   })
   .openapi('Forms_ListFormVersionsQuery');
 
@@ -185,19 +194,14 @@ export const FormVersionListItemSchema = z
 export const ListFormVersionsResponseSchema = z
   .object({
     items: z.array(FormVersionListItemSchema),
-    page: z.object({
-      limit: z.number().int().min(1),
-      hasMore: z.boolean(),
-      nextCursor: z.string().nullable(),
-      cursorMode: z.enum(['id', 'ts_id']),
-    }),
+    page: OffsetPageSchema,
     filters: z.object({
       workspaceId: z.string().optional(),
       formId: z.string().optional(),
       formVersionId: z.string().optional(),
       state: z.string().optional(),
     }),
-    sort: CursorSortSchema,
+    sort: FormVersionSortSchema,
   })
   .openapi('Forms_ListFormVersionsResponse');
 
@@ -221,7 +225,7 @@ export const registerFormsOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: {
-        description: 'List forms with search and cursor pagination',
+        description: `List forms with search and offset pagination. ${OFFSET_DRIFT_NOTE}`,
         content: {
           'application/json': {
             schema: ListFormsResponseSchema,
@@ -229,7 +233,7 @@ export const registerFormsOpenApi = (registry: OpenAPIRegistry) => {
         },
       },
       400: {
-        description: 'Missing scope anchor, inconsistent hierarchy ids, invalid query, or cursor',
+        description: 'Missing scope anchor, inconsistent hierarchy ids, or invalid query',
       },
     },
   });
@@ -365,7 +369,7 @@ export const registerFormsOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: {
-        description: 'List form versions with cursor pagination',
+        description: `List form versions with offset pagination. ${OFFSET_DRIFT_NOTE}`,
         content: {
           'application/json': {
             schema: ListFormVersionsResponseSchema,
@@ -373,7 +377,7 @@ export const registerFormsOpenApi = (registry: OpenAPIRegistry) => {
         },
       },
       400: {
-        description: 'Missing scope anchor, inconsistent hierarchy ids, invalid query, or cursor',
+        description: 'Missing scope anchor, inconsistent hierarchy ids, or invalid query',
       },
     },
   });

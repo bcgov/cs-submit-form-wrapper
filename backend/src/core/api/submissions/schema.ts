@@ -1,6 +1,14 @@
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
-import { CursorSortSchema } from '../shared/pagination';
+import {
+  makeSortEnum,
+  offsetQueryFields,
+  rejectedCursorField,
+  searchQueryField,
+  OffsetPageSchema,
+  OFFSET_DRIFT_NOTE,
+} from '../shared/offsetPagination';
+import { SUBMISSION_SORT_FIELDS } from '../../db/repos/submissionRepo';
 import {
   workspaceIdQueryField,
   formIdQueryField,
@@ -35,19 +43,25 @@ export const SubmissionDataBodySchema = z
   })
   .openapi('Submissions_SubmissionDataBody');
 
+export const SubmissionSortSchema = makeSortEnum(SUBMISSION_SORT_FIELDS).openapi(
+  'Submissions_SubmissionSort',
+);
+
 export const ListSubmissionsQuerySchema = requireAtLeastOneQueryField(
   z.object({
     workspaceId: workspaceIdQueryField.optional(),
     formId: formIdQueryField,
     formVersionId: formVersionIdQueryField,
     submissionId: submissionIdQueryField,
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    cursor: z.string().min(1).optional(),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
+    // Workflow state orders by code, not by where the workflow has reached, so it is a filter only.
     workflowState: z.string().trim().min(1).optional(),
     createdBy: z.string().trim().min(1).optional(),
-    // Order by server updatedAt (ts_id cursor), not by id: the submission id is client-minted
-    // (uuidv7) so it's no longer a reliable time proxy. id:desc stays available on request.
-    sort: CursorSortSchema.default('updatedAt:desc'),
+    q: searchQueryField.openapi({
+      description: 'Matches anywhere in the form name or the submission id.',
+    }),
+    sort: SubmissionSortSchema.default('updatedAt:desc'),
   }),
   ['workspaceId', 'formId', 'formVersionId', 'submissionId'],
   'At least one of workspaceId, formId, formVersionId, or submissionId is required',
@@ -85,12 +99,7 @@ export const SubmissionResponseSchema = z
 export const ListSubmissionsResponseSchema = z
   .object({
     items: z.array(SubmissionListItemSchema),
-    page: z.object({
-      limit: z.number().int().min(1),
-      hasMore: z.boolean(),
-      nextCursor: z.string().nullable(),
-      cursorMode: z.enum(['id', 'ts_id']),
-    }),
+    page: OffsetPageSchema,
     filters: z.object({
       workspaceId: z.string().optional(),
       formId: z.string().optional(),
@@ -98,8 +107,9 @@ export const ListSubmissionsResponseSchema = z
       submissionId: z.string().optional(),
       workflowState: z.string().optional(),
       createdBy: z.string().optional(),
+      q: z.string().optional(),
     }),
-    sort: CursorSortSchema,
+    sort: SubmissionSortSchema,
   })
   .openapi('Submissions_ListSubmissionsResponse');
 
@@ -118,7 +128,7 @@ export const registerSubmissionsOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: {
-        description: 'List submissions with cursor pagination',
+        description: `List submissions with search and offset pagination. ${OFFSET_DRIFT_NOTE}`,
         content: {
           'application/json': {
             schema: ListSubmissionsResponseSchema,
@@ -126,7 +136,7 @@ export const registerSubmissionsOpenApi = (registry: OpenAPIRegistry) => {
         },
       },
       400: {
-        description: 'Missing scope anchor, inconsistent hierarchy ids, invalid query, or cursor',
+        description: 'Missing scope anchor, inconsistent hierarchy ids, or invalid query',
       },
     },
   });

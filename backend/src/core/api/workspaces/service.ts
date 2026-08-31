@@ -1,47 +1,35 @@
 import {
   getWorkspaceForUser,
   listWorkspacesForUser,
-  type WorkspaceListCursorMode,
   type WorkspaceListSort,
 } from '../../db/repos/membershipRepo';
 import { canCreateWorkspaceByIdp } from '../../db/repos/idpGroupRepo';
 import { createTeamWorkspace, updateWorkspace } from '../../db/repos/workspaceRepo';
 import { ForbiddenError } from '../../errors';
-import { decodeCursorAndMode, buildNextCursor, type CursorSort } from '../shared/pagination';
 
 export class WorkspacesApiService {
   async list(
     actorId: string,
     query: {
+      offset: number;
       limit: number;
-      cursor?: string;
       kind?: string;
       status?: string;
+      q?: string;
       requiredPermission?: string;
-      sort?: CursorSort;
+      sort: WorkspaceListSort;
     },
   ) {
-    const { cursorMode, sort, afterId, afterUpdatedAt } = decodeCursorAndMode({
-      cursor: query.cursor,
-      sort: query.sort ?? 'id:desc',
-    });
-    const { items, hasMore } = await listWorkspacesForUser({
+    const { items, total } = await listWorkspacesForUser({
       userId: actorId,
+      offset: query.offset,
       limit: query.limit,
-      sort: (sort ?? 'id:desc') as WorkspaceListSort,
-      cursorMode: cursorMode as WorkspaceListCursorMode,
-      afterId,
-      afterUpdatedAt,
+      sort: query.sort,
       kind: query.kind,
       status: query.status,
+      q: query.q,
       requiredPermission: query.requiredPermission,
     });
-    const lastItem = items[items.length - 1];
-    const nextCursor = buildNextCursor(
-      lastItem ? { id: lastItem.id, updatedAt: lastItem.updatedAt } : undefined,
-      hasMore,
-      cursorMode,
-    );
     return {
       items: items.map((r) => ({
         id: r.id,
@@ -54,16 +42,17 @@ export class WorkspacesApiService {
         disclaimerAccepted: r.disclaimerAcceptedAt != null,
       })),
       page: {
+        offset: query.offset,
         limit: query.limit,
-        hasMore,
-        nextCursor,
-        cursorMode,
+        total,
       },
       filters: {
         kind: query.kind,
         status: query.status,
+        q: query.q,
+        requiredPermission: query.requiredPermission,
       },
-      sort: sort ?? 'id:desc',
+      sort: query.sort,
     };
   }
 
