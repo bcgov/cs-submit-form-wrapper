@@ -59,5 +59,7 @@ export function orderByForSort<TField extends string>(
  * `ilike` pattern for a substring search. Wildcards in the term are escaped, so a name containing
  * `_` or `%` is searched for literally.
  */
-export const likePattern = (term: string): string =>
-  `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+export const likePattern = (term: string): string => {
+  const escaped = term.replace(/[\\%_]/g, (char) => `\\${char}`);
+  return `%${escaped}%`;
+};

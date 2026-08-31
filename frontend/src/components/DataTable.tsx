@@ -263,7 +263,7 @@ export function DataTable<T>({
                   variant="tertiary"
                   size="small"
                   isIconButton
-                  onPress={() => onPageChange && onPageChange(effectivePage - 1)}
+                  onPress={() => onPageChange?.(effectivePage - 1)}
                   data-testid="datatable-prev-page-button"
                   aria-label={t.previousPage}
                   isDisabled={effectivePage === 1}
@@ -276,7 +276,7 @@ export function DataTable<T>({
                   variant="tertiary"
                   size="small"
                   isIconButton
-                  onPress={() => onPageChange && onPageChange(effectivePage + 1)}
+                  onPress={() => onPageChange?.(effectivePage + 1)}
                   data-testid="datatable-next-page-button"
                   aria-label={t.nextPage}
                   isDisabled={effectivePage >= totalPages}
