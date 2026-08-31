@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Button as DSButton } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
@@ -10,9 +10,11 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
-import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { useWorkspaceList } from '@/src/shared/api/useWorkspaces';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
+import { WORKSPACES_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
 import { isWorkspaceManageRole } from '../workspaceRoles';
@@ -59,13 +61,20 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
   const router = useRouter();
   const pathname = usePathname();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-
   const locale = getLocaleFromPath(pathname);
 
-  const { workspaces, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces();
+  const listQuery = useListQuery(WORKSPACES_LIST_QUERY);
+  const {
+    workspaces,
+    total,
+    isLoading: workspacesLoading,
+    error: workspacesError,
+  } = useWorkspaceList({
+    offset: listQuery.offset,
+    limit: listQuery.pageSize,
+    sort: listQuery.sort,
+    q: listQuery.q,
+  });
 
   const error = useMemo(() => {
     if (!workspacesError) return null;
@@ -73,30 +82,6 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
     return dictWorkspaces.listLoadError;
   }, [workspacesError, dict.general.sessionExpired, dictWorkspaces.listLoadError]);
   const { data: currentUser } = useCurrentUser();
-
-  const filteredWorkspaces = useMemo(() => {
-    if (!searchQuery.trim()) return workspaces;
-    const query = searchQuery.toLowerCase();
-    return workspaces.filter((w) => (w.name || '').toLowerCase().includes(query));
-  }, [workspaces, searchQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredWorkspaces.length / pageSize));
-  const effectivePage = Math.min(currentPage, totalPages);
-
-  const paginatedWorkspaces = useMemo(() => {
-    const start = (effectivePage - 1) * pageSize;
-    return filteredWorkspaces.slice(start, start + pageSize);
-  }, [filteredWorkspaces, effectivePage, pageSize]);
-
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
-  }, []);
-
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  }, []);
 
   const handleSelect = useCallback(
     (workspaceId: string, destination: 'forms' | 'manage') => {
@@ -127,6 +112,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
         key: 'name',
         label: dictWorkspaces.columns.name,
         width: '40%',
+        sortField: 'name',
         render: (workspace: WorkspaceItem) => (
           <span className="d-inline-flex align-items-center gap-2">
             <RowActionButton
@@ -183,14 +169,15 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
           </DSButton>
         ) : null}
         <ListPageSearchField
-          value={searchQuery}
-          onChange={handleSearchChange}
+          value={listQuery.searchInput}
+          onChange={listQuery.setSearchInput}
+          onSubmit={listQuery.commitSearch}
           testIdPrefix="workspaces"
         />
       </ListPageToolbar>
 
       <DataTable<WorkspaceItem>
-        data={paginatedWorkspaces}
+        data={workspaces}
         columns={columns}
         loading={loading || initializing}
         error={error}
@@ -198,12 +185,14 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
         loadingMessage={dict.general.loading}
         itemName="items"
         caption={dictWorkspaces.tableHeading}
-        pageSize={pageSize}
-        currentPage={effectivePage}
-        totalItems={filteredWorkspaces.length}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={handlePageSizeChange}
-        pageSizeOptions={[5, 10, 25, 50]}
+        pageSize={listQuery.pageSize}
+        currentPage={listQuery.page}
+        totalItems={total}
+        onPageChange={listQuery.setPage}
+        onPageSizeChange={listQuery.setPageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        sort={listQuery.sort}
+        onSortChange={listQuery.setSort}
         keyExtractor={(workspace) => workspace.id}
       />
     </>

@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Table } from 'react-bootstrap';
 import { Select, Button } from '@bcgov/design-system-react-components';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa6';
+import { FaChevronLeft, FaChevronRight, FaSort, FaSortDown, FaSortUp } from 'react-icons/fa6';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useScrollableRegion } from '@/src/shared/hooks/useScrollableRegion';
 import styles from './DataTable.module.css';
+
+export type SortDirection = 'asc' | 'desc';
 
 export interface Column<T> {
   key: string;
@@ -15,6 +17,10 @@ export interface Column<T> {
   width?: string;
   align?: 'start' | 'center' | 'end';
   render?: (item: T) => React.ReactNode;
+  /** Server sort field. Set it to make the header a sort control. */
+  sortField?: string;
+  /** Direction the first click asks for. */
+  sortDefaultDirection?: SortDirection;
 }
 
 export interface DataTableProps<T> {
@@ -32,6 +38,9 @@ export interface DataTableProps<T> {
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
   pageSizeOptions?: number[];
+  /** Active sort as `field:asc` / `field:desc`. */
+  sort?: string;
+  onSortChange?: (sort: string) => void;
   keyExtractor: (item: T) => string;
 }
 
@@ -46,6 +55,15 @@ function columnHeaderClass<T>(col: Column<T>): string {
     .filter(Boolean)
     .join(' ');
 }
+
+const splitSort = (sort: string | undefined): { field?: string; direction?: SortDirection } => {
+  const separator = sort ? sort.lastIndexOf(':') : -1;
+  if (!sort || separator < 0) return {};
+  return {
+    field: sort.slice(0, separator),
+    direction: sort.slice(separator + 1) as SortDirection,
+  };
+};
 
 export function DataTable<T>({
   data,
@@ -62,6 +80,8 @@ export function DataTable<T>({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions = [5, 10, 25, 50],
+  sort,
+  onSortChange,
   keyExtractor,
 }: DataTableProps<T>) {
   const scrollerRef = useScrollableRegion<HTMLElement>();
@@ -73,7 +93,61 @@ export function DataTable<T>({
   const finalLoadingMessage = loadingMessage === 'Loading...' ? t.loadingMessage : loadingMessage;
   const finalItemName = itemName === 'items' ? t.itemName : itemName;
 
-  const totalPages = totalItems ? Math.ceil(totalItems / pageSize) : 1;
+  // A size the menu does not offer would leave the control blank, so fall back to one it does.
+  const effectivePageSize = pageSizeOptions.includes(pageSize) ? pageSize : pageSizeOptions[0];
+  const totalPages = totalItems ? Math.ceil(totalItems / effectivePageSize) : 1;
+  // A page past the end reads as an empty table with a range that contradicts it, and the page menu
+  // renders blank because the number is not one of its options. Only once the total is known: before
+  // the first response every page looks past the end, which would reset a deep link to page one.
+  const totalKnown = totalItems !== undefined;
+  const effectivePage = totalKnown
+    ? Math.min(Math.max(currentPage, 1), totalPages)
+    : Math.max(currentPage, 1);
+
+  // Asked once per value. The setter writes the URL, which comes back as a new `currentPage`; if a
+  // caller ever fails to apply it, re-asking every render would spin.
+  const clampAsked = useRef<number | null>(null);
+  useEffect(() => {
+    if (!totalKnown || !onPageChange) return;
+    if (currentPage === effectivePage) {
+      clampAsked.current = null;
+      return;
+    }
+    if (clampAsked.current === effectivePage) return;
+    clampAsked.current = effectivePage;
+    onPageChange(effectivePage);
+  }, [totalKnown, onPageChange, currentPage, effectivePage]);
+
+  const { field: sortField, direction: sortDirection } = splitSort(sort);
+
+  const renderHeader = (col: Column<T>) => {
+    if (!col.sortField || !onSortChange) return col.label;
+    const active = col.sortField === sortField;
+    const flipped: SortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    const nextDirection = active ? flipped : (col.sortDefaultDirection ?? 'asc');
+    const Icon = active && sortDirection === 'asc' ? FaSortUp : FaSortDown;
+    return (
+      <button
+        type="button"
+        className={styles.sortButton}
+        data-testid={`datatable-sort-${col.key}`}
+        onClick={() => onSortChange(`${col.sortField}:${nextDirection}`)}
+      >
+        {col.label}
+        {active ? (
+          <Icon aria-hidden className={styles.sortIconActive} />
+        ) : (
+          <FaSort aria-hidden className={styles.sortIcon} />
+        )}
+      </button>
+    );
+  };
+
+  const headerSortState = (col: Column<T>) => {
+    if (!col.sortField || !onSortChange) return undefined;
+    if (col.sortField !== sortField) return 'none';
+    return sortDirection === 'asc' ? 'ascending' : 'descending';
+  };
 
   const renderBody = () => {
     if (loading) {
@@ -85,11 +159,11 @@ export function DataTable<T>({
         </tr>
       );
     }
-    if (data.length === 0) {
+    if (error || data.length === 0) {
       return (
         <tr>
           <td colSpan={columns.length} className="text-center py-5 text-muted">
-            {error ? `Error: ${error}` : finalEmptyMessage}
+            {error ?? finalEmptyMessage}
           </td>
         </tr>
       );
@@ -120,8 +194,13 @@ export function DataTable<T>({
           <thead className={styles.thead}>
             <tr className="bg-bcgov-light-blue">
               {columns.map((col) => (
-                <th key={col.key} scope="col" className={columnHeaderClass(col)}>
-                  {col.label}
+                <th
+                  key={col.key}
+                  scope="col"
+                  className={columnHeaderClass(col)}
+                  aria-sort={headerSortState(col)}
+                >
+                  {renderHeader(col)}
                 </th>
               ))}
             </tr>
@@ -130,7 +209,7 @@ export function DataTable<T>({
         </Table>
       </section>
 
-      {!loading && data.length > 0 && totalItems !== undefined && (
+      {totalItems !== undefined && totalItems > 0 && (
         <div className={`d-flex align-items-stretch ${styles.pagination}`}>
           <div className="d-flex align-items-center gap-2 px-4 py-3 border-end">
             <span>{t.itemsPerPage}</span>
@@ -139,29 +218,35 @@ export function DataTable<T>({
                 aria-label={t.itemsPerPageAria}
                 data-testid="datatable-page-size-select"
                 size="small"
-                selectedKey={pageSize}
-                onSelectionChange={(key) => onPageSizeChange(Number(key))}
+                value={effectivePageSize}
+                onChange={(key) => onPageSizeChange(Number(key))}
                 items={pageSizeOptions.map((opt) => ({ id: opt, label: String(opt) }))}
               />
             ) : (
-              <span className="fw-medium">{pageSize}</span>
+              <span className="fw-medium">{effectivePageSize}</span>
             )}
           </div>
 
           <div className="d-flex align-items-center px-4 py-3 text-muted">
-            {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)}{' '}
-            {t.of} {totalItems} {finalItemName}
+            {/* The range describes the rows last delivered. An error replaces them, so stating it
+                would contradict the body; the controls stay live because they are the way back. */}
+            {error
+              ? null
+              : `${Math.min((effectivePage - 1) * effectivePageSize + 1, totalItems)} - ${Math.min(
+                  effectivePage * effectivePageSize,
+                  totalItems,
+                )} ${t.of} ${totalItems} ${finalItemName}`}
           </div>
 
           <div className="d-flex align-items-stretch ms-auto border-start">
             <div className="d-flex align-items-center gap-2 px-4 py-3 border-end">
-              {totalPages <= 1 && <span>{currentPage}</span>}
+              {totalPages <= 1 && <span>{effectivePage}</span>}
               {onPageChange && totalPages > 1 && (
                 <Select
                   aria-label={t.pageAria}
                   data-testid="datatable-page-select-select"
                   size="small"
-                  value={currentPage}
+                  value={effectivePage}
                   onChange={(key) => onPageChange(Number(key))}
                   items={Array.from({ length: totalPages }, (_, i) => ({
                     id: i + 1,
@@ -178,10 +263,10 @@ export function DataTable<T>({
                   variant="tertiary"
                   size="small"
                   isIconButton
-                  onPress={() => onPageChange && onPageChange(currentPage - 1)}
+                  onPress={() => onPageChange && onPageChange(effectivePage - 1)}
                   data-testid="datatable-prev-page-button"
                   aria-label={t.previousPage}
-                  isDisabled={currentPage === 1}
+                  isDisabled={effectivePage === 1}
                 >
                   <FaChevronLeft />
                 </Button>
@@ -191,10 +276,10 @@ export function DataTable<T>({
                   variant="tertiary"
                   size="small"
                   isIconButton
-                  onPress={() => onPageChange && onPageChange(currentPage + 1)}
+                  onPress={() => onPageChange && onPageChange(effectivePage + 1)}
                   data-testid="datatable-next-page-button"
                   aria-label={t.nextPage}
-                  isDisabled={currentPage === totalPages}
+                  isDisabled={effectivePage >= totalPages}
                 >
                   <FaChevronRight />
                 </Button>

@@ -5,19 +5,50 @@ import {
 } from '@/src/shared/storage/sessionStore';
 
 /**
- * The URL params a list owns. They are remembered and restored as one set, so a list that gains a
- * param only has to declare it here.
+ * A list's URL params: the filters it owns plus the paging set every list carries. They are
+ * remembered and restored as one set, so a list that gains a filter only has to declare it here.
  */
 export type ListQuerySpec = {
   resource: string;
-  params: readonly string[];
+  filters: readonly string[];
+  /** Sort tokens the endpoint accepts. Anything else in the URL falls back to the default. */
+  sortOptions: readonly string[];
+  defaultSort: string;
 };
 
 export type ListQueryParams = Record<string, string>;
 
+/** Paging, search and sort, resolved by the server on every list. */
+export const SHARED_LIST_PARAMS = ['q', 'sort', 'page', 'pageSize'] as const;
+
+export const listQueryParams = (spec: ListQuerySpec): string[] => [
+  ...spec.filters,
+  ...SHARED_LIST_PARAMS,
+];
+
+/** Both directions of every field the endpoint declares. */
+const sortOptionsFor = (fields: readonly string[]): string[] =>
+  fields.flatMap((field) => [`${field}:asc`, `${field}:desc`]);
+
 export const FORMS_LIST_QUERY: ListQuerySpec = {
   resource: 'forms',
-  params: ['workspace'],
+  filters: ['workspace'],
+  sortOptions: sortOptionsFor(['name', 'status', 'createdAt', 'updatedAt']),
+  defaultSort: 'createdAt:desc',
+};
+
+export const WORKSPACES_LIST_QUERY: ListQuerySpec = {
+  resource: 'workspaces',
+  filters: [],
+  sortOptions: sortOptionsFor(['name', 'kind', 'status', 'updatedAt']),
+  defaultSort: 'name:asc',
+};
+
+export const SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
+  resource: 'submissions',
+  filters: [],
+  sortOptions: sortOptionsFor(['formName', 'submittedAt', 'createdAt', 'updatedAt']),
+  defaultSort: 'updatedAt:desc',
 };
 
 const KEY_PREFIX = 'soba.listQuery.';
@@ -40,7 +71,7 @@ export function isNavArrival(search: URLSearchParams): boolean {
 /** This list's params as the URL currently carries them. */
 export function readUrlParams(spec: ListQuerySpec, search: URLSearchParams): ListQueryParams {
   const params: ListQueryParams = {};
-  for (const name of spec.params) {
+  for (const name of listQueryParams(spec)) {
     const value = search.get(name);
     if (value) params[name] = value;
   }
@@ -48,7 +79,7 @@ export function readUrlParams(spec: ListQuerySpec, search: URLSearchParams): Lis
 }
 
 export function urlHasListParams(spec: ListQuerySpec, search: URLSearchParams): boolean {
-  return spec.params.some((name) => search.has(name));
+  return listQueryParams(spec).some((name) => search.has(name));
 }
 
 export function rememberListQuery(spec: ListQuerySpec, params: ListQueryParams): void {

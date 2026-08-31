@@ -8,6 +8,8 @@ import styles from './ListPageSearchField.module.css';
 type ListPageSearchFieldProps = {
   value: string;
   onChange: (value: string) => void;
+  /** Searches immediately, ahead of any debounce the caller applies to `onChange`. */
+  onSubmit?: () => void;
   testIdPrefix: string;
   showSearchButton?: boolean;
 };
@@ -15,6 +17,7 @@ type ListPageSearchFieldProps = {
 export function ListPageSearchField({
   value,
   onChange,
+  onSubmit,
   testIdPrefix,
   showSearchButton = false,
 }: Readonly<ListPageSearchFieldProps>) {
@@ -28,6 +31,9 @@ export function ListPageSearchField({
         data-testid={`search-${testIdPrefix}-text`}
         value={value}
         onChange={onChange}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') onSubmit?.();
+        }}
         iconRight={<FaMagnifyingGlass />}
         className={`${styles.searchBox}`}
       />
@@ -36,7 +42,7 @@ export function ListPageSearchField({
           <Button
             variant="secondary"
             data-testid={`search-${testIdPrefix}-button`}
-            onClick={() => onChange(value)}
+            onClick={() => onSubmit?.()}
           >
             {dict.general.search}
           </Button>

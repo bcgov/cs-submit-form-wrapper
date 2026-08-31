@@ -56,9 +56,11 @@ vi.mock('@/src/shared/api/sobaApi', () => ({
   publishSobaFormVersion: api.publishSobaFormVersion,
   createFormVersion: api.createFormVersion,
   createSobaFormioForm: api.createSobaFormioForm,
-  fetchWorkspaces: vi.fn((_token: string, requiredPermission?: string) =>
+  fetchWorkspaces: vi.fn((_token: string, options: { requiredPermission?: string } = {}) =>
     Promise.resolve({
-      items: requiredPermission ? mockWorkspaceState.writableWorkspaces : mockWorkspaceState.workspaces,
+      items: options.requiredPermission
+        ? mockWorkspaceState.writableWorkspaces
+        : mockWorkspaceState.workspaces,
     }),
   ),
 }));

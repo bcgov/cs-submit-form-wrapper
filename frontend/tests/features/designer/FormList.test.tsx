@@ -78,8 +78,9 @@ function seed(workspaces: TestWorkspace[], writable: TestWorkspace[] = workspace
   store.dispatch(setToken('token'));
   store.dispatch(setAuthenticated(true));
   // The writable list is the same endpoint with a required-permission filter.
-  fetchWorkspaces.mockImplementation((_token: string, requiredPermission?: string) =>
-    Promise.resolve({ items: requiredPermission ? writable : workspaces }),
+  fetchWorkspaces.mockImplementation(
+    (_token: string, options: { requiredPermission?: string } = {}) =>
+      Promise.resolve({ items: options.requiredPermission ? writable : workspaces }),
   );
 }
 
@@ -99,6 +100,24 @@ async function renderList() {
     );
   });
   return view!;
+}
+
+/** The workspace the last forms request was scoped to, `undefined` for an unscoped read. */
+const scopedTo = (workspaceId?: string) =>
+  getSobaForms.mock.calls.some((call) => call[1]?.workspaceId === workspaceId);
+
+const lastFormsQuery = () => getSobaForms.mock.calls.at(-1)?.[1];
+
+/**
+ * Next keeps useSearchParams in sync with the component's replaceState; the mock does not, so a
+ * change made on screen has to be fed back before the next render sees it.
+ */
+async function syncUrl(view: ReturnType<typeof render>) {
+  const url = (window.history.replaceState as ReturnType<typeof vi.spyOn>).mock.calls.at(-1)?.[2];
+  search.value = typeof url === 'string' ? (url.split('?')[1] ?? '') : '';
+  await act(async () => {
+    view.rerender(listTree());
+  });
 }
 
 function listTree() {
@@ -140,6 +159,7 @@ describe('FormList', () => {
           updatedAt: new Date().toISOString(),
         },
       ],
+      page: { offset: 0, limit: 10, total: 2 },
     });
   });
 
@@ -198,16 +218,54 @@ describe('FormList', () => {
     expect(screen.getByText('Form Two')).toBeInTheDocument();
   });
 
-  it('search works to filter forms', async () => {
+  // Searching only the fetched page would hide every match past it, so the term goes to the server.
+  it('sends the search term to the server once typing stops', async () => {
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
-    await renderList();
+    const view = await renderList();
     await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
     const input = screen
       .getByTestId('search-forms-text')
       .querySelector('input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'two' } });
-    expect(screen.queryByText('Form One')).not.toBeInTheDocument();
-    expect(screen.getByText('Form Two')).toBeInTheDocument();
+
+    const replaceState = vi.spyOn(window.history, 'replaceState');
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'two' } });
+    });
+    await waitFor(() => expect(replaceState).toHaveBeenCalled());
+    await syncUrl(view);
+
+    await waitFor(() => expect(lastFormsQuery()?.q).toBe('two'));
+    replaceState.mockRestore();
+  });
+
+  it('asks for the page and page size the URL names', async () => {
+    search.value = 'page=3&pageSize=25';
+    seed([{ id: 'ws1', disclaimerAccepted: true }]);
+    await renderList();
+    await waitFor(() => expect(lastFormsQuery()).toMatchObject({ offset: 50, limit: 25 }));
+  });
+
+  // A remembered or hand-edited size the API would reject leaves a dead table, so it never ships.
+  it('falls back to a valid page size when the URL names one that is not offered', async () => {
+    search.value = 'pageSize=999';
+    seed([{ id: 'ws1', disclaimerAccepted: true }]);
+    await renderList();
+    await waitFor(() => expect(lastFormsQuery()).toMatchObject({ limit: 10 }));
+  });
+
+  it('sorts on the server when a header is clicked', async () => {
+    seed([{ id: 'ws1', disclaimerAccepted: true }]);
+    const view = await renderList();
+    await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
+
+    const replaceState = vi.spyOn(window.history, 'replaceState');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('datatable-sort-name'));
+    });
+    await syncUrl(view);
+
+    await waitFor(() => expect(lastFormsQuery()?.sort).toBe('name:asc'));
+    replaceState.mockRestore();
   });
 
   it('scopes the request to the workspace named in the URL', async () => {
@@ -217,7 +275,7 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ]);
     await renderList();
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
+    await waitFor(() => expect(scopedTo('ws2')).toBe(true));
   });
 
   // A URL can name a workspace this user cannot see. Reading unscoped would leak another
@@ -226,7 +284,7 @@ describe('FormList', () => {
     search.value = 'workspace=ws-unknown';
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     await renderList();
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
+    await waitFor(() => expect(scopedTo(undefined)).toBe(true));
     expect(screen.getByTestId('page-notice-workspace-filter')).toBeInTheDocument();
   });
 
@@ -240,9 +298,9 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ]);
     await renderList();
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
+    await waitFor(() => expect(scopedTo('ws2')).toBe(true));
     // The unscoped read must never happen, or another workspace's rows land on screen first.
-    expect(getSobaForms).not.toHaveBeenCalledWith('token', undefined);
+    expect(scopedTo(undefined)).toBe(false);
   });
 
   it('does not restore a filter the user cleared', async () => {
@@ -253,7 +311,7 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ]);
     await renderList();
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
+    await waitFor(() => expect(scopedTo(undefined)).toBe(true));
   });
 
   // Clearing removes the param, which looks exactly like a fresh arrival. Restoring more than once
@@ -266,7 +324,7 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ]);
     const view = await renderList();
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
+    await waitFor(() => expect(scopedTo('ws2')).toBe(true));
 
     const picker = screen.getByTestId('workspace-select').querySelector('select')!;
     await act(async () => {
@@ -279,7 +337,7 @@ describe('FormList', () => {
       view.rerender(listTree());
     });
 
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
+    await waitFor(() => expect(scopedTo(undefined)).toBe(true));
     expect(sessionStorage.getItem('soba.listQuery.forms')).toBe(JSON.stringify({}));
   });
 
@@ -292,8 +350,8 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ]);
     await renderList();
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', undefined));
-    expect(getSobaForms).not.toHaveBeenCalledWith('token', 'ws2');
+    await waitFor(() => expect(scopedTo(undefined)).toBe(true));
+    expect(scopedTo('ws2')).toBe(false);
     // Visiting a bare link is not a choice, so it must not erase the view set for this tab.
     expect(sessionStorage.getItem('soba.listQuery.forms')).toBe(
       JSON.stringify({ workspace: 'ws2' }),
@@ -334,7 +392,7 @@ describe('FormList', () => {
       { id: 'ws2', disclaimerAccepted: true },
     ]);
     const view = await renderList();
-    await waitFor(() => expect(getSobaForms).toHaveBeenCalledWith('token', 'ws2'));
+    await waitFor(() => expect(scopedTo('ws2')).toBe(true));
 
     const replaceState = vi.spyOn(window.history, 'replaceState');
     search.value = 'from=nav';
@@ -342,7 +400,7 @@ describe('FormList', () => {
       view.rerender(listTree());
     });
 
-    await waitFor(() => expect(getSobaForms).toHaveBeenLastCalledWith('token', 'ws2'));
+    await waitFor(() => expect(lastFormsQuery()?.workspaceId).toBe('ws2'));
     // The marker is consumed on arrival; leaving it in the URL would make a copied link restore
     // the reader's own view.
     expect(replaceState).toHaveBeenCalledWith(null, '', '/en/forms?workspace=ws2');

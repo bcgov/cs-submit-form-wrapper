@@ -38,8 +38,8 @@ const USER = {
 };
 
 function respond({ writableFails = false } = {}) {
-  fetchWorkspaces.mockImplementation((_token: string, requiredPermission?: string) => {
-    if (requiredPermission && writableFails) return Promise.reject(new Error('boom'));
+  fetchWorkspaces.mockImplementation((_token: string, options: { requiredPermission?: string } = {}) => {
+    if (options.requiredPermission && writableFails) return Promise.reject(new Error('boom'));
     return Promise.resolve({ items: WORKSPACES });
   });
   fetchCurrentUser.mockResolvedValue(USER);
@@ -94,8 +94,8 @@ describe('useAppSession', () => {
   // Every read that gates the session has to be waited for, or the app renders before one of them
   // has answered.
   it('is not ready while only the writable-workspaces read is pending', async () => {
-    fetchWorkspaces.mockImplementation((_token: string, requiredPermission?: string) =>
-      requiredPermission ? new Promise(() => {}) : Promise.resolve({ items: WORKSPACES }),
+    fetchWorkspaces.mockImplementation((_token: string, options: { requiredPermission?: string } = {}) =>
+      options.requiredPermission ? new Promise(() => {}) : Promise.resolve({ items: WORKSPACES }),
     );
     const { result } = renderHook(() => useAppSession(), { wrapper });
 

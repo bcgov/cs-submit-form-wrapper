@@ -20,6 +20,25 @@ describe('listQueryMemory', () => {
     expect(urlHasListParams(FORMS_LIST_QUERY, new URLSearchParams('unrelated=x'))).toBe(false);
   });
 
+  // Paging travels with the filters, so a restored view comes back on the page it was left on.
+  it('owns the paging params as well as its own filters', () => {
+    const search = new URLSearchParams('workspace=ws1&q=pay&sort=name:asc&page=3&pageSize=25');
+    expect(readUrlParams(FORMS_LIST_QUERY, search)).toEqual({
+      workspace: 'ws1',
+      q: 'pay',
+      sort: 'name:asc',
+      page: '3',
+      pageSize: '25',
+    });
+    expect(urlHasListParams(FORMS_LIST_QUERY, new URLSearchParams('page=2'))).toBe(true);
+  });
+
+  it('declares both directions of every sort field, including its default', () => {
+    expect(FORMS_LIST_QUERY.sortOptions).toContain('name:asc');
+    expect(FORMS_LIST_QUERY.sortOptions).toContain('name:desc');
+    expect(FORMS_LIST_QUERY.sortOptions).toContain(FORMS_LIST_QUERY.defaultSort);
+  });
+
   it('round-trips a remembered query', () => {
     rememberListQuery(FORMS_LIST_QUERY, { workspace: 'ws1' });
     expect(recallListQuery(FORMS_LIST_QUERY)).toEqual({ workspace: 'ws1' });
