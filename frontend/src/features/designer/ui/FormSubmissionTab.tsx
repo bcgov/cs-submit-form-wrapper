@@ -47,9 +47,17 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
     setShowDeleteConfirm(false);
     try {
       await dispatch(deleteFormSubmissionThunk({ token, submissionId: deleteId })).unwrap();
-      addNotification({ text: dict.submission.deleteSuccess || 'Submission deleted successfully', type: 'success' });
+      addNotification({
+        text: dict.submission.deleteSuccess || 'Submission deleted successfully',
+        type: 'success',
+      });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : (e as any)?.message || 'Failed to delete submission';
+      let msg = e instanceof Error ? e.message : dict.submission.deleteFailure;
+      if (e === dict.submission.deleteFailure && typeof e === 'string') {
+        msg = e;
+      } else if (e === null && (e as unknown)?.message) {
+        msg = (e as unknown).message;
+      }
       addNotification({ text: msg, type: 'error' });
     }
   }, [token, deleteId, dispatch, addNotification, dict]);

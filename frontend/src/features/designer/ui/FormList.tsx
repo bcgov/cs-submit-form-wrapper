@@ -174,7 +174,7 @@ function FormList({
         router.push(`/${locale}/designer/${id}?tab=submissions`);
       }
     },
-    [router, locale],
+    [router, locale, designModeEnabled],
   );
 
   usePageNotices([
@@ -255,7 +255,6 @@ function FormList({
       dictForm,
       dict.workspaces,
       workspaces,
-      designModeEnabled,
       submitModeEnabled,
       formatLongDate,
     ],

@@ -220,6 +220,7 @@
     "actions": "Actions",
     "emptyList": "No submissions",
     "deleteSuccess": "Submission deleted successfully",
+    "deleteFailure": "Failed to delete submission",
     "columns": {
       "id": "Submission ID",
       "formName": "Form Name",

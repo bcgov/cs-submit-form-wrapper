@@ -221,6 +221,7 @@
     "actions": "Actions",
     "emptyList": "Aucune soumission",
     "deleteSuccess": "Soumission supprimée avec succès",
+    "deleteFailure": "Échec de la suppression de la soumission",
     "columns": {
       "id": "ID de Soumission",
       "formName": "Nom du Formulaire",

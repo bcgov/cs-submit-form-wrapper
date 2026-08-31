@@ -115,7 +115,7 @@ export default function FormHistoryTab({
         ),
       },
     ],
-    [dict, formatLongDate, dispatch, token, formId, onNavigateToDesigner, newVersionFromCallback],
+    [dict, formatLongDate, dispatch, token, onNavigateToDesigner, newVersionFromCallback],
   );
 
   const handlePageSizeChange = useCallback((size: number) => {

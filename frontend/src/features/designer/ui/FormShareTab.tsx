@@ -27,7 +27,7 @@ export default function FormShareTab({ dict }: Readonly<FormShareTabProps>) {
 
   const link = useMemo(() => {
     return `${getSubmitAppBaseUrl()}/${locale}/form/${formId}`;
-  }, [locale, formId, getSubmitAppBaseUrl]);
+  }, [locale, formId]);
 
   const copyToClipboard = useCallback(() => {
     addNotification({ text: dict.form.copiedNotification, type: 'success' });
