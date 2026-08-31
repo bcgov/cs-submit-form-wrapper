@@ -1,4 +1,5 @@
 import { asc, desc, sql, type Column, type SQL } from 'drizzle-orm';
+import { ValidationError } from '../errors';
 
 export type SortToken<TField extends string> = `${TField}:asc` | `${TField}:desc`;
 
@@ -33,7 +34,15 @@ export function orderByForSort<TField extends string>(
   const separator = token.lastIndexOf(':');
   const field = token.slice(0, separator) as TField;
   const direction = token.slice(separator + 1);
-  const { column, nullable, caseInsensitive } = columns[field];
+  const sortable = columns[field];
+
+  // The route schema accepts only declared tokens, so reaching here with another one means the
+  // request bypassed validation. Refuse it rather than pick an order for the caller.
+  if (!sortable || (direction !== 'asc' && direction !== 'desc')) {
+    throw new ValidationError(`Unsupported sort: ${token}`);
+  }
+
+  const { column, nullable, caseInsensitive } = sortable;
 
   if (!nullable && !caseInsensitive) {
     return [direction === 'asc' ? asc(column) : desc(column), desc(tiebreak)];

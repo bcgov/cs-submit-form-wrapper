@@ -57,6 +57,25 @@ describe('orderByForSort', () => {
   });
 });
 
+// Only declared tokens reach here through a route, so anything else means validation was bypassed.
+describe('orderByForSort rejects what the schema would not have accepted', () => {
+  it('refuses a field the list does not declare', () => {
+    expect(() =>
+      orderByForSort(SORT_COLUMNS, 'secrets:asc' as 'updatedAt:asc', submissions.id),
+    ).toThrow(/Unsupported sort/);
+  });
+
+  it('refuses a direction it cannot render, rather than choosing one', () => {
+    expect(() =>
+      orderByForSort(
+        SORT_COLUMNS,
+        'updatedAt:asc; drop table soba.form; --' as 'updatedAt:asc',
+        submissions.id,
+      ),
+    ).toThrow(/Unsupported sort/);
+  });
+});
+
 describe('likePattern', () => {
   it('wraps the term for a contains match', () => {
     expect(likePattern('report')).toBe('%report%');
