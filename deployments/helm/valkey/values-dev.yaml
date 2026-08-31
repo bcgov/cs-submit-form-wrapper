@@ -1,1 +1,7 @@
-# Dev uses chart defaults: 1 replica, NetworkPolicy on. No overrides needed.
+# Dev: one shared Valkey backs cache + message bus + event streams (dev and its PRs alias to it).
+# Streams are durable, so protect their (TTL-less) keys from eviction and persist across restarts.
+valkey:
+  maxmemoryPolicy: volatile-lru
+  persistence:
+    enabled: true
+    size: 1Gi

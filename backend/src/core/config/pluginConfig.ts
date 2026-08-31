@@ -28,11 +28,18 @@ const getRequiredCsv = (reader: PluginConfigEnvReader, envKey: string): string[]
   return parseCsvValue(reader.getRequiredEnv(envKey));
 };
 
+const getOptionalNumber = (reader: PluginConfigEnvReader, envKey: string): number | undefined => {
+  const raw = reader.getOptionalEnv(envKey);
+  return raw === undefined ? undefined : parseNumberEnvValue(raw);
+};
+
 export interface PluginConfigReader {
   getRequired(key: string): string;
   getOptional(key: string, defaultValue?: string): string | undefined;
   getBoolean(key: string): boolean;
   getNumber(key: string): number;
+  /** Undefined when unset, so the consumer's default stands. */
+  getOptionalNumber(key: string): number | undefined;
   getCsv(key: string): string[];
 }
 
@@ -44,6 +51,7 @@ function buildConfigReader(reader: PluginConfigEnvReader, prefix: string): Plugi
       reader.getOptionalEnv(toEnvKey(key)) ?? defaultValue,
     getBoolean: (key: string) => getRequiredBoolean(reader, toEnvKey(key)),
     getNumber: (key: string) => getRequiredNumber(reader, toEnvKey(key)),
+    getOptionalNumber: (key: string) => getOptionalNumber(reader, toEnvKey(key)),
     getCsv: (key: string) => getRequiredCsv(reader, toEnvKey(key)),
   };
 }

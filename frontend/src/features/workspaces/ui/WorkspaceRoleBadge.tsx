@@ -14,10 +14,8 @@ function formatRoleLabel(role: string): string {
 
 export function WorkspaceRoleBadge({ role, 'data-testid': testId }: Readonly<WorkspaceRoleBadgeProps>) {
   const label = formatRoleLabel(role || '');
-  const id = `workspace-role-${(role || 'unknown').toLowerCase()}-${testId ?? 'badge'}`;
   return (
     <StatusTag
-      id={id}
       label={label}
       variant={workspaceRoleToVariant(role)}
       data-testid={testId}

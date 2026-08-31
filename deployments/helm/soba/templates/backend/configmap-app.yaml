@@ -6,11 +6,20 @@ metadata:
     {{- include "soba.labels" (dict "root" . "component" "backend") | nindent 4 }}
 data:
   LOG_LEVEL: {{ .Values.backend.config.logLevel | quote }}
+  {{- with .Values.backend.config.httpRouteTimeoutMs }}
+  HTTP_ROUTE_TIMEOUT_MS: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.backend.config.httpOutboundTimeoutMs }}
+  HTTP_OUTBOUND_TIMEOUT_MS: {{ . | quote }}
+  {{- end }}
   NODE_ENV: {{ .Values.backend.config.nodeEnv | quote }}
-  {{- $frontendOrigin := printf "https://%s" (include "soba.frontendHost" .) }}
-  CORS_ORIGIN: {{ .Values.backend.config.corsOrigin | default $frontendOrigin | quote }}
+  {{- $frontendOrigins := include "soba.frontendOrigins" . }}
+  CORS_ORIGIN: {{ .Values.backend.config.corsOrigin | default $frontendOrigins | quote }}
   {{- $backendApiBase := printf "https://%s/api/v1" (include "soba.backendHost" .) }}
   SOBA_API_BASE_URL: {{ .Values.backend.config.sobaApiBaseUrl | default $backendApiBase | quote }}
+  {{- if .Values.backend.config.appVersion }}
+  APP_VERSION: {{ .Values.backend.config.appVersion | quote }}
+  {{- end }}
   {{- if .Values.backend.config.gitSha }}
   GIT_SHA: {{ .Values.backend.config.gitSha | quote }}
   {{- end }}
@@ -26,9 +35,22 @@ data:
   PLUGIN_CACHE_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
   # Per-release key namespace so releases sharing one Valkey (e.g. PRs in the dev namespace) never
   # read each other's cached rows. Defaults to <release>:; override with valkey.keyPrefix.
-  PLUGIN_CACHE_REDIS_KEY_PREFIX: {{ .Values.valkey.keyPrefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  PLUGIN_CACHE_REDIS_KEY_PREFIX: {{ .Values.valkey.keyPrefix | default .Values.valkey.prefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
   {{- end }}
   MESSAGEBUS_DEFAULT_CODE: {{ .Values.backend.config.messagebusDefaultCode | quote }}
+  {{- if include "soba.messagebusUsesRedis" . }}
+  PLUGIN_MESSAGEBUS_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release channel namespace so releases sharing one Valkey (e.g. PRs in the dev namespace)
+  # never receive each other's events. Defaults to <release>:; override with valkey.channelPrefix.
+  PLUGIN_MESSAGEBUS_REDIS_CHANNEL_PREFIX: {{ .Values.valkey.channelPrefix | default .Values.valkey.prefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
+  EVENTSTREAM_DEFAULT_CODE: {{ .Values.backend.config.eventStreamDefaultCode | quote }}
+  {{- if include "soba.eventstreamUsesRedis" . }}
+  PLUGIN_EVENTSTREAM_REDIS_URL: {{ printf "redis://%s-valkey:%v" (include "soba.fullname" .) .Values.valkey.port | quote }}
+  # Per-release stream namespace so releases sharing one Valkey never read each other's streams or
+  # share consumer groups. Defaults to <release>:; override with valkey.streamPrefix.
+  PLUGIN_EVENTSTREAM_REDIS_STREAM_PREFIX: {{ .Values.valkey.streamPrefix | default .Values.valkey.prefix | default (printf "%s:" (include "soba.fullname" .)) | quote }}
+  {{- end }}
   TEMPSTORAGE_DEFAULT_CODE: {{ .Values.backend.config.tempStorageDefaultCode | quote }}
   {{- if include "soba.tempStorageUsesMount" . }}
   PLUGIN_TEMPSTORAGE_MOUNT_DIR: {{ .Values.backend.tempStorage.mountPath | quote }}

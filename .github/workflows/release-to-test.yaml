@@ -119,7 +119,7 @@ jobs:
       contents: read
     environment:
       name: test
-      url: https://${{ env.ACRONYM }}-test.${{ vars.OC_DOMAIN }}
+      url: https://${{ env.ACRONYM }}-test-designer.${{ vars.OC_DOMAIN }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -169,12 +169,21 @@ jobs:
         run: |
           REPO_LC=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
 
+          # Version /meta reports, e.g. 2.0.0-beta.0+test.a1b2c3d. Empty if unreadable: the
+          # chart then omits APP_VERSION and the backend falls back to package.json.
+          BASE_VERSION=$(jq -r '.version // empty' backend/package.json 2>/dev/null || echo "")
+          APP_VERSION=""
+          if [[ "$BASE_VERSION" =~ ^[0-9A-Za-z.-]+$ ]]; then
+            APP_VERSION="${BASE_VERSION}+test.${SHORT_SHA}"
+          fi
+
           cat > /tmp/values-override.yaml <<OVERRIDE
           backend:
             image:
               repository: "ghcr.io/${REPO_LC}/backend"
               tag: "${TAG}"
             config:
+              appVersion: "${APP_VERSION}"
               gitSha: "${SHORT_SHA}"
               gitTag: "${TAG}"
               imageTag: "${TAG}"
@@ -208,8 +217,9 @@ jobs:
           echo "Waiting for backend rollout..."
           oc rollout status deployment/soba-test-backend -n "${NAMESPACE}" --timeout=300s
 
-          echo "Waiting for frontend rollout..."
-          oc rollout status deployment/soba-test-frontend -n "${NAMESPACE}" --timeout=300s
+          echo "Waiting for frontend rollouts (designer + forms)..."
+          oc rollout status deployment/soba-test-frontend-designer -n "${NAMESPACE}" --timeout=300s
+          oc rollout status deployment/soba-test-frontend-forms -n "${NAMESPACE}" --timeout=300s
 
           echo "Waiting for formio rollout..."
           oc rollout status deployment/soba-test-formio -n "${NAMESPACE}" --timeout=300s

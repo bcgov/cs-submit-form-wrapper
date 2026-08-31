@@ -16,5 +16,7 @@ export {
   logTempStorageSelfTest,
   logVirusScanSelfTest,
   logCacheSelfTest,
+  logMessageBusSelfTest,
+  logEventStreamSelfTest,
   logDocumentGenerationReadiness,
 } from './startupHealth';

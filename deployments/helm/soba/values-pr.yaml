@@ -1,5 +1,8 @@
 # PR environment — minimal resources, single replica, internal Form.io + MongoDB
 backend:
+  # Development data generator: on for PR review environments.
+  features:
+    dev-data: "enabled"
   replicas: 1
   config:
     documentGenerationDefaultCode: cdogs-v2
@@ -8,9 +11,12 @@ backend:
     # Virus scan inherits virusscan-clamav from values.yaml: PRs deploy into the dev
     # namespace, so the <release>-clamav alias resolves to the shared dev clamav
     # (same namespace — no externalName override, no cross-namespace NSP needed).
-    # Same for the cache: PRs share the dev-namespace Valkey via the <release>-valkey alias;
-    # the per-release key prefix keeps each PR's cached rows separate.
+    # Same for the cache, message bus and event stream: PRs share the dev-namespace Valkey via the
+    # <release>-valkey alias; the per-release key/channel/stream prefixes keep each PR's cached rows,
+    # bus events and streams separate.
     cacheDefaultCode: cache-redis
+    messagebusDefaultCode: messagebus-redis
+    eventStreamDefaultCode: eventstream-redis
   documentGeneration:
     cdogsV2:
       endpoint: https://cdogs-dev.api.gov.bc.ca/api
@@ -89,20 +95,32 @@ temporal:
   namespace: "default"
   taskQueue: "soba"
 
-temporalWorker:
-  enabled: true
-  image:
-    repository: ghcr.io/bcgov/soba/temporal-worker
-    tag: latest
-    pullPolicy: IfNotPresent
-  replicas: 1
-  resources:
-    requests:
-      cpu: 25m
-      memory: 128Mi
-    limits:
-      cpu: 100m
-      memory: 512Mi
+temporalWorkers:
+  - name: temporal-worker
+    enabled: true
+    taskQueue: "soba"
+    replicas: 1
+    healthPort: 9090
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 512Mi
+
+  - name: temporal-worker-document-generation
+    enabled: true
+    taskQueue: "document-generation"
+    replicas: 1
+    healthPort: 9091
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        cpu: 100m
+        memory: 512Mi
 
 vault:
   enabled: true

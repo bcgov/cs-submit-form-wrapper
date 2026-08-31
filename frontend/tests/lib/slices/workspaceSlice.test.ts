@@ -1,13 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import workspaceReducer, {
   loadWorkspaces,
-  pickWorkspaceToEstablish,
-  setActiveWorkspaceId,
   clearWorkspaceState,
+  setCanceledDefaultModal,
+  setSelectedWorkspaceId,
 } from '@/lib/slices/workspaceSlice';
 import type { WorkspaceState } from '@/lib/slices/workspaceSlice';
-
-const STORAGE_KEY = 'soba.workspaceId';
+import { loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
 
 const workspace = (id: string) => ({
   id,
@@ -22,100 +21,99 @@ const workspace = (id: string) => ({
 
 const baseState: WorkspaceState = {
   workspaces: [],
-  activeWorkspaceId: null,
+  writableWorkspaces: [],
   status: 'idle',
+  writableStatus: 'idle',
+  loadedOnce: false,
+  writableLoadedOnce: false,
   error: null,
   canceledDefaultModal: false,
+  selectedWorkspaceId: null,
 };
 
 describe('workspaceSlice', () => {
-  beforeEach(() => {
-    globalThis.sessionStorage.clear();
+  it('clearWorkspaceState resets state', () => {
+    const next = workspaceReducer(
+      { ...baseState, workspaces: [workspace('w1')], status: 'succeeded' },
+      clearWorkspaceState(),
+    );
+    expect(next.workspaces).toEqual([]);
+    expect(next.writableWorkspaces).toEqual([]);
+    expect(next.status).toBe('idle');
+    expect(next.writableStatus).toBe('idle');
+    expect(next.error).toBeNull();
+    expect(next.selectedWorkspaceId).toBeNull();
   });
 
-  it('pickWorkspaceToEstablish selects the sole workspace', () => {
-    expect(pickWorkspaceToEstablish([workspace('only')])).toEqual(workspace('only'));
+  it('setCanceledDefaultModal sets state', () => {
+    const next = workspaceReducer(baseState, setCanceledDefaultModal(true));
+    expect(next.canceledDefaultModal).toBe(true);
   });
 
-  it('pickWorkspaceToEstablish prefers stored default workspace when valid', () => {
-    const personal = workspace('p1');
-    personal.kind = 'personal';
-    const enterprise = workspace('e1');
-    enterprise.kind = 'enterprise';
-    expect(pickWorkspaceToEstablish([personal, enterprise], 'e1')).toEqual(enterprise);
+  it('setSelectedWorkspaceId sets state', () => {
+    const next = workspaceReducer(baseState, setSelectedWorkspaceId('w1'));
+    expect(next.selectedWorkspaceId).toBe('w1');
   });
 
-  it('pickWorkspaceToEstablish ignores invalid default workspace id', () => {
-    const personal = workspace('p1');
-    personal.kind = 'personal';
-    const enterprise = workspace('e1');
-    enterprise.kind = 'enterprise';
-    expect(pickWorkspaceToEstablish([personal, enterprise], 'missing')).toEqual(personal);
+  it('handles loadWorkspaces.pending', () => {
+    const next = workspaceReducer(baseState, { type: loadWorkspaces.pending.type });
+    expect(next.status).toBe('loading');
   });
 
-  it('pickWorkspaceToEstablish prefers personal when several exist', () => {
-    const personal = workspace('p1');
-    personal.kind = 'personal';
-    const enterprise = workspace('e1');
-    enterprise.kind = 'enterprise';
-    expect(pickWorkspaceToEstablish([enterprise, personal])).toEqual(personal);
-  });
-
-  it('pickWorkspaceToEstablish returns null when several exist and none is personal', () => {
-    const a = workspace('a1');
-    a.kind = 'enterprise';
-    const b = workspace('b1');
-    b.kind = 'enterprise';
-    expect(pickWorkspaceToEstablish([a, b])).toBeNull();
-  });
-
-  it('does not auto-pick a workspace when the list loads', () => {
+  it('handles loadWorkspaces.fulfilled', () => {
     const next = workspaceReducer(baseState, {
       type: loadWorkspaces.fulfilled.type,
       payload: [workspace('w1'), workspace('w2')],
     });
-    expect(next.activeWorkspaceId).toBeNull();
-    expect(next.workspaces).toHaveLength(2);
     expect(next.status).toBe('succeeded');
+    expect(next.workspaces).toHaveLength(2);
   });
 
-  it('drops a stale active workspace that is no longer in the loaded list', () => {
-    const next = workspaceReducer(
-      { ...baseState, activeWorkspaceId: 'gone' },
-      { type: loadWorkspaces.fulfilled.type, payload: [workspace('w1')] },
-    );
-    expect(next.activeWorkspaceId).toBeNull();
+  it('handles loadWorkspaces.rejected', () => {
+    const next = workspaceReducer(baseState, {
+      type: loadWorkspaces.rejected.type,
+      payload: 'Error loading',
+    });
+    expect(next.status).toBe('failed');
+    expect(next.error).toBe('Error loading');
   });
 
-  it('keeps a valid active workspace present in the loaded list', () => {
-    const next = workspaceReducer(
-      { ...baseState, activeWorkspaceId: 'w1' },
-      { type: loadWorkspaces.fulfilled.type, payload: [workspace('w1'), workspace('w2')] },
-    );
-    expect(next.activeWorkspaceId).toBe('w1');
+  it('handles loadWritableWorkspaces.pending', () => {
+    const next = workspaceReducer(baseState, { type: loadWritableWorkspaces.pending.type });
+    expect(next.writableStatus).toBe('loading');
   });
 
-  it('setActiveWorkspaceId mirrors the resolved value', () => {
-    const next = workspaceReducer(baseState, setActiveWorkspaceId('w9'));
-    expect(next.activeWorkspaceId).toBe('w9');
+  it('handles loadWritableWorkspaces.fulfilled', () => {
+    const next = workspaceReducer(baseState, {
+      type: loadWritableWorkspaces.fulfilled.type,
+      payload: [workspace('w1')],
+    });
+    expect(next.writableStatus).toBe('succeeded');
+    expect(next.writableWorkspaces).toHaveLength(1);
   });
 
-  it('clearWorkspaceState resets state and clears the per-tab store', () => {
-    globalThis.sessionStorage.setItem(STORAGE_KEY, 'w1');
-    const next = workspaceReducer(
-      { ...baseState, activeWorkspaceId: 'w1', workspaces: [workspace('w1')] },
-      clearWorkspaceState(),
-    );
-    expect(next.activeWorkspaceId).toBeNull();
-    expect(next.workspaces).toEqual([]);
-    expect(globalThis.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+  // parseJson casts the body without checking, so a malformed 200 must not put a non-array
+  // into state — every consumer calls .filter/.some/.length on these straight away.
+  it('keeps the lists as arrays when the response has no items', () => {
+    const loaded = workspaceReducer(baseState, {
+      type: loadWorkspaces.fulfilled.type,
+      payload: undefined,
+    });
+    expect(loaded.workspaces).toEqual([]);
+
+    const writable = workspaceReducer(baseState, {
+      type: loadWritableWorkspaces.fulfilled.type,
+      payload: undefined,
+    });
+    expect(writable.writableWorkspaces).toEqual([]);
   });
 
-  it('hydrates activeWorkspaceId from the per-tab store on init', async () => {
-    globalThis.sessionStorage.setItem(STORAGE_KEY, 'wsHydrated');
-    vi.resetModules();
-    const mod = await import('@/lib/slices/workspaceSlice');
-    const state = mod.default(undefined, { type: '@@redux/INIT' });
-    expect(state.activeWorkspaceId).toBe('wsHydrated');
+  it('handles loadWritableWorkspaces.rejected', () => {
+    const next = workspaceReducer(baseState, {
+      type: loadWritableWorkspaces.rejected.type,
+      payload: 'Error loading',
+    });
+    expect(next.writableStatus).toBe('failed');
+    expect(next.error).toBe('Error loading');
   });
 });

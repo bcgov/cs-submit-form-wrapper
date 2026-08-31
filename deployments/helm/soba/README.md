@@ -187,6 +187,7 @@ app pods start (Helm `pre-install,pre-upgrade` hook). The Job:
 1. Creates the database if it doesn't exist (via `DB_ADMIN_DATABASE`)
 2. Runs Drizzle schema migrations
 3. Seeds reference data (roles, statuses, features, system user)
+4. Applies per-environment feature status (see below)
 
 The seed is fully idempotent (`ON CONFLICT DO NOTHING`), so it's safe to run on
 every deploy.
@@ -196,6 +197,36 @@ To disable automatic migration:
 ```bash
 --set backend.migration.enabled=false
 ```
+
+## Feature Status per Environment
+
+Migrations insert each feature with the same status everywhere. `backend.features`
+overrides that per environment, rendered into the migration Job's `env` and
+applied to `soba.feature` by the seed step.
+
+It is rendered inline rather than through a ConfigMap because the Job is a
+`pre-install,pre-upgrade` hook, and Helm creates hook resources before
+ConfigMaps.
+
+| Helm value                       | Env var                     | Effect                          |
+| -------------------------------- | --------------------------- | ------------------------------- |
+| `backend.features.<code>: ""`    | `FEATURE_<CODE>_STATUS=""`  | leave the migrated status alone |
+| `backend.features.<code>: "..."` | `FEATURE_<CODE>_STATUS=...` | set the feature to that status  |
+
+Values are quoted `feature_status` codes: `enabled`, `disabled`, `experimental`,
+`deprecated`. Anything else fails `helm template`, including an unquoted `false`
+or `off`, which YAML would otherwise turn into "no opinion".
+
+The value is applied by the seed inside the migration Job, so it takes effect on
+the next deploy rather than immediately, and the stored status is what the
+application reads thereafter.
+
+```bash
+# enable the development data generator in a PR or dev namespace
+--set backend.features.dev-data=enabled
+```
+
+`dev-data` gates `pnpm db:dev-data` and must stay disabled in production.
 
 ## Internal Sub-Charts
 
@@ -230,8 +261,65 @@ them in pairs.
 
 Hostnames are derived from the release name and `global.domain`:
 
-- **Frontend:** `<fullname>.<domain>` (e.g. `soba-pr-42.apps.gov.bc.ca`)
+- **Frontend:** one host per `frontend.apps` entry, `<fullname>-<name>.<domain>`
+  (e.g. `soba-dev-designer.apps.gov.bc.ca`, `soba-dev-forms.apps.gov.bc.ca`).
+  Override a single app with `frontend.apps.<name>.host` (PR slots pin the host this way).
 - **Backend API:** `<fullname>-api.<domain>` (e.g. `soba-pr-42-api.apps.gov.bc.ca`)
+
+Each `frontend.apps` entry renders its own Deployment/Service/Route/ConfigMap from the
+same image, differing only by `featuresAllowed` (the mode). The backend `CORS_ORIGIN`
+defaults to the origins of all enabled frontend apps; set `backend.config.corsOrigin`
+to override.
+
+### Route annotations
+
+HAProxy is tuned through Route annotations. Most take the `haproxy.router.openshift.io/` prefix (`timeout`, `balance`, `hsts_header`, `disable_cookies`, `rate-limit-connections`); cookie naming is `router.openshift.io/cookie_name`. A mistyped key is ignored silently.
+
+| Value                                    | Applies to                        |
+| ---------------------------------------- | --------------------------------- |
+| `backend.route.annotations`              | the API Route and every extraPath |
+| `backend.route.extraPaths[].annotations` | one API path                      |
+| `frontend.route.annotations`             | every frontend app's Route        |
+| `frontend.apps.<name>.route.annotations` | one app                           |
+
+The narrower map wins on conflict. Values are rendered quoted, so `true` and `120` are safe to write unquoted.
+
+```yaml
+frontend:
+  route:
+    annotations:
+      haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains
+  apps:
+    forms:
+      route:
+        annotations:
+          haproxy.router.openshift.io/timeout: "180s"
+```
+
+`timeout` is inactivity, not total duration: a streaming upload does not trip it, a request going quiet while the backend works does.
+
+#### extraPaths
+
+One Route means one timeout for the whole API. `extraPaths` adds Routes on the same host scoped to a path, each its own HAProxy backend, matched longest path first with the base Route as the catch-all.
+
+```yaml
+backend:
+  route:
+    annotations:
+      haproxy.router.openshift.io/timeout: "60s"
+    extraPaths:
+      - name: files
+        path: /api/v1/submit/files
+        annotations:
+          haproxy.router.openshift.io/timeout: "300s"
+```
+
+That is what the chart ships: uploads at 300s, everything else at 60s. An upload writes nothing back until clamd finishes scanning (`clamav.timeoutMs`, 60s), so the router's 30s default would 504 a clean upload.
+
+Matching is by whole segment and prefix only — `/api/v1/submit/files` does not capture
+`/api/v1/submit/filestore`, and there is no suffix match. Document generation cannot be scoped this way: it sits at `/api/v1/submit/submissions/:id/{preview,print}`,and the only prefix reaching it would swallow ordinary submission reads and writes. It is a synchronous call to CDOGS, so the base timeout has to cover it.
+
+`name` and `path` are required. `name` becomes the Route name and the `app.kubernetes.io/component` label, so it must be lowercase DNS-1123 and short enough to keep that label under 63 characters; duplicates are refused. `path` must start with `/` and needs `edge` or `reencrypt` termination, as `passthrough` cannot match on path. Host, Service and TLS come from the base Route. Each rule fails the render naming the entry.
 
 ## Secrets Management
 

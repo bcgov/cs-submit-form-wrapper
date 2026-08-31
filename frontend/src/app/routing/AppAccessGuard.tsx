@@ -14,11 +14,16 @@ import { useAppSession } from './useAppSession';
 
 type AppAccessGuardProps = {
   locale: string;
+  workspacesEnabled: boolean;
   children: React.ReactNode;
 };
 
 /** Central session bootstrap and route access policy for localized app routes. */
-export function AppAccessGuard({ locale, children }: Readonly<AppAccessGuardProps>) {
+export function AppAccessGuard({
+  locale,
+  workspacesEnabled,
+  children,
+}: Readonly<AppAccessGuardProps>) {
   const dict = useDictionary();
   const router = useRouter();
   const pathname = usePathname();
@@ -27,8 +32,8 @@ export function AppAccessGuard({ locale, children }: Readonly<AppAccessGuardProp
   const session = useAppSession();
 
   const redirectTarget = useMemo(() => {
-    return resolveRedirect(pathname, locale, session);
-  }, [pathname, locale, session]);
+    return resolveRedirect(pathname, locale, session, workspacesEnabled);
+  }, [pathname, locale, session, workspacesEnabled]);
 
   useEffect(() => {
     if (redirectTarget) {
@@ -49,7 +54,9 @@ export function AppAccessGuard({ locale, children }: Readonly<AppAccessGuardProp
     dispatch(clearWorkspaceState());
   }, [refresh, dispatch]);
 
-  if (session.sessionFailed && !redirectTarget) {
+  // Same rule as the spinner below: once bootstrapped, a failed background reload must not replace
+  // the route either — the retry lives on the next full load.
+  if (session.sessionFailed && !session.sessionLoadedOnce && !redirectTarget) {
     return (
       <div className="mt-4" role="alert">
         <InlineAlert variant="danger">{dict.general.sessionError}</InlineAlert>
@@ -69,12 +76,14 @@ export function AppAccessGuard({ locale, children }: Readonly<AppAccessGuardProp
     );
   }
 
+  // Only the first load hides the app. A background reload (a token rotation re-reading /me) must
+  // not swap children for the spinner — unmounting the route would discard a form being filled.
   const showLoading =
-    session.initializing ||
-    (session.authenticated && !session.sessionReady && !session.sessionFailed) ||
-    redirectTarget !== null;
+    !session.sessionLoadedOnce &&
+    (session.initializing ||
+      (session.authenticated && !session.sessionReady && !session.sessionFailed));
 
-  if (showLoading) {
+  if (showLoading || redirectTarget !== null) {
     return <CenteredProgress label={dict.general.loading} minHeight="50vh" />;
   }
 

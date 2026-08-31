@@ -1,5 +1,6 @@
 import { getDictionary, resolveLocale } from '../dictionaries';
 import OnboardingPage from '@/src/features/onboarding/ui/OnboardingPage';
+import { PageLayout } from '@/src/components/PageLayout';
 
 type PageProps = {
   params: Promise<{ lang: string }>;
@@ -15,10 +16,14 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default function Page() {
+export default async function Page({ params }: Readonly<PageProps>) {
+  const param = await params;
+  const locale = resolveLocale(param.lang);
+  const dict = await getDictionary(locale);
+
   return (
-    <section aria-labelledby="onboarding-heading">
+    <PageLayout headingId="onboarding-heading" heading={dict.onboarding.heading} width="narrow">
       <OnboardingPage />
-    </section>
+    </PageLayout>
   );
 }

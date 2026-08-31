@@ -1,22 +1,19 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import {
-  fetchCurrentUser,
-  patchCurrentUser,
-  type CurrentUserResponse,
-} from '@/src/shared/api/sobaApi';
+import { fetchCurrentUser, type CurrentUserResponse } from '@/src/shared/api/sobaApi';
 
 export type CurrentUserState = {
   data: CurrentUserResponse | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  /** Survives a later failure, unlike `data`, so a background reload is distinguishable. */
+  loadedOnce: boolean;
   error?: string;
-  lastToken?: string;
 };
 
 const initialState: CurrentUserState = {
   data: null,
   status: 'idle',
+  loadedOnce: false,
   error: undefined,
-  lastToken: undefined,
 };
 
 export const loadCurrentUser = createAsyncThunk<
@@ -31,20 +28,6 @@ export const loadCurrentUser = createAsyncThunk<
   }
 });
 
-export const updateDefaultWorkspace = createAsyncThunk<
-  CurrentUserResponse,
-  { token: string; defaultWorkspaceId: string | null },
-  { rejectValue: string }
->('currentUser/updateDefaultWorkspace', async ({ token, defaultWorkspaceId }, { rejectWithValue }) => {
-  try {
-    return await patchCurrentUser(token, { preferences: { defaultWorkspaceId } });
-  } catch (err: unknown) {
-    return rejectWithValue(
-      (err as { message?: string })?.message ?? 'Failed to update default workspace',
-    );
-  }
-});
-
 const currentUserSlice = createSlice({
   name: 'currentUser',
   initialState,
@@ -52,33 +35,25 @@ const currentUserSlice = createSlice({
     clearCurrentUser(state) {
       state.data = null;
       state.status = 'idle';
+      state.loadedOnce = false;
       state.error = undefined;
-      state.lastToken = undefined;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(loadCurrentUser.pending, (state, action) => {
+      .addCase(loadCurrentUser.pending, (state) => {
         state.status = 'loading';
         state.error = undefined;
-        state.lastToken = action.meta.arg;
       })
       .addCase(loadCurrentUser.fulfilled, (state, action) => {
         state.status = 'succeeded';
+        state.loadedOnce = true;
         state.data = action.payload;
         state.error = undefined;
       })
       .addCase(loadCurrentUser.rejected, (state, action) => {
         state.status = 'failed';
         state.data = null;
-        state.error = action.payload ?? action.error.message;
-      })
-      .addCase(updateDefaultWorkspace.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.data = action.payload;
-        state.error = undefined;
-      })
-      .addCase(updateDefaultWorkspace.rejected, (state, action) => {
         state.error = action.payload ?? action.error.message;
       });
   },

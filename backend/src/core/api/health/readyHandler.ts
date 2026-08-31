@@ -5,9 +5,28 @@ import { checkDocumentGenerationReadiness } from '../../integrations/document-ge
 import {
   checkStorageReadiness,
   getCacheAdapter,
+  getMessageBusAdapter,
+  getEventStreamAdapter,
   getTempStorageAdapter,
   getVirusScanAdapter,
 } from '../../integrations/plugins/PluginRegistry';
+
+interface Readiness {
+  ok: boolean;
+  message?: string;
+}
+
+/** Resolve a non-gating readiness report, turning any throw/rejection into { ok: false }. An
+ *  undefined result (adapter with no readinessCheck) counts as reachable. */
+async function reportReadiness(
+  check: () => Promise<Readiness | undefined> | Readiness | undefined,
+): Promise<Readiness> {
+  try {
+    return (await check()) ?? { ok: true };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 export async function readinessHandler(_req: Request, res: Response): Promise<void> {
   let dbOk = false;
@@ -21,39 +40,20 @@ export async function readinessHandler(_req: Request, res: Response): Promise<vo
   const formEngines = await checkFormEngineReadiness();
   const allEnginesOk = Object.values(formEngines).every((r) => r.ok);
 
-  // Storage readiness is reported but non-gating — a storage outage degrades uploads, it doesn't
-  // pull the pod from rotation (unlike DB and form engines).
+  // Everything below is reported but non-gating — an outage degrades a feature (uploads, rendering,
+  // caching, cross-pod fan-out), it doesn't pull the pod from rotation the way DB or a form engine
+  // does. Adapters without a readinessCheck (e.g. cache-memory, messagebus-memory) report reachable.
   const storage = await checkStorageReadiness();
-
-  // Temp storage is likewise reported but non-gating.
-  let tempStorage: { ok: boolean; message?: string };
-  try {
-    tempStorage = { ok: await getTempStorageAdapter().ping() };
-  } catch (err) {
-    tempStorage = { ok: false, message: err instanceof Error ? err.message : String(err) };
-  }
-
-  // Virus scanner is reported but non-gating — a scanner outage blocks uploads (fail-closed at the
-  // upload path), it doesn't pull the pod from rotation.
-  let virusScanner: { ok: boolean; message?: string };
-  try {
-    virusScanner = { ok: await getVirusScanAdapter().ping() };
-  } catch (err) {
-    virusScanner = { ok: false, message: err instanceof Error ? err.message : String(err) };
-  }
-
-  // Document generation is reported but non-gating — a CDOGS outage degrades rendering, it doesn't
-  // pull the pod from rotation.
   const documentGeneration = await checkDocumentGenerationReadiness();
-
-  // Cache is reported but non-gating — a cache outage falls through to Postgres (slower, not an
-  // outage). An adapter without a readinessCheck (e.g. cache-memory) is reported ok.
-  let cache: { ok: boolean; message?: string };
-  try {
-    cache = (await getCacheAdapter().readinessCheck?.()) ?? { ok: true };
-  } catch (err) {
-    cache = { ok: false, message: err instanceof Error ? err.message : String(err) };
-  }
+  const tempStorage = await reportReadiness(async () => ({
+    ok: await getTempStorageAdapter().ping(),
+  }));
+  const virusScanner = await reportReadiness(async () => ({
+    ok: await getVirusScanAdapter().ping(),
+  }));
+  const cache = await reportReadiness(() => getCacheAdapter().readinessCheck?.());
+  const messageBus = await reportReadiness(() => getMessageBusAdapter().readinessCheck?.());
+  const eventStream = await reportReadiness(() => getEventStreamAdapter().readinessCheck?.());
 
   const body = {
     status: dbOk && allEnginesOk ? 'ready' : 'unhealthy',
@@ -64,6 +64,8 @@ export async function readinessHandler(_req: Request, res: Response): Promise<vo
     virusScanner,
     documentGeneration,
     cache,
+    messageBus,
+    eventStream,
   };
 
   if (!dbOk || !allEnginesOk) {

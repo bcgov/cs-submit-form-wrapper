@@ -1,6 +1,6 @@
 {
   "name": "soba",
-  "version": "1.0.0",
+  "version": "2.0.0-beta.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "qa:build": "pnpm qa && pnpm build",
     "db:migrate": "pnpm --filter @soba/backend run db:migrate",
     "db:seed": "pnpm --filter @soba/backend run db:seed",
+    "db:dev-data": "pnpm --filter @soba/backend run db:dev-data",
     "db:init": "pnpm db:migrate && pnpm db:seed",
     "dev:services:up": "docker compose -f .devcontainer/docker-compose.yml up -d --wait",
     "dev:db:up": "pnpm dev:services:up && pnpm db:init",

@@ -11,6 +11,11 @@
   max-width: 32rem;
 }
 
+/* In a modal the container is already narrow, so the readable-width cap only skews the form left. */
+.fieldStackFill {
+  max-width: none;
+}
+
 .tabContent {
   padding-top: 1rem;
 }

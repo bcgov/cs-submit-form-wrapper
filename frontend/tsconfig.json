@@ -28,7 +28,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "**/*.mts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-forms/types/**/*.ts",
+    ".next-forms/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules", "eslint.config.mts"]
 }

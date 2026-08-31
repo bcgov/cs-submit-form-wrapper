@@ -1,6 +1,5 @@
 .sideNav {
   height: 100%;
-  border-right: 1px solid var(--app-border);
 }
 
 /* Subtle hover for nav items (no strong colour). */
@@ -20,11 +19,36 @@
   width: 1.5rem;
 }
 
-.sidebarToggle {
+/* Sits just below the nav list and hangs off the nav's right edge. Hidden below md, where the nav
+   labels are already hidden and collapsing does nothing. */
+.toggleSlot {
+  display: none;
+  position: relative;
+  left: 100%;
+  /* left:100% lands on the nav's content box, which stops short of the border by its padding. */
+  margin-left: var(--layout-padding-small);
+  transform: translateY(-50%);
+}
+
+@media (min-width: 768px) {
+  .toggleSlot {
+    display: block;
+    width: fit-content;
+  }
+}
+
+/* Hover, focus and press behaviour come from the design system, which has no tab affordance. The
+   selector matches its own specificity; two classes loses to .bcds-react-aria-Button.small.icon. */
+.toggleSlot :global(.bcds-react-aria-Button.small.icon) {
   width: 24px;
+  min-width: 24px;
   height: 48px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+  min-height: 48px;
+  border-left: none;
+  border-color: var(--app-border);
+  border-radius: 0 var(--layout-border-radius-medium) var(--layout-border-radius-medium) 0;
+  color: var(--typography-color-secondary);
+  box-shadow: var(--surface-shadow-none);
 }
 
 .iconOutlineBootstrap {

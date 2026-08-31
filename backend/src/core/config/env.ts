@@ -157,6 +157,7 @@ export function createEnvReader(source: EnvSource) {
       getOptionalEnvFrom(source, 'WORKSPACE_PLUGINS_PATH'),
     getCacheDefaultCode: () => getOptionalEnvFrom(source, 'CACHE_DEFAULT_CODE'),
     getMessageBusDefaultCode: () => getOptionalEnvFrom(source, 'MESSAGEBUS_DEFAULT_CODE'),
+    getEventStreamDefaultCode: () => getOptionalEnvFrom(source, 'EVENTSTREAM_DEFAULT_CODE'),
     getTempStorageDefaultCode: () => getOptionalEnvFrom(source, 'TEMPSTORAGE_DEFAULT_CODE'),
     getVirusScanDefaultCode: () => getOptionalEnvFrom(source, 'VIRUSSCAN_DEFAULT_CODE'),
     getFormEngineDefaultCode: () => getOptionalEnvFrom(source, 'FORM_ENGINE_DEFAULT_CODE'),
@@ -226,6 +227,7 @@ export const env = {
   getPluginsPath: () => getOptionalEnv('PLUGINS_PATH') ?? getOptionalEnv('WORKSPACE_PLUGINS_PATH'),
   getCacheDefaultCode: () => getOptionalEnv('CACHE_DEFAULT_CODE'),
   getMessageBusDefaultCode: () => getOptionalEnv('MESSAGEBUS_DEFAULT_CODE'),
+  getEventStreamDefaultCode: () => getOptionalEnv('EVENTSTREAM_DEFAULT_CODE'),
   getTempStorageDefaultCode: () => getOptionalEnv('TEMPSTORAGE_DEFAULT_CODE'),
   getVirusScanDefaultCode: () => getOptionalEnv('VIRUSSCAN_DEFAULT_CODE'),
   getFormEngineDefaultCode: () => getOptionalEnv('FORM_ENGINE_DEFAULT_CODE'),
@@ -253,6 +255,10 @@ export const env = {
   getTemporalNamespace: () => getOptionalEnv('TEMPORAL_NAMESPACE') ?? 'default',
   getTemporalTaskQueue: () => getOptionalEnv('TEMPORAL_TASK_QUEUE') ?? 'soba',
   getTemporalWorkerHealthPort: () => getNumberEnv('TEMPORAL_WORKER_HEALTH_PORT') ?? 9090,
+  // Match the chart's haproxy.router.openshift.io/timeout annotation.
+  getHttpRouteTimeoutMs: () => getNumberEnv('HTTP_ROUTE_TIMEOUT_MS'),
+  // Budget for one outbound call. Unset derives it from the route timeout.
+  getHttpOutboundTimeoutMs: () => getNumberEnv('HTTP_OUTBOUND_TIMEOUT_MS'),
   // Max upload size accepted by the files API. Feature-level (not per storage backend).
   getFilesMaxFileSizeMb: () => getNumberEnv('FILES_MAX_FILE_SIZE_MB') || 10,
   // Storage profile the files feature reads/writes. Defaults to 'default'.

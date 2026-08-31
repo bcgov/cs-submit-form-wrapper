@@ -1,4 +1,5 @@
 import { SubmissionList } from '@/src/features/submit-mode/ui/SubmissionList';
+import { PageLayout } from '@/src/components/PageLayout';
 import { getDictionary, hasLocale, Locale } from '../../dictionaries';
 import { notFound } from 'next/navigation';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
@@ -27,10 +28,11 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
-  const { formId } = await params;
+  const param = await params;
+  const dict = await getDictionary((hasLocale(param.lang) ? param.lang : 'en') as Locale);
   return (
-    <section className="p-4" aria-labelledby="submissions-heading">
-      <SubmissionList formId={formId} />
-    </section>
+    <PageLayout headingId="submissions-heading" heading={dict.submission.submissions}>
+      <SubmissionList formId={param.formId} />
+    </PageLayout>
   );
 }

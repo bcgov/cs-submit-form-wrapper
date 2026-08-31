@@ -18,7 +18,10 @@ export class CdogsV3Adapter implements DocumentGenerationAdapter {
   private readonly http: HttpClient;
 
   constructor(config: PluginConfigReader) {
-    this.http = new HttpClient({ baseUrl: joinUrl(config.getRequired('ENDPOINT'), 'v3') });
+    this.http = new HttpClient({
+      baseUrl: joinUrl(config.getRequired('ENDPOINT'), 'v3'),
+      timeoutMs: config.getOptionalNumber('TIMEOUT_MS'),
+    });
   }
 
   render(payload: Record<string, unknown>): Promise<DocumentRenderResult> {

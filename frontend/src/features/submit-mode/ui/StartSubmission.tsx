@@ -14,6 +14,7 @@ import { v7 as uuidv7 } from 'uuid';
 type StartLabels = {
   starting: string;
   startError: string;
+  sessionExpired: string;
 };
 
 /**
@@ -25,7 +26,10 @@ type StartLabels = {
  * Every visit opens a new submission (that's the intent of the URL). It runs in a client effect, so
  * Next's <Link> prefetch — which renders the RSC but not client effects — never spawns a stray record.
  */
-function StartSubmissionBody({ formId, labels }: Readonly<{ formId: string; labels: StartLabels }>) {
+function StartSubmissionBody({
+  formId,
+  labels,
+}: Readonly<{ formId: string; labels: StartLabels }>) {
   // Token is optional: a public-audience form can be started without signing in.
   const { token, initializing } = useKeycloak();
   const router = useRouter();
@@ -48,10 +52,10 @@ function StartSubmissionBody({ formId, labels }: Readonly<{ formId: string; labe
         // replace, not push: the start URL shouldn't sit in history and re-open on Back.
         router.replace(`/${locale}/submit/${created.id}`);
       } catch (err) {
-        setError(normalizeFormioRenderError(err, labels.startError));
+        setError(normalizeFormioRenderError(err, labels.startError, labels.sessionExpired));
       }
     })();
-  }, [initializing, token, formId, locale, router, labels.startError]);
+  }, [initializing, token, formId, locale, router, labels.startError, labels.sessionExpired]);
 
   if (error) {
     return (
@@ -85,6 +89,7 @@ export default function StartSubmission() {
       labels={{
         starting: labels.starting,
         startError: labels.startError,
+        sessionExpired: dict.general.sessionExpired,
       }}
     />
   );

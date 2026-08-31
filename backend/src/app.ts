@@ -13,6 +13,8 @@ import {
   logTempStorageSelfTest,
   logVirusScanSelfTest,
   logCacheSelfTest,
+  logMessageBusSelfTest,
+  logEventStreamSelfTest,
   logDocumentGenerationReadiness,
 } from './core/api/health';
 import { metaRouter } from './core/api/meta';
@@ -36,7 +38,7 @@ app.set('trust proxy', env.getTrustProxySetting());
 initializePassport();
 
 // The browser can only read the echoed workspace header if it's explicitly exposed.
-const corsExposedHeaders = ['x-soba-workspace-id'];
+const corsExposedHeaders = [];
 // CORS is always restricted to an explicit allowlist of trusted origins (never `*`).
 // Production origins come from CORS_ORIGIN; in development we fall back to CORS_DEV_ORIGIN
 // (configurable per developer via .env) when CORS_ORIGIN is unset.
@@ -148,5 +150,8 @@ app.listen(port, () => {
     .then(logTempStorageSelfTest)
     .then(logVirusScanSelfTest)
     .then(logCacheSelfTest)
-    .then(logDocumentGenerationReadiness);
+    .then(logMessageBusSelfTest)
+    .then(logEventStreamSelfTest)
+    .then(logDocumentGenerationReadiness)
+    .catch((err) => log.warn({ err }, 'Startup diagnostics failed'));
 });

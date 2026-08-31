@@ -95,11 +95,10 @@ describe('WorkspaceList', () => {
     mockDispatch.mockReturnValue({ unwrap: mockUnwrap });
   });
 
-  it('renders the header and search input', async () => {
+  it('renders the search input', async () => {
     await act(async () => {
       render(<WorkspaceList />);
     });
-    expect(screen.getByRole('heading', { name: 'Workspaces' })).toBeInTheDocument();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
   });
 
@@ -111,7 +110,6 @@ describe('WorkspaceList', () => {
     expect(screen.getByText('Team Workspace')).toBeInTheDocument();
     expect(screen.getByTestId('role-ws1')).toHaveTextContent('Owner');
     expect(screen.getByTestId('role-ws2')).toHaveTextContent('Member');
-    expect(screen.getByText('(Active)')).toBeInTheDocument();
   });
 
   it('navigates to forms when workspace name is clicked', async () => {
@@ -119,8 +117,19 @@ describe('WorkspaceList', () => {
       render(<WorkspaceList />);
     });
     await userEvent.click(screen.getByTestId('workspace-link-ws2'));
-    expect(mockDispatch).toHaveBeenCalled();
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms'));
+  });
+
+  // Opening a workspace's forms is an explicit scope choice, unlike landing on the list directly.
+  it('seeds the forms-list workspace filter with the chosen workspace', async () => {
+    await act(async () => {
+      render(<WorkspaceList />);
+    });
+    await userEvent.click(screen.getByTestId('workspace-link-ws2'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms'));
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'workspace/setSelectedWorkspaceId', payload: 'ws2' }),
+    );
   });
 
   it('navigates to manage page on Manage action', async () => {
@@ -162,14 +171,6 @@ describe('WorkspaceList', () => {
     fireEvent.change(input, { target: { value: 'team' } });
     expect(screen.queryByText('Personal Workspace')).not.toBeInTheDocument();
     expect(screen.getByText('Team Workspace')).toBeInTheDocument();
-  });
-
-  it('renders default workspace switches', async () => {
-    await act(async () => {
-      render(<WorkspaceList />);
-    });
-    expect(screen.getByTestId('default-workspace-ws1')).toBeInTheDocument();
-    expect(screen.getByTestId('default-workspace-ws2')).toBeInTheDocument();
   });
 
   it('navigates to create page on Create action', async () => {

@@ -158,7 +158,7 @@ temporalUi:
 | All services in one `docker-compose.yml`                                 | Each service is a separate OpenShift Deployment                                    |
 | `.env` / `.env.local` files                                              | ConfigMap (non-secret values) + Secret (passwords, tokens)                         |
 | Ports accessible on `localhost`                                          | Services communicate via internal cluster DNS                                      |
-| `pnpm temporal-worker:dev` from `backend/` (local)                      | Worker runs as a separate Deployment using the same backend image                  |
+| `pnpm temporal-worker:dev` from `backend/` (local)                       | Worker runs as a separate Deployment using the same backend image                  |
 | No resource limits                                                       | Resource requests and limits required                                              |
 | Temporal shares the main `postgres` container (port 5432, `temporal` db) | Temporal shares the existing PostgreSQL Service — same pattern, different DNS name |
 
@@ -483,12 +483,12 @@ spec:
 
 These variables must be set on both the API server and the worker Deployment.
 
-| Variable              | Value in OpenShift | Notes                                                       |
-| --------------------- | ------------------ | ----------------------------------------------------------- |
-| `TEMPORAL_ALLOWED`    | `true`             | Must be explicitly set to `true`                            |
-| `TEMPORAL_ADDRESS`    | `temporal:7233`    | Uses internal cluster DNS (`<service-name>:<port>`)         |
-| `TEMPORAL_NAMESPACE`  | `default`          | Change only if you set up a custom namespace in Temporal    |
-| `TEMPORAL_TASK_QUEUE` | `soba`             | Must match between API server, worker, and any client calls |
+| Variable              | Value in OpenShift | Notes                                                                   |
+| --------------------- | ------------------ | ----------------------------------------------------------------------- |
+| `TEMPORAL_ALLOWED`    | `true`             | Must be explicitly set to `true`                                        |
+| `TEMPORAL_ADDRESS`    | `temporal:7233`    | Uses internal cluster DNS (`<service-name>:<port>`)                     |
+| `TEMPORAL_NAMESPACE`  | `default`          | Change only if you set up a custom namespace in Temporal                |
+| `TEMPORAL_TASK_QUEUE` | `soba`             | Default queue; workers can override this env var for specialized queues |
 
 ---
 
@@ -552,7 +552,7 @@ Ensure `DB=postgres12` (not `DB=postgresql`) in the ConfigMap. This is a known i
 The API server started a workflow but no worker is running. Check:
 
 - `temporal-worker` Deployment is running (`oc get pods -l app=temporal-worker`)
-- `TEMPORAL_TASK_QUEUE` is the same value in both the API server and the worker
+- At least one worker Deployment is polling the queue used by that workflow start call (`TEMPORAL_TASK_QUEUE` in that worker pod env)
 
 **View workflow history**
 

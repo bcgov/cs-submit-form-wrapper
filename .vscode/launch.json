@@ -5,13 +5,28 @@
       "name": "SOBA (Backend + Temporal + Frontend)",
       "configurations": [
         "SOBA Backend",
-        "SOBA Temporal Worker",
+        "SOBA Temporal Worker (soba)",
+        "SOBA Temporal Worker (document-generation)",
         "SOBA Frontend"
       ]
     },
     {
+      "name": "SOBA (Backend + Temporal + Designer + Forms)",
+      "configurations": [
+        "SOBA Backend",
+        "SOBA Temporal Worker (soba)",
+        "SOBA Temporal Worker (document-generation)",
+        "SOBA Frontend (Designer)",
+        "SOBA Frontend (Forms)"
+      ]
+    },
+    {
       "name": "SOBA (Backend + Temporal)",
-      "configurations": ["SOBA Backend", "SOBA Temporal Worker"]
+      "configurations": [
+        "SOBA Backend",
+        "SOBA Temporal Worker (soba)",
+        "SOBA Temporal Worker (document-generation)"
+      ]
     }
   ],
   "configurations": [
@@ -22,16 +37,37 @@
       "cwd": "${workspaceFolder}/backend",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
+      "env": {
+        "CORS_DEV_ORIGIN": "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100"
+      },
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal"
     },
     {
-      "name": "SOBA Temporal Worker",
+      "name": "SOBA Temporal Worker (soba)",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}/backend",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["exec", "tsx", "watch", "temporal-worker.ts"],
+      "env": {
+        "TEMPORAL_TASK_QUEUE": "soba",
+        "TEMPORAL_WORKER_HEALTH_PORT": "9090"
+      },
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "SOBA Temporal Worker (document-generation)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "tsx", "watch", "temporal-worker.ts"],
+      "env": {
+        "TEMPORAL_TASK_QUEUE": "document-generation",
+        "TEMPORAL_WORKER_HEALTH_PORT": "9091"
+      },
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal"
     },
@@ -41,7 +77,27 @@
       "request": "launch",
       "cwd": "${workspaceFolder}/frontend",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev:watch"],
+      "runtimeArgs": ["dev:combined"],
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "SOBA Frontend (Designer)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:designer"],
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "SOBA Frontend (Forms)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:forms"],
       "skipFiles": ["<node_internals>/**"],
       "console": "integratedTerminal"
     },
@@ -50,6 +106,13 @@
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "SOBA Frontend Forms (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3100",
       "webRoot": "${workspaceFolder}/frontend"
     },
     {

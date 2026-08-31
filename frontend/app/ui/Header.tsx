@@ -7,20 +7,13 @@ import { Header as BCHeader } from '@bcgov/design-system-react-components';
 import { FaUser } from 'react-icons/fa6';
 import { useAppDispatch } from '@/lib/store';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { useClientMounted } from '@/lib/hooks/useClientMounted';
 import { useCurrentUser } from '@/lib/useCurrentUser';
-import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { clearCurrentUser, loadCurrentUser } from '@/lib/slices/currentUserSlice';
-import {
-  loadWorkspaces,
-  pickWorkspaceToEstablish,
-  selectActiveWorkspace,
-} from '@/lib/slices/workspaceSlice';
+import { loadWorkspaces } from '@/lib/slices/workspaceSlice';
 import { useAppSelector } from '@/lib/store';
 import { useDictionary } from '../[lang]/Providers';
 import { LoginButton } from './LoginButton';
 import { LanguageSelector, type LanguageOption } from './LanguageSelector';
-import { WorkspaceSelector } from './WorkspaceSelector';
 import type { PluginNavItem } from '@/src/types/plugins';
 import { WorkspaceModal } from '@/src/components/WorkspaceModal';
 
@@ -29,13 +22,12 @@ import styles from './Header.module.css';
 type HeaderProps = {
   headerNavItems: PluginNavItem[];
   overlayNavItems: PluginNavItem[];
+  showWorkspaces: boolean;
 };
 
-function Header({ headerNavItems }: HeaderProps) {
+function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   const dispatch = useAppDispatch();
   const dict = useDictionary();
-  const { addNotification } = useNotificationStore();
-
   const locale = dict.locale === 'en' || dict.locale === 'fr' ? dict.locale : 'en';
   const languageOptions: LanguageOption[] = Object.entries(dict.header.languages).map(
     ([value, label]) => ({ value, label }),
@@ -46,21 +38,35 @@ function Header({ headerNavItems }: HeaderProps) {
   const currentUser = useCurrentUser();
   const {
     workspaces,
-    activeWorkspaceId,
     status: workspaceStatus,
     canceledDefaultModal,
   } = useAppSelector((state) => state.workspace);
 
   const headerChromeRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const establishingWorkspaceRef = useRef(false);
-  const clientMounted = useClientMounted();
 
   const { data: currentStateUser } = useAppSelector((state) => state.currentUser);
 
   useEffect(() => {
     init();
   }, [init]);
+
+  // The aside sticks below the header, so its height has to be a real number. It is a design system
+  // component and varies with viewport and signed-in state, so measure rather than assume.
+  useEffect(() => {
+    const chrome = headerChromeRef.current;
+    if (!chrome) return;
+    const publishHeight = () => {
+      document.documentElement.style.setProperty(
+        '--app-header-height',
+        `${chrome.getBoundingClientRect().height}px`,
+      );
+    };
+    publishHeight();
+    const observer = new ResizeObserver(publishHeight);
+    observer.observe(chrome);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!authenticated || !token) {
@@ -71,7 +77,9 @@ function Header({ headerNavItems }: HeaderProps) {
       dispatch(clearCurrentUser());
       return;
     }
-    if (currentUser.token !== token || currentUser.status === 'idle') {
+    // Keyed on load state, not on the token: a rotation mints a new token for the same user, and
+    // re-reading /me for it flips the session out of 'ready' and unmounts whatever is on screen.
+    if (currentUser.status === 'idle') {
       dispatch(loadCurrentUser(token));
     }
 
@@ -80,7 +88,7 @@ function Header({ headerNavItems }: HeaderProps) {
         refresh();
       }, 30000);
     }
-  }, [authenticated, token, currentUser.token, currentUser.status, dispatch, refresh]);
+  }, [authenticated, token, currentUser.status, dispatch, refresh]);
 
   useEffect(() => {
     if (authenticated && token && workspaceStatus === 'idle') {
@@ -88,78 +96,12 @@ function Header({ headerNavItems }: HeaderProps) {
     }
   }, [authenticated, token, workspaceStatus, dispatch]);
 
-  // Establish the tab workspace through the backend so sobaFetch can capture the echoed
-  // x-soba-workspace-id header into sessionStorage (soba.workspaceId). Without this,
-  // users with a single workspace never see the chooser and nothing writes the store.
-  useEffect(() => {
-    if (
-      !authenticated ||
-      !token ||
-      workspaceStatus !== 'succeeded' ||
-      activeWorkspaceId ||
-      establishingWorkspaceRef.current ||
-      currentUser.status === 'idle' ||
-      currentUser.status === 'loading'
-    ) {
-      return;
-    }
-
-    const defaultWorkspaceId = currentUser.data?.preferences?.defaultWorkspaceId ?? null;
-    const target = pickWorkspaceToEstablish(workspaces, defaultWorkspaceId);
-    if (!target) return;
-
-    establishingWorkspaceRef.current = true;
-    dispatch(selectActiveWorkspace({ token, workspaceId: target.id }))
-      .unwrap()
-      .catch((error) => {
-        addNotification({
-          text: dict.general.workspaceSwitchError,
-          type: 'error',
-          consoleError: error,
-        });
-      })
-      .finally(() => {
-        establishingWorkspaceRef.current = false;
-      });
-  }, [
-    authenticated,
-    token,
-    workspaceStatus,
-    activeWorkspaceId,
-    workspaces,
-    currentUser.status,
-    currentUser.data?.preferences?.defaultWorkspaceId,
-    dispatch,
-    addNotification,
-    dict.general.workspaceSwitchError,
-  ]);
-
   const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces.length]);
   const canCreateWorkspace = currentStateUser?.capabilities?.canCreateWorkspace === true;
 
   const handleLogout = () => {
     dispatch(clearCurrentUser());
     logout();
-  };
-
-  // Round-trip through GET /workspaces/:id so the backend verifies membership before we
-  // persist the tab workspace to sessionStorage and Redux, then open the forms list.
-  const handleWorkspaceChange = (key: string | number | null) => {
-    if (!token || key == null) return;
-    const workspaceId = String(key);
-    if (workspaceId === activeWorkspaceId) return;
-    dispatch(selectActiveWorkspace({ token, workspaceId }))
-      .unwrap()
-      .then(() => {
-        router.push(`/${locale}/forms`);
-      })
-      .catch((error) => {
-        addNotification({
-          text: dict.general.workspaceSwitchError,
-          type: 'error',
-          consoleError: error,
-        });
-      });
   };
 
   const handleLanguageChange = (newLocale: string) => {
@@ -172,8 +114,9 @@ function Header({ headerNavItems }: HeaderProps) {
   };
 
   const authActions = () => {
-    const isCurrentTokenUser = currentUser.token === token;
-    const backendDisplayName = isCurrentTokenUser ? currentUser.displayName : null;
+    // The slice is cleared on sign-out, so anything loaded belongs to the current session. Matching
+    // on the token instead would blank the name every time the token rotates.
+    const backendDisplayName = currentUser.displayName;
     const keycloakDisplayName =
       typeof idTokenParsed?.display_name === 'string' &&
       idTokenParsed.display_name.trim().length > 0
@@ -182,9 +125,9 @@ function Header({ headerNavItems }: HeaderProps) {
     let displayName: string | null;
     if (typeof backendDisplayName === 'string' && backendDisplayName.trim().length > 0) {
       displayName = backendDisplayName;
-    } else if (isCurrentTokenUser && currentUser.hasError) {
+    } else if (currentUser.hasError) {
       displayName = keycloakDisplayName ?? 'Authenticated User';
-    } else if (isCurrentTokenUser && currentUser.isLoaded) {
+    } else if (currentUser.isLoaded) {
       displayName = 'Authenticated User';
     } else {
       displayName = null;
@@ -208,15 +151,6 @@ function Header({ headerNavItems }: HeaderProps) {
 
     return (
       <div className="d-flex align-items-center justify-content-end gap-3">
-        {authenticated && clientMounted && workspaces.length > 0 ? (
-          <WorkspaceSelector
-            workspaces={workspaces}
-            activeWorkspaceId={activeWorkspaceId}
-            label={dict.header.selectWorkspace}
-            onChange={handleWorkspaceChange}
-          />
-        ) : null}
-
         <LanguageSelector
           locale={locale}
           label={dict.header.selectLanguage}
@@ -240,7 +174,7 @@ function Header({ headerNavItems }: HeaderProps) {
           <Link href="/" data-testid="bcgov-header-logo" title={dict.header.bcgovTitle} />
         }
         title={dict.general.title}
-        titleElement="h1"
+        titleElement="span"
         skipLinks={[
           <a key="skip-to-main" href="#main-content">
             {dict.header.skipToMain}
@@ -270,7 +204,7 @@ function Header({ headerNavItems }: HeaderProps) {
           </div>
         </div>
       </BCHeader>
-      {workspaceStatus === 'succeeded' && !hasWorkspaces && !canceledDefaultModal && (
+      {showWorkspaces && workspaceStatus === 'succeeded' && !hasWorkspaces && !canceledDefaultModal && (
         <WorkspaceModal canCreateWorkspace={canCreateWorkspace} />
       )}
     </div>

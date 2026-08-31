@@ -183,6 +183,13 @@
       "when": 1772618000000,
       "tag": "0025_enable_bceid_business_login",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1772618001000,
+      "tag": "0026_add_dev_data_feature",
+      "breakpoints": true
     }
   ]
 }

@@ -83,6 +83,7 @@ if [[ "$DEPS_ONLY" == false ]]; then
   # Build outputs
   add_path "backend/dist"
   add_path "frontend/.next"
+  add_path "frontend/.next-forms"
   add_glob "frontend/*.tsbuildinfo"
   add_path "frontend/.vite"
 

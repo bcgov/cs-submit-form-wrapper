@@ -6,6 +6,7 @@ import { Select, Button } from '@bcgov/design-system-react-components';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa6';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { useDictionary } from '@/app/[lang]/Providers';
+import { useScrollableRegion } from '@/src/shared/hooks/useScrollableRegion';
 import styles from './DataTable.module.css';
 
 export interface Column<T> {
@@ -63,6 +64,8 @@ export function DataTable<T>({
   pageSizeOptions = [5, 10, 25, 50],
   keyExtractor,
 }: DataTableProps<T>) {
+  const scrollerRef = useScrollableRegion<HTMLElement>();
+
   const dict = useDictionary();
   const t = dict.dataTable;
 
@@ -109,19 +112,23 @@ export function DataTable<T>({
 
   return (
     <div className={`bg-white rounded overflow-hidden ${styles.container}`}>
-      <Table responsive className={`mb-0 align-middle ${styles.table}`}>
-        {caption ? <caption className="visually-hidden">{caption}</caption> : null}
-        <thead className={styles.thead}>
-          <tr className="bg-bcgov-light-blue">
-            {columns.map((col) => (
-              <th key={col.key} scope="col" className={columnHeaderClass(col)}>
-                {col.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className={styles.tbody}>{renderBody()}</tbody>
-      </Table>
+      {/* Owned rather than react-bootstrap's `responsive` wrapper, which is scrollable but has no
+          tabindex, leaving the overflow unreachable by keyboard. */}
+      <section ref={scrollerRef} className={styles.scroller} aria-label={caption}>
+        <Table className={`mb-0 align-middle ${styles.table}`}>
+          {caption ? <caption className="visually-hidden">{caption}</caption> : null}
+          <thead className={styles.thead}>
+            <tr className="bg-bcgov-light-blue">
+              {columns.map((col) => (
+                <th key={col.key} scope="col" className={columnHeaderClass(col)}>
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className={styles.tbody}>{renderBody()}</tbody>
+        </Table>
+      </section>
 
       {!loading && data.length > 0 && totalItems !== undefined && (
         <div className={`d-flex align-items-stretch ${styles.pagination}`}>

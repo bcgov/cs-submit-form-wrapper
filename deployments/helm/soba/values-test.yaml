@@ -1,5 +1,8 @@
 # Test / UAT environment — two replicas, moderate resources
 backend:
+  # Development data generator: on in test, for integration runs.
+  features:
+    dev-data: "enabled"
   replicas: 2
   sso:
     jwksUri: https://test.loginproxy.gov.bc.ca/auth/realms/standard/protocol/openid-connect/certs

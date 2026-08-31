@@ -8,8 +8,8 @@ env:
   ACRONYM: soba
   # PR deployments map to a fixed pool of slots (PR_NUM % SLOT_COUNT) so login
   # hostnames are a known, finite set. Sourced from the repo variable so
-  # pr_close.yaml and the Keycloak redirect URIs (soba-pr-slot-0 .. N-1) share one
-  # value; the literal is a fallback if the variable is unset.
+  # pr_close.yaml and the Keycloak redirect URIs (soba-N-designer / soba-N-forms,
+  # N = 0 .. SLOT_COUNT-1) share one value; the literal is a fallback if unset.
   SLOT_COUNT: ${{ vars.SLOT_COUNT || '20' }}
 
 on:
@@ -74,6 +74,7 @@ jobs:
     outputs:
       JOB_NAME: ${{ steps.vars.outputs.JOB_NAME }}
       URL: ${{ steps.vars.outputs.URL }}
+      URL_FORMS: ${{ steps.vars.outputs.URL_FORMS }}
       ref: ${{ steps.vars.outputs.ref }}
       PR_NUM: ${{ steps.vars.outputs.PR_NUM }}
       SLOT: ${{ steps.vars.outputs.SLOT }}
@@ -87,7 +88,8 @@ jobs:
           echo "PR_NUM=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "SLOT=$SLOT" >> "$GITHUB_OUTPUT"
           echo "JOB_NAME=pr-slot-$SLOT" >> "$GITHUB_OUTPUT"
-          echo "URL=https://soba-pr-slot-${SLOT}.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
+          echo "URL=https://soba-${SLOT}-designer.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
+          echo "URL_FORMS=https://soba-${SLOT}-forms.${{ vars.OC_DOMAIN }}" >> "$GITHUB_OUTPUT"
           echo "ref=refs/pull/$PR_NUMBER/head" >> "$GITHUB_OUTPUT"
 
   build:
@@ -189,6 +191,7 @@ jobs:
           NAMESPACE: ${{ secrets.OC_NAMESPACE }}
           RELEASE: soba-${{ needs.set-vars.outputs.JOB_NAME }}
           TAG: sha-${{ needs.build.outputs.short_sha }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
           DOMAIN: ${{ vars.OC_DOMAIN }}
           PR_NUM: ${{ needs.set-vars.outputs.PR_NUM }}
           SLOT: ${{ needs.set-vars.outputs.SLOT }}
@@ -197,25 +200,43 @@ jobs:
           set -euo pipefail
           REPO_LC=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
 
+          # Version /meta reports, e.g. 2.0.0-beta.0+pr.114.a1b2c3d. Empty if unreadable: the
+          # chart then omits APP_VERSION and the backend falls back to package.json.
+          BASE_VERSION=$(jq -r '.version // empty' backend/package.json 2>/dev/null || echo "")
+          APP_VERSION=""
+          if [[ "$BASE_VERSION" =~ ^[0-9A-Za-z.-]+$ ]]; then
+            APP_VERSION="${BASE_VERSION}+pr.${PR_NUM}.${SHORT_SHA}"
+          else
+            echo "::warning::Could not read a usable version from backend/package.json; APP_VERSION unset."
+          fi
+
           cat > /tmp/values-override.yaml <<OVERRIDE
           backend:
             image:
               repository: "ghcr.io/${REPO_LC}/backend"
               tag: "${TAG}"
             config:
-              corsOrigin: "https://soba-pr-slot-${SLOT}.${DOMAIN}"
+              appVersion: "${APP_VERSION}"
+              gitSha: "${SHORT_SHA}"
+              gitTag: "${TAG}"
+              imageTag: "${TAG}"
           frontend:
             image:
               repository: "ghcr.io/${REPO_LC}/frontend"
               tag: "${TAG}"
-          temporalWorker:
-            image:
-              repository: "ghcr.io/${REPO_LC}/temporal-worker"
-              tag: "${TAG}"
+            # Slot hosts are decoupled from the release name, so pin them per app.
+            # Backend CORS_ORIGIN is derived from these two hosts by the chart.
+            apps:
+              designer:
+                host: "soba-${SLOT}-designer.${DOMAIN}"
+              forms:
+                host: "soba-${SLOT}-forms.${DOMAIN}"
+          temporalWorkersImage:
+            repository: "ghcr.io/${REPO_LC}/temporal-worker"
+            tag: "${TAG}"
+            pullPolicy: IfNotPresent
           global:
             domain: "${DOMAIN}"
-            routeHost: "soba-pr-slot-${SLOT}.${DOMAIN}"
-            routePath: ""
             prNumber: "${PR_NUM}"
           database:
             existingSecretName: "${{ steps.db.outputs.secret_name }}"
@@ -223,6 +244,10 @@ jobs:
           temporal:
             address: "temporal-frontend.${NAMESPACE}.svc.cluster.local:7233"
             namespace: "soba-pr-${PR_NUM}"
+          valkey:
+            # PR-unique Redis namespace (by PR number, not the reused slot) so a recycled slot never
+            # inherits a previous PR's cached rows, bus channels or streams on the shared Valkey.
+            prefix: "soba-pr-${PR_NUM}:"
 
           OVERRIDE
 
@@ -235,25 +260,6 @@ jobs:
             -f deployments/helm/soba/values-pr.yaml \
             -f /tmp/values-override.yaml
           # Pipeline performance fix: Revert if needed.
-
-          REVISION=$(helm status "${RELEASE}" -n "${NAMESPACE}" -o json | jq -r '.version')
-          # Clean up old migration jobs and keep only current revision
-          oc get jobs -n "${NAMESPACE}" -o name \
-            | grep "${RELEASE}-migrate-" \
-            | grep -v -- "-migrate-${REVISION}$" \
-            | xargs -r oc delete -n "${NAMESPACE}" 2>/dev/null || true
-
-          for rollout in \
-            "deployment/${RELEASE}-backend:backend" \
-            "deployment/${RELEASE}-frontend:frontend" \
-            "deployment/${RELEASE}-formio:formio" \
-            "deployment/${RELEASE}-temporal-worker" \
-            "statefulset/${RELEASE}-mongodb:mongodb"; do
-            resource="${rollout%%:*}"
-            label="${rollout##*:}"
-            echo "Waiting for ${label} rollout..."
-            oc rollout status "${resource}" -n "${NAMESPACE}" --timeout=300s
-          done
 
       # Pipeline performance fix: Revert if needed.
       # Temporarily disabled openshift diagnostics; uncomment to restore.
@@ -274,7 +280,9 @@ jobs:
           hide_and_recreate: true
           hide_classify: "OUTDATED"
           message: |
-            Release ${{ github.sha }} deployed at <${{ needs.set-vars.outputs.URL }}>
+            Release ${{ github.sha }} deployed:
+            - Designer (design-mode): <${{ needs.set-vars.outputs.URL }}>
+            - Forms (submit-mode): <${{ needs.set-vars.outputs.URL_FORMS }}>
           number: ${{ needs.set-vars.outputs.PR_NUM }}
 
   Tests:

@@ -1,7 +1,10 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import {
   OAuth2TokenProvider,
   clearOAuth2TokenCache,
 } from '../../../src/core/auth/oauth2TokenProvider';
+import { HttpClientTimeoutError } from '../../../src/core/http/httpClient';
 import { log } from '../../../src/core/logging';
 
 const tokenResponse = (accessToken: string, expiresIn = 3600) =>
@@ -129,6 +132,84 @@ describe('OAuth2TokenProvider', () => {
 
     await expect(new OAuth2TokenProvider(config).getToken()).rejects.toThrow(
       'missing access_token',
+    );
+  });
+
+  // Real sockets: a stalled IdP used to hang indefinitely. Both phases must be covered — a token
+  // endpoint that answers and then stalls mid-body is just as much a hang as one that never replies.
+  it.each([
+    ['never answers', '/stall-headers'],
+    ['answers then stalls mid-body', '/stall-body'],
+  ])('gives up on a token endpoint that %s', async (_label, path) => {
+    const server = createServer((req, res) => {
+      if (req.url === '/stall-body') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.write('{"access_to');
+      }
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const tokenUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}${path}`;
+
+    try {
+      const err = await new OAuth2TokenProvider({ ...config, tokenUrl, timeoutMs: 150 })
+        .getToken()
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(HttpClientTimeoutError);
+      expect(err.message).toBe('Request timed out after 150ms');
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // Callers share the request, not the deadline. Real sockets: the shared fetch has to outlive a
+  // caller that gives up on it, and must not be slowed to another caller's pace.
+  const withSlowTokenServer = async (run: (tokenUrl: string) => Promise<void>): Promise<void> => {
+    const server = createServer((_req, res) => {
+      setTimeout(() => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ access_token: 'shared', expires_in: 3600 }));
+      }, 400);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      await run(`http://127.0.0.1:${(server.address() as AddressInfo).port}/token`);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  };
+
+  it("holds a joiner to its own budget, not the first caller's", async () => {
+    await withSlowTokenServer(async (tokenUrl) => {
+      const provider = new OAuth2TokenProvider({ ...config, tokenUrl, timeoutMs: 5000 });
+
+      const slow = provider.getToken(5000);
+      const impatient = provider.getToken(100).catch((e) => e);
+
+      // The joiner gives up on schedule...
+      expect(await impatient).toBeInstanceOf(HttpClientTimeoutError);
+      // ...without taking the shared request down with it.
+      await expect(slow).resolves.toBe('shared');
+    });
+  });
+
+  it('does not hold a healthy caller to a dying one', async () => {
+    await withSlowTokenServer(async (tokenUrl) => {
+      const provider = new OAuth2TokenProvider({ ...config, tokenUrl, timeoutMs: 5000 });
+
+      const dying = provider.getToken(100).catch((e) => e);
+      const healthy = provider.getToken(5000);
+
+      expect(await dying).toBeInstanceOf(HttpClientTimeoutError);
+      await expect(healthy).resolves.toBe('shared');
+    });
+  });
+
+  it('rejects an unusable configured timeout at construction', () => {
+    expect(() => new OAuth2TokenProvider({ ...config, timeoutMs: 0 })).toThrow(
+      'must be a positive integer',
     );
   });
 });

@@ -18,6 +18,7 @@ function makeConfig(basePath: string): PluginConfigReader {
     },
     getBoolean: (_k: string) => false,
     getNumber: (_k: string) => 0,
+    getOptionalNumber: (_k: string) => undefined,
     getCsv: (_k: string) => [],
   };
 }

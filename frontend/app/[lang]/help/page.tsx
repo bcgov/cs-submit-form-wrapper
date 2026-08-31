@@ -1,5 +1,6 @@
 import { getDictionary, resolveLocale } from '../dictionaries';
-import { DsPageHeading } from '@/app/ui/DsPageHeading';
+import { PageLayout } from '@/src/components/PageLayout';
+import { SecondaryText } from '@/src/components/SecondaryText';
 
 type PageProps = {
   params: Promise<{ lang: string }>;
@@ -20,11 +21,10 @@ export default async function Page({ params }: PageProps) {
   const dict = await getDictionary(locale);
 
   return (
-    <section className="p-4" aria-labelledby="help-heading">
-      <DsPageHeading id="help-heading">{dict.general.help}</DsPageHeading>
-      <p className="mt-3 text-muted" data-testid="help-coming-soon">
+    <PageLayout headingId="help-heading" heading={dict.general.help} width="narrow">
+      <SecondaryText elementType="p" size="medium" data-testid="help-coming-soon">
         {dict.general.comingSoon}
-      </p>
-    </section>
+      </SecondaryText>
+    </PageLayout>
   );
 }

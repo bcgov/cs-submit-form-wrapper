@@ -67,7 +67,7 @@ jobs:
       contents: read
     environment:
       name: dev
-      url: https://soba-dev.${{ vars.OC_DOMAIN }}
+      url: https://soba-dev-designer.${{ vars.OC_DOMAIN }}
     runs-on: ubuntu-24.04
     timeout-minutes: 18
     steps:
@@ -123,12 +123,21 @@ jobs:
         run: |
           REPO_LC=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
 
+          # Version /meta reports, e.g. 2.0.0-beta.0+dev.a1b2c3d. Empty if unreadable: the
+          # chart then omits APP_VERSION and the backend falls back to package.json.
+          BASE_VERSION=$(jq -r '.version // empty' backend/package.json 2>/dev/null || echo "")
+          APP_VERSION=""
+          if [[ "$BASE_VERSION" =~ ^[0-9A-Za-z.-]+$ ]]; then
+            APP_VERSION="${BASE_VERSION}+dev.${SHORT_SHA}"
+          fi
+
           cat > /tmp/values-override.yaml <<OVERRIDE
           backend:
             image:
               repository: "ghcr.io/${REPO_LC}/backend"
               tag: "${TAG}"
             config:
+              appVersion: "${APP_VERSION}"
               gitSha: "${SHORT_SHA}"
               gitTag: "${TAG}"
               imageTag: "${TAG}"
@@ -136,10 +145,10 @@ jobs:
             image:
               repository: "ghcr.io/${REPO_LC}/frontend"
               tag: "${TAG}"
-          temporalWorker:
-            image:
-              repository: "ghcr.io/${REPO_LC}/temporal-worker"
-              tag: "${TAG}"
+          temporalWorkersImage:
+            repository: "ghcr.io/${REPO_LC}/temporal-worker"
+            tag: "${TAG}"
+            pullPolicy: IfNotPresent
           global:
             domain: "${DOMAIN}"
           database:
@@ -170,8 +179,9 @@ jobs:
           echo "Waiting for backend rollout..."
           oc rollout status deployment/soba-dev-backend -n "${NAMESPACE}" --timeout=300s
 
-          echo "Waiting for frontend rollout..."
-          oc rollout status deployment/soba-dev-frontend -n "${NAMESPACE}" --timeout=300s
+          echo "Waiting for frontend rollouts (designer + forms)..."
+          oc rollout status deployment/soba-dev-frontend-designer -n "${NAMESPACE}" --timeout=300s
+          oc rollout status deployment/soba-dev-frontend-forms -n "${NAMESPACE}" --timeout=300s
 
           echo "Waiting for formio rollout..."
           oc rollout status deployment/soba-dev-formio -n "${NAMESPACE}" --timeout=300s
@@ -179,8 +189,9 @@ jobs:
           echo "Waiting for mongodb rollout..."
           oc rollout status statefulset/soba-dev-mongodb -n "${NAMESPACE}" --timeout=300s
 
-          echo "Waiting for temporal-worker rollout..."
+          echo "Waiting for temporal-worker rollouts..."
           oc rollout status deployment/soba-dev-temporal-worker -n "${NAMESPACE}" --timeout=300s
+          oc rollout status deployment/soba-dev-temporal-worker-document-generation -n "${NAMESPACE}" --timeout=300s
 
       # Pipeline performance fix: Revert if needed.
       # Temporarily disabled openshift diagnostics; uncomment to restore.

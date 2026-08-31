@@ -25,6 +25,10 @@ import type {
   MessageBusPluginDefinition,
 } from '../messagebus/MessageBusAdapter';
 import type {
+  EventStreamAdapter,
+  EventStreamPluginDefinition,
+} from '../eventstream/EventStreamAdapter';
+import type {
   TempStorageAdapter,
   TempStoragePluginDefinition,
 } from '../temp-storage/TempStorageAdapter';
@@ -77,6 +81,7 @@ interface CachedPlugin {
   apiDefinition?: FeatureApiDefinition;
   cacheDefinition?: CachePluginDefinition;
   messagebusDefinition?: MessageBusPluginDefinition;
+  eventStreamDefinition?: EventStreamPluginDefinition;
   tempStorageDefinition?: TempStoragePluginDefinition;
   virusScanDefinition?: VirusScanPluginDefinition;
   storageDefinition?: StoragePluginDefinition;
@@ -109,6 +114,11 @@ const DEFINITION_KINDS: ReadonlyArray<{
   {
     field: 'messagebusDefinition',
     exportKey: 'messagebusPluginDefinition',
+    schema: AdapterPluginDefinitionSchema,
+  },
+  {
+    field: 'eventStreamDefinition',
+    exportKey: 'eventStreamPluginDefinition',
     schema: AdapterPluginDefinitionSchema,
   },
   {
@@ -263,6 +273,7 @@ export function getPluginCatalog(): PluginCatalogEntry[] {
       p.documentGenerationDefinition?.code ??
       p.cacheDefinition?.code ??
       p.messagebusDefinition?.code ??
+      p.eventStreamDefinition?.code ??
       p.tempStorageDefinition?.code ??
       p.virusScanDefinition?.code ??
       p.storageDefinition?.code ??
@@ -324,6 +335,10 @@ export function getMessageBusPluginDefinitions(): MessageBusPluginDefinition[] {
   return definitionsOf('messagebusDefinition');
 }
 
+export function getEventStreamPluginDefinitions(): EventStreamPluginDefinition[] {
+  return definitionsOf('eventStreamDefinition');
+}
+
 export function getTempStoragePluginDefinitions(): TempStoragePluginDefinition[] {
   return definitionsOf('tempStorageDefinition');
 }
@@ -350,6 +365,11 @@ const SELECTABLE_PLUGIN_DEFAULTS = {
     label: 'messagebus',
     configured: () => env.getMessageBusDefaultCode(),
     fallback: 'messagebus-memory',
+  },
+  eventStream: {
+    label: 'eventstream',
+    configured: () => env.getEventStreamDefaultCode(),
+    fallback: 'eventstream-memory',
   },
   tempStorage: {
     label: 'temp-storage',
@@ -420,6 +440,10 @@ export const getCacheAdapter = lazyAdapter<CacheAdapter>('cache', getCachePlugin
 export const getMessageBusAdapter = lazyAdapter<MessageBusAdapter>(
   'messagebus',
   getMessageBusPluginDefinitions,
+);
+export const getEventStreamAdapter = lazyAdapter<EventStreamAdapter>(
+  'eventStream',
+  getEventStreamPluginDefinitions,
 );
 export const getTempStorageAdapter = lazyAdapter<TempStorageAdapter>(
   'tempStorage',

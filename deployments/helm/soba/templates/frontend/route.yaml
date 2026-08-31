@@ -1,23 +1,42 @@
+{{- $root := . }}
 {{- if .Values.frontend.route.enabled }}
+{{- range $name, $app := .Values.frontend.apps }}
+{{- if ne $app.enabled false }}
+{{- /* App annotations win; deepCopy keeps merge from writing back into .Values. */}}
+{{- $appRoute := $app.route | default dict }}
+{{- $appAnnotations := dict }}
+{{- if kindIs "map" $appRoute }}
+{{- $appAnnotations = $appRoute.annotations | default dict }}
+{{- end }}
+{{- $annotations := merge (deepCopy $appAnnotations) ($root.Values.frontend.route.annotations | default dict) }}
+---
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: {{ include "soba.fullname" . }}-frontend
+  name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
   labels:
-    {{- include "soba.labels" (dict "root" . "component" "frontend") | nindent 4 }}
+    {{- include "soba.labels" (dict "root" $root "component" (printf "frontend-%s" $name)) | nindent 4 }}
+  {{- with $annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
 spec:
-  host: {{ if .Values.global.routeHost }}{{ .Values.global.routeHost }}{{ else }}{{ include "soba.frontendHost" . }}{{ end }}
-  {{- if .Values.global.routePath }}
-  path: {{ .Values.global.routePath }}
+  host: {{ include "soba.frontendHostFor" (dict "root" $root "name" $name "app" $app) }}
+  {{- if $root.Values.global.routePath }}
+  path: {{ $root.Values.global.routePath }}
   {{- end }}
   to:
     kind: Service
-    name: {{ include "soba.fullname" . }}-frontend
+    name: {{ include "soba.fullname" $root }}-frontend-{{ $name }}
     weight: 100
   port:
     targetPort: http
   tls:
-    termination: {{ .Values.frontend.route.tls.termination }}
-    insecureEdgeTerminationPolicy: {{ .Values.frontend.route.tls.insecureEdgeTerminationPolicy }}
+    termination: {{ $root.Values.frontend.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ $root.Values.frontend.route.tls.insecureEdgeTerminationPolicy }}
   wildcardPolicy: None
+{{- end }}
+{{- end }}
 {{- end }}

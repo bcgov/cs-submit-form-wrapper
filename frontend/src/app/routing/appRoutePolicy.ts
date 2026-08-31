@@ -6,6 +6,8 @@ export type AppSessionSnapshot = {
   authenticated: boolean;
   initializing: boolean;
   sessionReady: boolean;
+  /** Both bootstrap loads have produced data at least once. */
+  sessionLoadedOnce: boolean;
   /** A required bootstrap fetch (current user or workspaces) rejected. */
   sessionFailed: boolean;
   needsOnboarding: boolean;
@@ -27,11 +29,17 @@ export function classifyRoute(pathname: string): RouteKind {
 /**
  * Returns a path to `router.replace`, or null when the current route may render.
  * Caller should wait until `sessionReady` before redirecting authenticated users.
+ *
+ * `workspacesEnabled` is the frontend WORKSPACES gate for this deployment. When off (submit-mode),
+ * the workspace-onboarding/create landing doesn't apply: `canCreateWorkspace` is a per-user
+ * capability, not mode-aware, so a designer signing into the submit frontend would otherwise be
+ * routed to `/workspaces` (404 there) or the workspace-access dead-end. Submit-mode lands on forms.
  */
 export function resolveRedirect(
   pathname: string,
   locale: string,
   session: AppSessionSnapshot,
+  workspacesEnabled: boolean,
 ): string | null {
   if (session.initializing) {
     return null;
@@ -54,10 +62,12 @@ export function resolveRedirect(
     return null;
   }
 
+  const needsOnboarding = workspacesEnabled && session.needsOnboarding;
+
   let landing = forms;
-  if (session.needsOnboarding) {
+  if (needsOnboarding) {
     landing = onboarding;
-  } else if (session.canCreateWorkspace && !session.hasWorkspaces) {
+  } else if (workspacesEnabled && session.canCreateWorkspace && !session.hasWorkspaces) {
     landing = workspaces;
   }
 
@@ -66,10 +76,10 @@ export function resolveRedirect(
   }
 
   if (kind === 'onboarding') {
-    return session.needsOnboarding ? null : landing;
+    return needsOnboarding ? null : landing;
   }
 
-  if (session.needsOnboarding && kind !== 'public') {
+  if (needsOnboarding && kind !== 'public') {
     return onboarding;
   }
 

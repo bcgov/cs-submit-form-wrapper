@@ -7,4 +7,5 @@ export * from './codes';
 export * from './forms';
 export * from './file';
 export * from './documentGenerationAudit';
+export * from './devData';
 export * from './plugins.enterprise';
