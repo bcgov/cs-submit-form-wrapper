@@ -1,28 +1,11 @@
 import { getDictionary, resolveLocale } from '../../../dictionaries';
 import FeatureScopePanel from '@/src/features/admin/ui/FeatureScopePanel';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
-import {
-  createIsFeatureAllowed,
-  FEATURE_AVAILABILITY,
-  FEATURE_CODES,
-} from '@/src/shared/featureFlags/flags';
+import { getAdminFeatureMeta } from '@/src/features/admin/featureMeta';
 
 type PageProps = {
   params: Promise<{ lang: string; featureScopeId: string }>;
 };
-
-function getScopedFeatureCodes(featuresMeta: Awaited<ReturnType<typeof loadFeaturesMeta>>) {
-  const isFeatureAllowed = createIsFeatureAllowed(featuresMeta);
-  const documentGenerationEnabled = isFeatureAllowed(FEATURE_CODES.DOCUMENT_GENERATION);
-  return featuresMeta.features
-    .filter(
-      (feature) =>
-        feature.availability === FEATURE_AVAILABILITY.SCOPED &&
-        (documentGenerationEnabled || !feature.code.startsWith('document-generation')),
-    )
-    .map((feature) => feature.code)
-    .sort((a, b) => a.localeCompare(b));
-}
 
 export async function generateMetadata({ params }: PageProps) {
   const param = await params;
@@ -37,7 +20,7 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function Page({ params }: Readonly<PageProps>) {
   const [param, scopedFeatureCodes] = await Promise.all([
     params,
-    loadFeaturesMeta().then(getScopedFeatureCodes),
+    loadFeaturesMeta().then((featuresMeta) => getAdminFeatureMeta(featuresMeta).scopedFeatureCodes),
   ]);
 
   return (
