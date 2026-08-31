@@ -63,7 +63,11 @@ export default function FormHistoryTab({
         key: 'state',
         label: dict.form?.status || 'Status',
         render: (version: SobaFormVersionType) => (
-          <Tag text={capitalizeFirstLetter(version.state)} color={stateToColour(version.state)} />
+          <Tag
+            data-testid={`${version.id}-status-tag`}
+            text={capitalizeFirstLetter(version.state)}
+            color={stateToColour(version.state)}
+          />
         ),
       },
       {
@@ -74,7 +78,9 @@ export default function FormHistoryTab({
         key: 'created',
         label: dict.submission?.formList?.columns?.createdAt || 'Created Date',
         render: (version: SobaFormVersionType) => (
-          <span className="small">{formatLongDate(version.createdAt)}</span>
+          <span className="small" data-testid={`${version.id}-created-date`}>
+            {formatLongDate(version.createdAt)}
+          </span>
         ),
       },
       {
@@ -86,6 +92,7 @@ export default function FormHistoryTab({
           <>
             <Link
               className="bcds-react-aria-Link medium false me-2"
+              data-testid={`${version.id}-design-link`}
               onPress={() => {
                 if (!token) return;
                 dispatch(loadVersionSchemaThunk({ token, version })).then(() => {
@@ -97,6 +104,7 @@ export default function FormHistoryTab({
             </Link>
             <Link
               className="bcds-react-aria-Link medium false me-2"
+              data-testid={`${version.id}-newVersionFrom-link`}
               onPress={() => {
                 newVersionFromCallback(version);
               }}
@@ -121,7 +129,7 @@ export default function FormHistoryTab({
       columns={columns}
       loading={loading}
       error=""
-      emptyMessage="No forms found matching your criteria."
+      emptyMessage={dict.form.emptyHistory}
       loadingMessage={dict.general.loading}
       itemName="items"
       caption={dict.general.forms}

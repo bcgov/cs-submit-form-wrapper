@@ -50,7 +50,11 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
       {
         key: 'id',
         label: dict.submission?.confirmationId || 'Confirmation Id',
-        render: (sub) => <>{convertSubmissionIdToConfirmationId(sub.id)}</>,
+        render: (sub) => (
+          <span data-testid={`${sub.id}-confirmation-id`}>
+            {convertSubmissionIdToConfirmationId(sub.id)}
+          </span>
+        ),
       },
       {
         key: 'versionNo',
@@ -60,13 +64,14 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
       {
         key: 'createdBy',
         label: dict.submission?.submitter || 'Submitter',
-        render: (sub) => sub.createdBy || 'Anonymous',
+        render: (sub) => sub.createdBy || dict.submission.anon,
       },
       {
         key: 'workflowState',
         label: dict.form?.status || 'Status',
         render: (sub) => (
           <Tag
+            data-testid={`${sub.id}-status-tag`}
             text={capitalizeFirstLetter(sub.workflowState)}
             color={sub.workflowState === 'submitted' ? 'green' : 'grey'}
           />
@@ -76,7 +81,9 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
         key: 'submittedAt',
         label: dict.submission?.submittedAt || 'Submission Date',
         render: (sub) => (
-          <span className="small">{sub.submittedAt ? formatLongDate(sub.submittedAt) : 'N/A'}</span>
+          <span className="small" data-testid={`${sub.id}-submitted-date`}>
+            {sub.submittedAt ? formatLongDate(sub.submittedAt) : 'N/A'}
+          </span>
         ),
       },
       {
@@ -86,12 +93,14 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
           <>
             <Link
               className="bcds-react-aria-Link medium false me-2"
+              data-testid={`${sub.id}-view-link`}
               onPress={() => router.push(`/${locale}/submission/${sub.id}`)}
             >
               {dict.submission.view}
             </Link>
             <Link
               className="bcds-react-aria-Link medium false danger"
+              data-testid={`${sub.id}-delete-link`}
               onPress={() => {
                 deletePress(sub.id);
               }}
@@ -117,7 +126,7 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
         columns={columns}
         loading={loading}
         error=""
-        emptyMessage="No submissions found."
+        emptyMessage={dict.submission.emptyList}
         loadingMessage={dict.general.loading}
         itemName="submissions"
         caption="Submissions"
@@ -141,6 +150,7 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
         <div>
           <Button
             variant="secondary"
+            data-testid="cancel-delete-button"
             className="bcds-react-aria-Button medium secondary me-2"
             onPress={() => {
               setShowDeleteConfirm(false);
@@ -150,6 +160,7 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
           </Button>
           <Button
             variant="secondary"
+            data-testid="confirm-delete-button"
             danger
             onPress={() => {
               confirmDelete();

@@ -196,10 +196,12 @@
     "ministryOrOrg": "Ministère / Organisation",
     "copy": "Copier Lien",
     "copiedNotification": "Copié dans le presse-papiers",
-    "newVersionFrom": "Nouvelle Version De"
+    "newVersionFrom": "Nouvelle Version De",
+    "emptyHistory": "Aucune version précédente"
   },
   "submission": {
     "submissions": "Soumissions",
+    "anon": "Anonyme",
     "pageTitle": "Soumission",
     "loading": "Chargement des soumissions…",
     "empty": "Aucune soumission dans cet espace pour l’instant.",
@@ -217,6 +219,7 @@
     "confirm": "Confirmer",
     "view": "Voir",
     "actions": "Actions",
+    "emptyList": "Aucune soumission",
     "columns": {
       "id": "ID de Soumission",
       "formName": "Nom du Formulaire",

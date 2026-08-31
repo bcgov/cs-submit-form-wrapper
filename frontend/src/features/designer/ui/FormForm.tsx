@@ -444,21 +444,32 @@ function FormForm({ formId }: { formId?: string }) {
           onSelect={(k) => setActiveTab(k || 'designer')}
           className="mb-3"
         >
-          <Tab eventKey="designer" title={dict.form.designerTab || 'Designer'}>
+          <Tab
+            eventKey="designer"
+            title={dict.form.designerTab || 'Designer'}
+            data-testid="designer-tab"
+          >
             {renderDesignerContent()}
           </Tab>
           <Tab
             eventKey="settings"
+            data-testid="settings-tab"
             disabled={isSaving || loading}
             title={dict.form.settingsTab || 'Settings'}
           >
             <FormSettingsTab dict={dict} />
           </Tab>
-          <Tab eventKey="team" disabled={isSaving || loading} title={dict.form.teamTab || 'Team'}>
+          <Tab
+            eventKey="team"
+            data-testid="team-tab"
+            disabled={isSaving || loading}
+            title={dict.form.teamTab || 'Team'}
+          >
             <FormTeamTab dict={dict} />
           </Tab>
           <Tab
             eventKey="version"
+            data-testid="version-tab"
             disabled={isSaving || loading}
             title={dict.form.historyTab || 'History'}
           >
@@ -466,6 +477,7 @@ function FormForm({ formId }: { formId?: string }) {
           </Tab>
           <Tab
             eventKey="submissions"
+            data-testid="submission-tab"
             disabled={isSaving || loading}
             title={dict.form.submissionTab || 'Submissions'}
           >
@@ -473,6 +485,7 @@ function FormForm({ formId }: { formId?: string }) {
           </Tab>
           <Tab
             eventKey="share"
+            data-testid="share-tab"
             disabled={isSaving || loading}
             title={dict.form.shareTab || 'Share'}
           >

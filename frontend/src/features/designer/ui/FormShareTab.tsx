@@ -35,20 +35,21 @@ export default function FormShareTab({ dict }: Readonly<FormShareTabProps>) {
 
   return (
     <>
-      <Heading level={2} isUnstyled className="mt-5">
+      <Heading level={2} isUnstyled className="mt-5" data-testid="share-tab-formName">
         {formName}
       </Heading>
-      <p>{formDesc}</p>
-      <p>
+      <p data-testid="share-tab-formDesc">{formDesc}</p>
+      <p data-testid="share-tab-ministryOrOrg">
         {dict.form.ministryOrOrg}:{' '}
         {dict.ministries[formWorkspace?.org as keyof typeof dict.ministries] || 'Unknown'}
       </p>
       <p>
-        <Button variant="secondary" onPress={copyToClipboard}>
+        <Button variant="secondary" data-testid="share-tab-copyToClip" onPress={copyToClipboard}>
           {dict.form.copy}
         </Button>
         <Link
           className="bcds-react-aria-Link medium false ms-2"
+          data-testid="share-tab-form-link"
           onPress={() => {
             router.push(link);
           }}

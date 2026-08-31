@@ -195,10 +195,12 @@
     "ministryOrOrg": "Ministry / Organization",
     "copy": "Copy URL",
     "copiedNotification": "Copied to clipboard",
-    "newVersionFrom": "New Version From"
+    "newVersionFrom": "New Version From",
+    "emptyHistory": "No Previous Versions"
   },
   "submission": {
     "submissions": "Submissions",
+    "anon": "Anonymous",
     "pageTitle": "Submission",
     "loading": "Loading submissions…",
     "empty": "No submissions in this workspace yet.",
@@ -216,6 +218,7 @@
     "delete": "Delete",
     "view": "View",
     "actions": "Actions",
+    "emptyList": "No submissions",
     "columns": {
       "id": "Submission ID",
       "formName": "Form Name",
