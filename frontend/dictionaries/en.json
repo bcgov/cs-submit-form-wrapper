@@ -194,7 +194,8 @@
     "status": "Status",
     "ministryOrOrg": "Ministry / Organization",
     "copy": "Copy URL",
-    "copiedNotification": "Copied to clipboard"
+    "copiedNotification": "Copied to clipboard",
+    "newVersionFrom": "New Version From"
   },
   "submission": {
     "submissions": "Submissions",
@@ -211,6 +212,9 @@
     "submitter": "Submitter",
     "deleteConfirm": "Confirm Delete",
     "deleteConfirmText": "Do you really want to delete submission",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "view": "View",
     "actions": "Actions",
     "columns": {
       "id": "Submission ID",

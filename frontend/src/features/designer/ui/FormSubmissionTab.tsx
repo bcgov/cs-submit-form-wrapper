@@ -88,7 +88,7 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
               className="bcds-react-aria-Link medium false me-2"
               onPress={() => router.push(`/${locale}/submission/${sub.id}`)}
             >
-              View
+              {dict.submission.view}
             </Link>
             <Link
               className="bcds-react-aria-Link medium false danger"
@@ -96,7 +96,7 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
                 deletePress(sub.id);
               }}
             >
-              Delete
+              {dict.submission.delete}
             </Link>
           </>
         ),
@@ -146,7 +146,7 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
               setShowDeleteConfirm(false);
             }}
           >
-            Cancel
+            {dict.workspaces.cancel}
           </Button>
           <Button
             variant="secondary"
@@ -155,7 +155,7 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
               confirmDelete();
             }}
           >
-            Confirm
+            {dict.submission.confirm}
           </Button>
         </div>
       </Modal>

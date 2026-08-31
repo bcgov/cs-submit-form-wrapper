@@ -35,17 +35,22 @@ export default function FormHistoryTab({
   const [currentPage, setCurrentPage] = useState(1);
   const formatLongDate = useFormatLongDate();
 
-  const newVersionFromCallback = useCallback((version: SobaFormVersionType) => {
-    if (!token || !formId) return;
-    dispatch(loadVersionSchemaThunk({ token, version })).then((actionResult) => {
-      const payload = actionResult.payload as { schema: FormType | null };
-      if (payload?.schema) {
-        dispatch(createNewVersionThunk({ token, formId, formSchema: payload.schema })).then(() => {
-          if (onNavigateToDesigner) onNavigateToDesigner();
-        });
-      }
-    });
-  }, []);
+  const newVersionFromCallback = useCallback(
+    (version: SobaFormVersionType) => {
+      if (!token || !formId) return;
+      dispatch(loadVersionSchemaThunk({ token, version })).then((actionResult) => {
+        const payload = actionResult.payload as { schema: FormType | null };
+        if (payload?.schema) {
+          dispatch(createNewVersionThunk({ token, formId, formSchema: payload.schema })).then(
+            () => {
+              if (onNavigateToDesigner) onNavigateToDesigner();
+            },
+          );
+        }
+      });
+    },
+    [token, formId, dispatch, onNavigateToDesigner],
+  );
 
   const columns: Column<SobaFormVersionType>[] = useMemo(
     () => [
@@ -88,7 +93,7 @@ export default function FormHistoryTab({
                 });
               }}
             >
-              Design
+              {dict.header.design}
             </Link>
             <Link
               className="bcds-react-aria-Link medium false me-2"
@@ -96,13 +101,13 @@ export default function FormHistoryTab({
                 newVersionFromCallback(version);
               }}
             >
-              New Version From
+              {dict.form.newVersionFrom}
             </Link>
           </>
         ),
       },
     ],
-    [dict, formatLongDate, dispatch, token, formId, onNavigateToDesigner],
+    [dict, formatLongDate, dispatch, token, formId, onNavigateToDesigner, newVersionFromCallback],
   );
 
   const handlePageSizeChange = useCallback((size: number) => {

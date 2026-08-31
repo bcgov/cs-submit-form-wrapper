@@ -206,7 +206,7 @@ function FormForm({ formId }: { formId?: string }) {
       addNotification({
         text: (
           dict.form.versionDraftCreated || 'Version {version} draft created successfully!'
-        ).replace('{version}', String((currentVersion?.versionNo ?? 0) + 1)), // Use a simplistic replacement for now or get it from store properly. Actually unwrap returns the payload so I can use it.
+        ).replace('{version}', String((currentVersion?.versionNo ?? 0) + 1)),
         type: 'success',
       });
     } catch (e: unknown) {

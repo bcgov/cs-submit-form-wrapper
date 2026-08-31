@@ -195,7 +195,8 @@
     "status": "Status",
     "ministryOrOrg": "Ministère / Organisation",
     "copy": "Copier Lien",
-    "copiedNotification": "Copié dans le presse-papiers"
+    "copiedNotification": "Copié dans le presse-papiers",
+    "newVersionFrom": "Nouvelle Version De"
   },
   "submission": {
     "submissions": "Soumissions",
@@ -212,6 +213,9 @@
     "submitter": "Soumissionnaire",
     "deleteConfirm": "Confirmer la suppression",
     "deleteConfirmText": "Voulez-vous vraiment supprimer cette soumission",
+    "delete": "Suppression",
+    "confirm": "Confirmer",
+    "view": "Voir",
     "actions": "Actions",
     "columns": {
       "id": "ID de Soumission",
