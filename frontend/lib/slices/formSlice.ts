@@ -249,6 +249,9 @@ const formSlice = createSlice({
       .addCase(loadForm.fulfilled, (state, action) => {
         state.loading = false;
         const { form, versions, submissions, currentVersion, schema } = action.payload;
+        // Also set on pending. A completed load must never leave the id unset, since the share link
+        // and the tabs read it.
+        state.formId = action.meta.arg.formId;
         state.formName = form?.name ?? '';
         state.formWorkspaceId = form?.workspaceId ?? '';
         state.formDesc = form?.description ?? '';

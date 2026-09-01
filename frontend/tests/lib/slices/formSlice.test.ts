@@ -101,8 +101,13 @@ describe('formSlice', () => {
       currentVersion: mockVersion,
       schema: { components: [] },
     };
-    const next = formReducer(baseState, { type: loadForm.fulfilled.type, payload });
+    const next = formReducer(baseState, {
+      type: loadForm.fulfilled.type,
+      payload,
+      meta: { arg: { formId: 'f1' } },
+    });
     expect(next.loading).toBe(false);
+    expect(next.formId).toBe('f1');
     expect(next.formName).toBe('Form 1');
     expect(next.formWorkspaceId).toBe('ws1');
     expect(next.formDesc).toBe('Desc 1');

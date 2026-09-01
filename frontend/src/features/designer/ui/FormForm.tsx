@@ -111,6 +111,9 @@ function FormForm({ formId }: { formId?: string }) {
 
   useEffect(() => {
     return () => {
+      // The ref guards against reloading a form that is already in the store, so it has to be
+      // released with the store state. Keeping it would skip the reload on the next mount.
+      loadedFormRef.current = null;
       dispatch(clearFormState());
     };
   }, [dispatch]);
