@@ -179,6 +179,11 @@ export async function getFormVersionSchema(token: string, id: string): Promise<F
   return parseJson(response);
 }
 
+/**
+ * A 404 means the submission was already gone, which is the outcome the caller asked for. Reporting
+ * it as a failure would contradict the refreshed list.
+ */
 export async function deleteSobaSubmission(token: string, id: string): Promise<void> {
-  await sobaFetch(`/design/submissions/${id}`, { token, method: 'DELETE' });
+  const response = await sobaFetch(`/design/submissions/${id}`, { token, method: 'DELETE' });
+  if (!response.ok && response.status !== 404) await parseJson(response);
 }

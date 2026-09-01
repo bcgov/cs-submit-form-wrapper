@@ -40,7 +40,6 @@ export {
   submitSobaFormSubmission,
   getSubmitSubmission,
   getSubmitSubmissionData,
-  deleteSubmitSubmission,
 } from './sobaApiSubmit';
 
 export type BuildMeta = {

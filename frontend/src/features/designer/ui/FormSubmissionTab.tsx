@@ -52,10 +52,9 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
         type: 'success',
       });
     } catch (e: unknown) {
-      let msg = e instanceof Error ? e.message : dict.submission.deleteFailure;
-      if (e === dict.submission.deleteFailure && typeof e === 'string') {
-        msg = e;
-      }
+      // unwrap() throws the rejectWithValue payload, not an Error, so read the message off either.
+      const detail = (e as { message?: unknown })?.message;
+      const msg = typeof detail === 'string' && detail ? detail : dict.submission.deleteFailure;
       addNotification({ text: msg, type: 'error' });
     }
   }, [token, deleteId, dispatch, addNotification, dict]);
