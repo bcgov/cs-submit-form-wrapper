@@ -1,3 +1,4 @@
+import { and, desc, eq, type SQL } from 'drizzle-orm';
 import { db } from '../client';
 import { documentGenerationAudits } from '../schema';
 
@@ -17,6 +18,12 @@ export interface NewDocumentGenerationAudit {
   createdBy: string;
 }
 
+export interface ListDocumentGenerationAuditFilters {
+  workspaceId?: string;
+  formId?: string;
+  limit?: number;
+}
+
 export const createDocumentGenerationAudit = async (
   input: NewDocumentGenerationAudit,
 ): Promise<void> => {
@@ -33,4 +40,28 @@ export const createDocumentGenerationAudit = async (
     requestId: input.requestId ?? null,
     createdBy: input.createdBy,
   });
+};
+
+/**
+ * List recent document generation audit rows for a workspace/form scope.
+ * Caller should validate at least one scope filter is provided.
+ * Reads one row past the limit so the caller can report that the list was cut short.
+ */
+export const listDocumentGenerationAudits = async (
+  filters: ListDocumentGenerationAuditFilters,
+): Promise<{ items: DocumentGenerationAuditRecord[]; hasMore: boolean }> => {
+  const conditions: SQL<unknown>[] = [];
+  if (filters.workspaceId)
+    conditions.push(eq(documentGenerationAudits.workspaceId, filters.workspaceId));
+  if (filters.formId) conditions.push(eq(documentGenerationAudits.formId, filters.formId));
+
+  const limit = filters.limit ?? 100;
+  const rows = await db
+    .select()
+    .from(documentGenerationAudits)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(documentGenerationAudits.createdAt))
+    .limit(limit + 1);
+
+  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
 };

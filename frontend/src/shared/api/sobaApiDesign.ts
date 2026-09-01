@@ -30,6 +30,19 @@ export async function createSobaFormioForm(
   return parseJson(response);
 }
 
+export async function updateSobaForm(
+  token: string,
+  id: string,
+  data: Partial<SobaFormType>,
+): Promise<SobaResponseFormType> {
+  const response = await sobaFetch(`/design/forms/${id}`, {
+    token,
+    method: 'PATCH',
+    json: data,
+  });
+  return parseJson(response);
+}
+
 /**
  * POST a Form.io schema to the server to normalize it into a clean, portable, builder-ready
  * form definition. Used both for import (file upload) and export (download).
@@ -164,4 +177,13 @@ export async function getFormVersionSchema(token: string, id: string): Promise<F
   const response = await sobaFetch(`/design/form-versions/${id}/schema`, { token });
   if (response.status === 404) return null;
   return parseJson(response);
+}
+
+/**
+ * A 404 means the submission was already gone, which is the outcome the caller asked for. Reporting
+ * it as a failure would contradict the refreshed list.
+ */
+export async function deleteSobaSubmission(token: string, id: string): Promise<void> {
+  const response = await sobaFetch(`/design/submissions/${id}`, { token, method: 'DELETE' });
+  if (!response.ok && response.status !== 404) await parseJson(response);
 }

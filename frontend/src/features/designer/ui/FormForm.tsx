@@ -1,6 +1,6 @@
 'use client';
-import { useState, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useMemo, useCallback } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
   InlineAlert,
@@ -23,6 +23,9 @@ import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { usePageHeading, usePageNotices, type PageNotice } from '@/src/components/PageHeader';
 import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
+import FormHistoryTab from './FormHistoryTab';
+import FormSubmissionTab from './FormSubmissionTab';
+import FormShareTab from './FormShareTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
 import { isWorkspaceManageRole } from '@/src/features/workspaces/workspaceRoles';
 import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
@@ -34,8 +37,10 @@ import {
   createFormVersion,
   saveFormVersionSchema,
   publishSobaFormVersion,
+  updateSobaForm,
+  getFormVersionSchema,
 } from '@/src/shared/api/sobaApi';
-import type { SobaFormType } from '@/src/types/forms';
+import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 type Dict = ReturnType<typeof useDictionary>;
@@ -100,7 +105,15 @@ function FormForm({ formId }: { formId?: string }) {
   // Not seeded from the forms-list filter: that scopes what you are looking at, not where a
   // new form belongs. An existing form's workspace is the one it was created in.
   const [pickedWorkspaceId, setPickedWorkspaceId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('designer');
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'designer');
+  // A tab's read starts when it is first opened and stays cached after: leaving is not a reason to
+  // drop what it loaded, and the reads behind these tabs are gated on permissions a user may lack.
+  const [openedTabs, setOpenedTabs] = useState<string[]>(() => [activeTab]);
+  const openTab = useCallback((key: string) => {
+    setActiveTab(key);
+    setOpenedTabs((opened) => (opened.includes(key) ? opened : [...opened, key]));
+  }, []);
   const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -151,7 +164,7 @@ function FormForm({ formId }: { formId?: string }) {
     }),
   );
 
-  const createNewVersion = async () => {
+  const createNewVersion = async (sourceSchema?: FormType) => {
     if (isSaving || loading || !token) return;
     if (!formId) return;
     setIsSaving(true);
@@ -159,7 +172,7 @@ function FormForm({ formId }: { formId?: string }) {
     try {
       // The engine strips engine-managed fields on save, so the raw schema can be submitted as-is.
       const newVersion = await createFormVersion(token as string, formId);
-      const newSchema = (formSchema ?? {}) as FormType;
+      const newSchema = (sourceSchema ?? formSchema ?? {}) as FormType;
       await saveFormVersionSchema(token as string, newVersion.id, newSchema);
       await commitSchema(newVersion.id, newSchema);
 
@@ -183,6 +196,12 @@ function FormForm({ formId }: { formId?: string }) {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const restoreVersionAsNew = async (version: SobaFormVersionType) => {
+    if (!token) return;
+    const schema = (await getFormVersionSchema(token, version.id)) as FormType | null;
+    await createNewVersion(schema ?? undefined);
   };
 
   const saveFormPublish = async () => {
@@ -224,7 +243,10 @@ function FormForm({ formId }: { formId?: string }) {
 
     try {
       if (currentVersion?.id) {
-        // UPDATE: re-provision the current version's schema (server owns name/path).
+        await updateSobaForm(token as string, formId as string, {
+          name: formName,
+          description: formDesc,
+        });
         await saveFormVersionSchema(token as string, currentVersion.id, schema);
         if (publish) {
           await publishSobaFormVersion(token as string, currentVersion.id);
@@ -394,7 +416,7 @@ function FormForm({ formId }: { formId?: string }) {
         className={`${styles.floatingActions} shadow-lg p-3 rounded-pill d-flex gap-2 bg-white border`}
       >
         {formId && (
-          <Button variant="secondary" onPress={createNewVersion} isDisabled={isSaving || loading}>
+          <Button variant="secondary" onPress={() => createNewVersion()} isDisabled={isSaving || loading}>
             {getNewVersionLabel()}
           </Button>
         )}
@@ -433,17 +455,75 @@ function FormForm({ formId }: { formId?: string }) {
         <Tabs
           id="form-designer-tabs"
           activeKey={activeTab}
-          onSelect={(k) => setActiveTab(k || 'designer')}
+          onSelect={(k) => openTab(k || 'designer')}
           className="mb-3"
+          // A tab's data is read when it is opened, not before: the reads behind these tabs are
+          // gated on permissions a given user may not hold.
+          mountOnEnter
         >
-          <Tab eventKey="designer" title={dict.form.designerTab || 'Designer'}>
+          <Tab
+            eventKey="designer"
+            data-testid="designer-tab"
+            title={dict.form.designerTab || 'Designer'}
+          >
             {renderDesignerContent()}
           </Tab>
-          <Tab eventKey="settings" title={dict.form.settingsTab || 'Settings'}>
+          <Tab
+            eventKey="settings"
+            data-testid="settings-tab"
+            disabled={isSaving || loading}
+            title={dict.form.settingsTab || 'Settings'}
+          >
             <FormSettingsTab dict={dict} />
           </Tab>
-          <Tab eventKey="team" title={dict.form.teamTab || 'Team'}>
+          <Tab
+            eventKey="team"
+            data-testid="team-tab"
+            disabled={isSaving || loading}
+            title={dict.form.teamTab || 'Team'}
+          >
             <FormTeamTab dict={dict} />
+          </Tab>
+          <Tab
+            eventKey="version"
+            data-testid="version-tab"
+            disabled={isSaving || loading}
+            title={dict.form.historyTab || 'History'}
+          >
+            <FormHistoryTab
+              dict={dict}
+              versions={versions}
+              loading={loading}
+              onSelectVersion={selectVersion}
+              onRestoreVersion={restoreVersionAsNew}
+              onNavigateToDesigner={() => openTab('designer')}
+            />
+          </Tab>
+          <Tab
+            eventKey="submissions"
+            data-testid="submission-tab"
+            disabled={isSaving || loading}
+            title={dict.form.submissionTab || 'Submissions'}
+          >
+            <FormSubmissionTab
+              dict={dict}
+              formId={formId}
+              opened={openedTabs.includes('submissions')}
+            />
+          </Tab>
+          <Tab
+            eventKey="share"
+            data-testid="share-tab"
+            disabled={isSaving || loading}
+            title={dict.form.shareTab || 'Share'}
+          >
+            <FormShareTab
+              dict={dict}
+              formId={formId}
+              formName={formName}
+              formDesc={formDesc}
+              workspaceId={selectedWorkspaceId}
+            />
           </Tab>
         </Tabs>
       ) : (

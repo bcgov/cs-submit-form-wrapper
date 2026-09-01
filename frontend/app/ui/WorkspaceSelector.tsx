@@ -11,8 +11,10 @@ export function WorkspaceSelector({
   onChange,
   size = 'small',
   allLabel,
+  className = '',
 }: Readonly<{
   workspaces: WorkspaceSelectorItem[];
+  className?: string;
   selectedWorkspaceId: string | null;
   label: string;
   size?: 'small' | 'medium';
@@ -26,7 +28,7 @@ export function WorkspaceSelector({
       id="workspace-select"
       data-testid="workspace-select"
       label={label}
-      className="mr-2"
+      className={`mr-2 ${className}`}
       selectedKey={selectedWorkspaceId || (allLabel ? 'all' : null)}
       onSelectionChange={(key) => onChange(key === 'all' ? null : key)}
       items={[

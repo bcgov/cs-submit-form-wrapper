@@ -9,6 +9,8 @@ export const FEATURE_CODES = {
    * the frontend feature enumeration stays in sync even without a dedicated UI. */
   META: 'meta',
   MARKETING: 'marketing',
+  /** Umbrella feature for document generation surfaces and administration. */
+  DOCUMENT_GENERATION: 'document-generation',
   /** BC File Upload component + CHEFS storage provider (backend `soba.feature` code `files`). */
   FILES: 'files',
 } as const;

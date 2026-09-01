@@ -97,6 +97,16 @@ Usage: {{ include "soba.frontendHostFor" (dict "root" $root "name" $name "app" $
 {{- end }}
 
 {{/*
+Public https:// URL for a named frontend app. Backend and frontend both read these, so both take
+them from here and cannot drift.
+Usage: {{ include "soba.frontendAppUrlFor" (dict "root" $root "name" "forms") }}
+*/}}
+{{- define "soba.frontendAppUrlFor" -}}
+{{- $app := index .root.Values.frontend.apps .name | default dict -}}
+{{- printf "https://%s" (include "soba.frontendHostFor" (dict "root" .root "name" .name "app" $app)) -}}
+{{- end }}
+
+{{/*
 Comma-separated https:// origins for every enabled frontend app.
 Feeds the backend CORS allowlist so both modes can call the API.
 */}}

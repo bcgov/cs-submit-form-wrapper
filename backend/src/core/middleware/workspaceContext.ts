@@ -6,8 +6,6 @@
  * The `open*` variants build a membership-optional context for the public-capable submit surface,
  * leaving authorization to a downstream guard (requireFormAccess).
  *
- * All echo the resolved workspace via the `x-soba-workspace-id` response header so the frontend's
- * per-tab store can capture it.
  */
 import type { NextFunction, Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
@@ -28,7 +26,6 @@ import {
 import { getSubmissionListContext, getWorkspaceIdForSubmission } from '../db/repos/submissionRepo';
 import type { CoreRequestContext } from './requestContext';
 
-export const WORKSPACE_HEADER = 'x-soba-workspace-id';
 const RESOURCE_NOT_FOUND = 'Resource not found';
 const MISSING_ACTOR_IDENTITY = 'Missing actor identity (actorId or x-soba-user-id)';
 
@@ -39,10 +36,6 @@ type ListScopeQuery = Partial<Record<ListAnchorKind, string>>;
 export type ResolvedListScope = {
   workspaceId: string;
   anchorKind: ListAnchorKind;
-};
-
-const echoWorkspace = (res: Response, workspaceId: string): void => {
-  res.set(WORKSPACE_HEADER, workspaceId);
 };
 
 const readQueryString = (query: ListScopeQuery, key: ListAnchorKind): string | undefined => {
@@ -218,7 +211,6 @@ export const openWorkspaceFromResource = (config: {
         throw new NotFoundError(RESOURCE_NOT_FOUND);
       }
       req.coreContext = await buildSubmitContext(actorId, workspaceId, `submit:${config.kind}`);
-      echoWorkspace(res, workspaceId);
       next();
     } catch (error) {
       next(error);
@@ -243,7 +235,6 @@ export const workspaceFromQuery = async (
       throw new ValidationError('Missing workspaceId query parameter');
     }
     req.coreContext = await buildCoreContext(actorId, workspaceId, 'query');
-    echoWorkspace(res, workspaceId);
     next();
   } catch (error) {
     next(error);
@@ -267,7 +258,6 @@ export const workspaceFromBody = async (
       throw new ValidationError('Missing workspaceId body parameter');
     }
     req.coreContext = await buildCoreContext(actorId, workspaceId, 'body');
-    echoWorkspace(res, workspaceId);
     next();
   } catch (error) {
     next(error);
@@ -320,7 +310,6 @@ export const workspaceListScope = (config: {
         workspaceIds: [resolved.workspaceId],
         selectedWorkspaceId: resolved.workspaceId,
       };
-      echoWorkspace(res, resolved.workspaceId);
       next();
     } catch (error) {
       next(error);
@@ -386,7 +375,7 @@ export const workspaceFromResource = (config: {
         throw new NotFoundError(RESOURCE_NOT_FOUND);
       }
       req.coreContext = await buildCoreContext(actorId, workspaceId, `resource:${config.kind}`);
-      echoWorkspace(res, workspaceId);
+
       next();
     } catch (error) {
       next(error);

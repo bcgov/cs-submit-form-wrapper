@@ -44,6 +44,7 @@ const { mockWorkspaceState, api, builder } = vi.hoisted(() => ({
     publishSobaFormVersion: vi.fn().mockResolvedValue({}),
     createFormVersion: vi.fn(),
     createSobaFormioForm: vi.fn(),
+    updateSobaForm: vi.fn().mockResolvedValue({}),
     getFormVersionSchema: vi.fn(),
   },
 }));
@@ -56,6 +57,7 @@ vi.mock('@/src/shared/api/sobaApi', () => ({
   publishSobaFormVersion: api.publishSobaFormVersion,
   createFormVersion: api.createFormVersion,
   createSobaFormioForm: api.createSobaFormioForm,
+  updateSobaForm: api.updateSobaForm,
   fetchWorkspaces: vi.fn((_token: string, requiredPermission?: string) =>
     Promise.resolve({
       items: requiredPermission ? mockWorkspaceState.writableWorkspaces : mockWorkspaceState.workspaces,
@@ -87,6 +89,7 @@ vi.mock('@/src/features/designer/ui/FormDesigner', () => {
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: () => {} }),
   useParams: () => ({ lang: 'en' }),
+  useSearchParams: () => new URLSearchParams(''),
 }));
 
 import { Provider } from 'react-redux';

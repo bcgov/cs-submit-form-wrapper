@@ -79,6 +79,14 @@ export const FrontendConfigMetaResponseSchema = z
     api: z.object({
       baseUrl: z.string(),
     }),
+    // Public URLs of the two frontend apps. Absent when the deployment has not configured them, so
+    // the frontend falls back to its own env and then to the current origin.
+    app: z
+      .object({
+        designerUrl: z.string().optional(),
+        formsUrl: z.string().optional(),
+      })
+      .optional(),
     build: z.object({
       name: z.string(),
       version: z.string(),

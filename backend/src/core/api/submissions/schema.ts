@@ -65,6 +65,8 @@ export const SubmissionListItemSchema = z
     submittedAt: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    createdBy: z.string().nullable().optional(),
+    submittedBy: z.string().nullable().optional(),
   })
   .openapi('Submissions_SubmissionListItem');
 
@@ -79,6 +81,8 @@ export const SubmissionResponseSchema = z
     submittedAt: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    createdBy: z.string().nullable().optional(),
+    submittedBy: z.string().nullable().optional(),
   })
   .openapi('Submissions_SubmissionResponse');
 

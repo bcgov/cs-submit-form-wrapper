@@ -16,6 +16,7 @@ import {
 } from '@/src/shared/api/sobaApi';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 import { useMaybeAuthedSWR } from '@/src/shared/api/useAuthedSWR';
+import { convertSubmissionIdToConfirmationId } from '@/src/shared/util/stringUtils';
 
 export function SubmissionView() {
   const params = useParams();
@@ -28,6 +29,8 @@ export function SubmissionView() {
   const submissionIdRaw = params?.submissionId;
   const submissionId =
     typeof submissionIdRaw === 'string' ? decodeURIComponent(submissionIdRaw) : '';
+
+  const confirmationId = convertSubmissionIdToConfirmationId(submissionId);
 
   const { data, isLoading, error } = useMaybeAuthedSWR(
     // Wait for Keycloak to answer before reading. Before init, "no token" is the default rather
@@ -84,6 +87,9 @@ export function SubmissionView() {
       <>
         <div className="mb-3" data-testid="submission-view-header">
           <h3 className="h5 mb-1">{submission.formName || dict.form?.nameLabel || 'Submission'}</h3>
+          <div>
+            {dict.submission.confirmationId}: {confirmationId}
+          </div>
           <div className="small text-muted">
             <span data-testid="submission-view-version">v{submission.versionNo ?? 1}</span>
             {' · '}

@@ -14,7 +14,9 @@ import {
   FaList,
   FaChevronRight,
   FaChevronLeft,
+  FaUserShield,
 } from 'react-icons/fa6';
+import { useIsSobaAdmin } from '@/src/features/admin/useIsSobaAdmin';
 import styles from './SideNav.module.css';
 
 interface SideNavProps {
@@ -25,6 +27,7 @@ interface SideNavProps {
 
 export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<SideNavProps>) {
   const { authenticated } = useKeycloak();
+  const { isSobaAdmin } = useIsSobaAdmin();
   const dict = useDictionary();
   const pathname = usePathname();
   const locale = dict.locale === 'en' || dict.locale === 'fr' ? dict.locale : 'en';
@@ -53,6 +56,16 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
         pathname.startsWith(`/${locale}/workspaces`) ||
         pathname === `/${locale}/workspace` ||
         pathname.startsWith(`/${locale}/workspace/`),
+    });
+  }
+
+  if (authenticated && isSobaAdmin) {
+    navItems.push({
+      href: `/${locale}/admin`,
+      title: dict.admin.heading,
+      testId: 'admin-nav',
+      icon: <FaUserShield size={20} />,
+      isActive: pathname.startsWith(`/${locale}/admin`),
     });
   }
 
