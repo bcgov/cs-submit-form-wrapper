@@ -11,6 +11,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { addSobaAdmin, removeSobaAdmin } from '@/src/shared/api/sobaApiAdmin';
+import { useCurrentUser, useRefreshCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { useSobaAdmins } from '../useAdminData';
 import type { SobaAdminItem } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
@@ -23,6 +24,8 @@ export function SobaAdminsPanel() {
   const dictAdmin = dict.admin;
   const { token } = useKeycloak();
   const { addNotification } = useNotificationStore();
+  const { data: currentUser } = useCurrentUser();
+  const refreshCurrentUser = useRefreshCurrentUser();
 
   const [userId, setUserId] = useState('');
   const [saving, setSaving] = useState(false);
@@ -73,6 +76,9 @@ export function SobaAdminsPanel() {
     removeSobaAdmin(token, admin.userId)
       .then(() => {
         void reload();
+        // Removing your own grant ends your access to this console. `/me` is read once per page
+        // load, so without this the console stays on screen while every control in it is refused.
+        if (admin.userId === currentUser?.actor?.id) void refreshCurrentUser();
         addNotification({ text: dictAdmin.admins.removeSuccess, type: 'success' });
       })
       .catch((cause: unknown) => {
@@ -90,6 +96,8 @@ export function SobaAdminsPanel() {
     token,
     confirmRemove,
     reload,
+    currentUser,
+    refreshCurrentUser,
     addNotification,
     dictAdmin.admins.removeSuccess,
     dictAdmin.admins.removeError,

@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { SWRConfig } from 'swr';
 import type { SubmitterAudience } from '@/src/types/groups';
 import { ApiError } from '@/src/shared/api/sobaHelpers';
+import { SessionExpiredError } from '@/src/shared/api/sobaFetch';
 
 const { mockGet, mockSet } = vi.hoisted(() => ({ mockGet: vi.fn(), mockSet: vi.fn() }));
 
@@ -15,7 +16,10 @@ vi.mock('@/src/shared/api/sobaApiGroups', () => ({
 
 vi.mock('@/app/[lang]/Providers', () => ({
   useDictionary: () => ({
-    general: { noAccess: 'You do not have access to this.' },
+    general: {
+      noAccess: 'You do not have access to this.',
+      sessionExpired: 'Your session has ended.',
+    },
     form: {
       submitterAudienceLabel: 'Who can submit',
       submitterAudiencePublic: 'Public',
@@ -98,6 +102,16 @@ describe('FormSubmitterAudience summary', () => {
     renderAudience();
     expect(await screen.findByText('You do not have access to this.')).toBeInTheDocument();
     expect(screen.queryByText('load error')).not.toBeInTheDocument();
+  });
+
+  // An ended session is not a permission verdict, and telling someone they lack access sends them
+  // to an administrator when all they need is to sign in again.
+  it('reports an ended session as one', async () => {
+    mockGet.mockRejectedValue(new SessionExpiredError());
+    renderAudience();
+    expect(await screen.findByText('Your session has ended.')).toBeInTheDocument();
+    expect(screen.queryByText('load error')).not.toBeInTheDocument();
+    expect(screen.queryByText('You do not have access to this.')).not.toBeInTheDocument();
   });
 
   it('still reports a genuine failure as a load error', async () => {

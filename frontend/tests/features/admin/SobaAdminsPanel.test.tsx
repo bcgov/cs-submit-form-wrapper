@@ -5,16 +5,29 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { SWRConfig } from 'swr';
 
-const { mockFetchSobaAdmins, mockAddSobaAdmin, mockRemoveSobaAdmin, mockAddNotification } =
-  vi.hoisted(() => ({
-    mockFetchSobaAdmins: vi.fn(),
-    mockAddSobaAdmin: vi.fn(),
-    mockRemoveSobaAdmin: vi.fn(),
-    mockAddNotification: vi.fn(),
-  }));
+const {
+  mockFetchSobaAdmins,
+  mockAddSobaAdmin,
+  mockRemoveSobaAdmin,
+  mockAddNotification,
+  mockRefreshCurrentUser,
+  DIRECT_ADMIN_ID,
+} = vi.hoisted(() => ({
+  mockFetchSobaAdmins: vi.fn(),
+  mockAddSobaAdmin: vi.fn(),
+  mockRemoveSobaAdmin: vi.fn(),
+  mockAddNotification: vi.fn(),
+  mockRefreshCurrentUser: vi.fn(),
+  DIRECT_ADMIN_ID: '11111111-1111-4111-8111-111111111111',
+}));
 
 vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => ({ authenticated: true, token: 'token', initializing: false }),
+}));
+
+vi.mock('@/src/shared/api/useCurrentUser', () => ({
+  useCurrentUser: () => ({ data: { actor: { id: DIRECT_ADMIN_ID } } }),
+  useRefreshCurrentUser: () => mockRefreshCurrentUser,
 }));
 
 vi.mock('@/lib/hooks/useNotificationStore', () => ({
@@ -81,7 +94,7 @@ function renderPanel() {
 }
 
 const DIRECT_ADMIN = {
-  userId: '11111111-1111-4111-8111-111111111111',
+  userId: DIRECT_ADMIN_ID,
   source: 'direct',
   identityProviderCode: null,
   syncedAt: null,
@@ -136,6 +149,22 @@ describe('SobaAdminsPanel', () => {
     await waitFor(() => {
       expect(mockRemoveSobaAdmin).toHaveBeenCalledWith('token', DIRECT_ADMIN.userId);
     });
+  });
+
+  // Removing your own grant ends your access to this console, and `/me` is read once per page load,
+  // so the console would stay on screen with every control in it refused.
+  it('re-reads the caller when they remove their own grant', async () => {
+    mockRemoveSobaAdmin.mockResolvedValue(undefined);
+
+    await act(async () => {
+      renderPanel();
+    });
+    await screen.findByText('Direct Admin');
+
+    await userEvent.click(screen.getByTestId(`remove-admin-${DIRECT_ADMIN.userId}`));
+    await userEvent.click(await screen.findByTestId('confirm-modal-confirm'));
+
+    await waitFor(() => expect(mockRefreshCurrentUser).toHaveBeenCalled());
   });
 
   it('reports a list the server cut short', async () => {

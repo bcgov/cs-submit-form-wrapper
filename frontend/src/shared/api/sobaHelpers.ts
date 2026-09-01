@@ -9,9 +9,12 @@ export class ApiError extends Error {
   }
 }
 
-/** The caller is signed in and the server said no. Distinct from a load that failed. */
-export const isForbidden = (err: unknown): boolean =>
-  err instanceof ApiError && (err.status === 403 || err.status === 401);
+/**
+ * The caller is signed in and the server said no. Distinct from a load that failed, and from an
+ * ended session: the API answers a permission refusal with 403, and `sobaFetch` has already turned
+ * a 401 an authenticated caller could not refresh past into a `SessionExpiredError`.
+ */
+export const isForbidden = (err: unknown): boolean => err instanceof ApiError && err.status === 403;
 
 export async function parseJson<T>(response: Response): Promise<T> {
   if (!response.ok) {

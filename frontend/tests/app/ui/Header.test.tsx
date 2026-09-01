@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 
 const { session, mutate, forgetListQueries, removeSessionValues } = vi.hoisted(() => ({
@@ -31,7 +32,12 @@ vi.mock('@/src/shared/list/listQueryMemory', () => ({ forgetListQueries }));
 vi.mock('@/src/shared/storage/sessionStore', () => ({ removeSessionValues }));
 
 vi.mock('@/src/shared/api/useCurrentUser', () => ({
-  useCurrentUser: () => ({ data: null, displayName: null, loaded: false, hasError: false }),
+  useCurrentUser: () => ({
+    data: null,
+    displayName: 'Test User',
+    loaded: true,
+    hasError: false,
+  }),
 }));
 vi.mock('@/src/shared/api/useWorkspaces', () => ({
   useWorkspaces: () => ({ workspaces: [], loaded: false }),
@@ -64,7 +70,11 @@ function renderHeader() {
 }
 
 function cleared() {
-  return forgetListQueries.mock.calls.length > 0 && mutate.mock.calls.length > 0;
+  return (
+    forgetListQueries.mock.calls.length > 0 &&
+    mutate.mock.calls.length > 0 &&
+    removeSessionValues.mock.calls.length > 0
+  );
 }
 
 describe('Header session cleanup', () => {
@@ -111,6 +121,26 @@ describe('Header session cleanup', () => {
       view.rerender(<Header headerNavItems={[]} overlayNavItems={[]} showWorkspaces={false} />);
     });
 
+    expect(cleared()).toBe(true);
+  });
+
+  // Signing out navigates away. An effect that does not run before the page unloads would leave
+  // this tab's filters and dismissed prompts for whoever signs in next.
+  it('clears on the sign-out press rather than waiting for the session to end', async () => {
+    session.initStarted = true;
+    session.authenticated = true;
+    session.token = 'token';
+    session.idTokenParsed = { sub: 'user-1' };
+    await act(async () => {
+      renderHeader();
+    });
+    expect(cleared()).toBe(false);
+
+    await userEvent.click(screen.getByTestId('user-dropdown'));
+    await userEvent.click(screen.getByTestId('logout-button'));
+
+    // The session is still reporting the user as signed in: nothing but the press did this.
+    expect(session.authenticated).toBe(true);
     expect(cleared()).toBe(true);
   });
 });

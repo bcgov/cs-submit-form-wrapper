@@ -5,9 +5,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
-import { getSobaSubmissions } from '@/src/shared/api/sobaApiDesign';
-import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
+import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { isForbidden } from '@/src/shared/api/sobaHelpers';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { DataTable, Column } from '@/src/components/DataTable';
 import { RowActionButton } from '@/src/components/RowActionButton';
@@ -26,27 +26,16 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const {
-    data,
-    isLoading,
-    error: loadError,
-  } = useAuthedSWR(
-    // The endpoint requires a scope anchor and rejects an unscoped list, so without a form there is
-    // no request to make. `formId` is the SOBA formId, routed from FormList.
-    formId ? ['submissions', formId] : null,
-    (token) => getSobaSubmissions(token, { formId: formId as string }),
-  );
-
-  const submissions: SubmissionListItem[] = useMemo(
-    () => (Array.isArray(data?.items) ? data.items : []),
-    [data],
-  );
+  // The endpoint requires a scope anchor and rejects an unscoped list, so without a form there is
+  // no request to make. `formId` is the SOBA formId, routed from FormList.
+  const { submissions, isLoading, error: loadError } = useFormSubmissions(formId, true);
 
   const error = useMemo(() => {
     if (!loadError) return null;
     if (isSessionExpired(loadError)) return dict.general.sessionExpired;
-    return loadError instanceof Error ? loadError.message : String(loadError);
-  }, [loadError, dict.general.sessionExpired]);
+    if (isForbidden(loadError)) return dict.general.noAccess;
+    return dict.submission.error;
+  }, [loadError, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error]);
 
   const paginatedSubmissions = useMemo(
     () => submissions.slice((currentPage - 1) * pageSize, currentPage * pageSize),
