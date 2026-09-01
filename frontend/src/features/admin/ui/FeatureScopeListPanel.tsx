@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Button, InlineAlert, Switch } from '@bcgov/design-system-react-components';
 import { usePathname, useRouter } from 'next/navigation';
 import { ConfirmModal } from '@/src/components/ConfirmModal';
@@ -11,16 +11,11 @@ import { SecondaryText } from '@/src/components/SecondaryText';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
-import {
-  fetchFeatureScopes,
-  removeFeatureScope,
-  upsertFeatureScope,
-} from '@/src/shared/api/sobaApiAdmin';
+import { removeFeatureScope, upsertFeatureScope } from '@/src/shared/api/sobaApiAdmin';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
+import { useFeatureScopes } from '../useAdminData';
 import type { FeatureScopeItem, FeatureScopeStatus } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
-
-const LIST_LIMIT = 200;
 
 type FeatureScopeListPanelProps = {
   /** Feature codes that are currently available for per-scope administration. */
@@ -38,57 +33,26 @@ export function FeatureScopeListPanel({
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
 
-  const [featureScopes, setFeatureScopes] = useState<FeatureScopeItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [truncatedAt, setTruncatedAt] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<FeatureScopeItem | null>(null);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const allowedFeatureCodes = useMemo(() => new Set(scopedFeatureCodes), [scopedFeatureCodes]);
-
-  const reload = useCallback(() => {
-    setLoading(true);
-    setReloadKey((key) => key + 1);
-  }, []);
-
-  useEffect(() => {
-    if (!token) return;
-    if (scopedFeatureCodes.length === 0) return;
-
-    let cancelled = false;
-    fetchFeatureScopes(token, { limit: LIST_LIMIT })
-      .then((response) => {
-        if (cancelled) return;
-        setFeatureScopes(
-          response.items.filter((item) => allowedFeatureCodes.has(item.featureCode)),
-        );
-        setTruncatedAt(response.page?.hasMore ? response.page.limit : null);
-        setError(null);
-      })
-      .catch((cause: unknown) => {
-        if (cancelled) return;
-        setError(dictScopes.loadError);
-        addNotification({ text: dictScopes.loadError, type: 'error', consoleError: cause });
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    token,
-    reloadKey,
-    scopedFeatureCodes.length,
-    allowedFeatureCodes,
-    addNotification,
-    dictScopes.loadError,
-  ]);
+  const reportLoadError = useCallback(
+    (cause: unknown) => {
+      addNotification({ text: dictScopes.loadError, type: 'error', consoleError: cause });
+    },
+    [addNotification, dictScopes.loadError],
+  );
+  const {
+    featureScopes,
+    truncatedAt,
+    isLoading: loading,
+    error: loadError,
+    refresh: reload,
+    updateItems,
+  } = useFeatureScopes(scopedFeatureCodes, reportLoadError);
+  const error = loadError ? dictScopes.loadError : null;
 
   const handleStatusChange = useCallback(
     (featureScope: FeatureScopeItem, selected: boolean) => {
@@ -102,7 +66,7 @@ export function FeatureScopeListPanel({
         status: nextStatus,
       })
         .then(() => {
-          setFeatureScopes((items) =>
+          void updateItems((items) =>
             items.map((item) =>
               item.id === featureScope.id ? { ...item, status: nextStatus } : item,
             ),
@@ -111,13 +75,21 @@ export function FeatureScopeListPanel({
         })
         .catch((cause: unknown) => {
           addNotification({ text: dictScopes.saveError, type: 'error', consoleError: cause });
-          reload();
+          void reload();
         })
         .finally(() => {
           setPendingId(null);
         });
     },
-    [token, pendingId, addNotification, dictScopes.saveSuccess, dictScopes.saveError, reload],
+    [
+      token,
+      pendingId,
+      addNotification,
+      dictScopes.saveSuccess,
+      dictScopes.saveError,
+      reload,
+      updateItems,
+    ],
   );
 
   const handleDelete = useCallback(() => {
@@ -126,12 +98,12 @@ export function FeatureScopeListPanel({
     setPendingId(featureScope.id);
     removeFeatureScope(token, featureScope.id)
       .then(() => {
-        setFeatureScopes((items) => items.filter((item) => item.id !== featureScope.id));
+        void updateItems((items) => items.filter((item) => item.id !== featureScope.id));
         addNotification({ text: dictScopes.deleteSuccess, type: 'success' });
       })
       .catch((cause: unknown) => {
         addNotification({ text: dictScopes.deleteError, type: 'error', consoleError: cause });
-        reload();
+        void reload();
       })
       .finally(() => {
         setPendingId(null);
@@ -145,6 +117,7 @@ export function FeatureScopeListPanel({
     dictScopes.deleteSuccess,
     dictScopes.deleteError,
     reload,
+    updateItems,
   ]);
 
   const columns: Column<FeatureScopeItem>[] = useMemo(

@@ -95,6 +95,7 @@ Existing hooks, in `src/shared/api/`:
 - `useCurrentUser`, `useRefreshCurrentUser`
 - `useFormDraft` (in `src/features/designer/`) for a form, its versions and the selected
   version's schema
+- `useSobaAdmins`, `useFeatureScopes`, `useFeatureScope` (in `src/features/admin/`)
 
 ## Config
 
@@ -122,6 +123,16 @@ router.push(`/${locale}/workspaces`);
 ```
 
 Do not reach for `useSWRMutation`.
+
+When the write tells you what the row now holds, apply it to the cache instead of
+refetching the list:
+
+```ts
+await upsertFeatureScope(token, body);
+await mutate((current) => ({ ...current, items: patched(current.items) }), {
+  revalidate: false,
+});
+```
 
 ## Loading
 

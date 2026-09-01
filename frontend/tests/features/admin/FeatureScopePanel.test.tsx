@@ -2,6 +2,8 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
 
 const { mockFetchFeatureScope, mockUpsertFeatureScope, mockAddNotification, mockPush } = vi.hoisted(
   () => ({
@@ -76,20 +78,35 @@ vi.mock('@/app/[lang]/Providers', () => ({
   }),
 }));
 
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import { FeatureScopePanel } from '@/src/features/admin/ui/FeatureScopePanel';
+
+let store: ReturnType<typeof makeStore>;
 
 const FEATURE_SCOPE_ID = '11111111-1111-4111-8111-111111111111';
 const SCOPE_ID = '22222222-2222-4222-8222-222222222222';
 
 const renderPanel = async (props: React.ComponentProps<typeof FeatureScopePanel>) => {
   await act(async () => {
-    render(<FeatureScopePanel {...props} />);
+    render(
+      <Provider store={store}>
+        <SWRConfig
+          value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+        >
+          <FeatureScopePanel {...props} />
+        </SWRConfig>
+      </Provider>,
+    );
   });
 };
 
 describe('FeatureScopePanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
     mockFetchFeatureScope.mockResolvedValue({
       id: FEATURE_SCOPE_ID,
       featureCode: 'document-generation-v3',
@@ -148,6 +165,19 @@ describe('FeatureScopePanel', () => {
         status: 'inactive',
       });
     });
+  });
+
+  // Without the record the form would post its defaults, scoping a feature nobody asked for.
+  it('withholds the form when the record cannot be loaded', async () => {
+    mockFetchFeatureScope.mockRejectedValue(new Error('boom'));
+
+    await renderPanel({
+      scopedFeatureCodes: ['document-generation-v3'],
+      featureScopeId: FEATURE_SCOPE_ID,
+    });
+
+    expect(await screen.findByTestId('feature-scope-load-error')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
   });
 
   it('returns to the table when cancelled', async () => {

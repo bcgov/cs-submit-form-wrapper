@@ -2,6 +2,8 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
 
 const { mockFetchSobaAdmins, mockAddSobaAdmin, mockRemoveSobaAdmin, mockAddNotification } =
   vi.hoisted(() => ({
@@ -60,7 +62,23 @@ vi.mock('@/app/[lang]/Providers', () => ({
   }),
 }));
 
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import { SobaAdminsPanel } from '@/src/features/admin/ui/SobaAdminsPanel';
+
+let store: ReturnType<typeof makeStore>;
+
+function renderPanel() {
+  return render(
+    <Provider store={store}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
+        <SobaAdminsPanel />
+      </SWRConfig>
+    </Provider>,
+  );
+}
 
 const DIRECT_ADMIN = {
   userId: '11111111-1111-4111-8111-111111111111',
@@ -81,6 +99,9 @@ const IDP_ADMIN = {
 describe('SobaAdminsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
     mockFetchSobaAdmins.mockResolvedValue({
       items: [DIRECT_ADMIN, IDP_ADMIN],
       page: { limit: 100, hasMore: false, nextCursor: null, cursorMode: 'id' },
@@ -89,7 +110,7 @@ describe('SobaAdminsPanel', () => {
 
   it('lists administrators and only offers removal for direct grants', async () => {
     await act(async () => {
-      render(<SobaAdminsPanel />);
+      renderPanel();
     });
 
     expect(await screen.findByText('Direct Admin')).toBeInTheDocument();
@@ -103,7 +124,7 @@ describe('SobaAdminsPanel', () => {
     mockRemoveSobaAdmin.mockResolvedValue(undefined);
 
     await act(async () => {
-      render(<SobaAdminsPanel />);
+      renderPanel();
     });
     await screen.findByText('Direct Admin');
 
@@ -124,7 +145,7 @@ describe('SobaAdminsPanel', () => {
     });
 
     await act(async () => {
-      render(<SobaAdminsPanel />);
+      renderPanel();
     });
 
     expect(await screen.findByTestId('admins-truncated')).toBeInTheDocument();
@@ -134,7 +155,7 @@ describe('SobaAdminsPanel', () => {
     mockAddSobaAdmin.mockResolvedValue(undefined);
 
     await act(async () => {
-      render(<SobaAdminsPanel />);
+      renderPanel();
     });
     await screen.findByText('Direct Admin');
 
@@ -157,7 +178,7 @@ describe('SobaAdminsPanel', () => {
     mockFetchSobaAdmins.mockRejectedValue(new Error('boom'));
 
     await act(async () => {
-      render(<SobaAdminsPanel />);
+      renderPanel();
     });
 
     await waitFor(() => {
