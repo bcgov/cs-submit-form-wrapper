@@ -91,7 +91,8 @@ export function useWorkspaces() {
 
 Existing hooks, in `src/shared/api/`:
 
-- `useWorkspaces`, `useWritableWorkspaces`, `useRefreshWorkspaces`
+- `useWorkspaces`, `useWritableWorkspaces`, `useWorkspace`, `useRefreshWorkspaces`,
+  `useRefreshWorkspace`
 - `useCurrentUser`, `useRefreshCurrentUser`
 - `useFormDraft` (in `src/features/designer/`) for a form, its versions and the selected
   version's schema
@@ -133,6 +134,23 @@ await mutate((current) => ({ ...current, items: patched(current.items) }), {
   revalidate: false,
 });
 ```
+
+## Editing a loaded record
+
+Read in the outer component and render the form only once the record is there, so the
+fields can be `useState` initialized from it. Key the form on the record id. Do not mirror
+each field into a second `loaded` state to diff against on save, and do not push the
+record into state from an effect.
+
+```tsx
+if (isLoading) return <CenteredProgress label={dict.general.loading} />;
+if (!workspace) return <InlineAlert description={dict.workspaces.loadError} ... />;
+return <WorkspaceSettings key={workspace.id} workspace={workspace} />;
+```
+
+The alert matters: a form that renders without its record posts its empty fields as a new
+one. After the write, refresh the record's own key as well as any list it appears in, or
+reopening the screen seeds the form from the pre-save values.
 
 ## Loading
 
@@ -201,13 +219,11 @@ memory.
 
 ## Screens with their own loading
 
-`FormioV5SubmissionFillClient`, `StartSubmission` and `WorkspaceForm`.
+`FormioV5SubmissionFillClient` and `StartSubmission`.
 
 The fill client holds answers the user has typed that no server has seen, and Form.io
 resets the live webform when the submission prop is not deep-equal to what is on screen. A
 revalidating cache over it discards work. `StartSubmission` is a fire-once idempotent POST.
-`WorkspaceForm` reads one workspace through a plain effect; it has no reason to stay that
-way beyond nobody needing it yet.
 
 ## Testing
 
