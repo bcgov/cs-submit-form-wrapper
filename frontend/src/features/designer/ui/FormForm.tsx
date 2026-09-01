@@ -42,8 +42,15 @@ import {
 } from '@/src/shared/api/sobaApi';
 import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { isForbidden } from '@/src/shared/api/sobaHelpers';
 
 type Dict = ReturnType<typeof useDictionary>;
+
+function noticeForLoadError(dict: Dict, loadError: unknown): string {
+  if (isSessionExpired(loadError)) return dict.general.sessionExpired;
+  if (isForbidden(loadError)) return dict.general.noAccess;
+  return dict.form.loadFormError || 'Failed to load form.';
+}
 
 function draftNotices(args: {
   dict: Dict;
@@ -58,9 +65,7 @@ function draftNotices(args: {
     !!loadError && {
       id: 'load-error',
       variant: 'danger' as const,
-      body: isSessionExpired(loadError)
-        ? dict.general.sessionExpired
-        : dict.form.loadFormError || 'Failed to load form.',
+      body: noticeForLoadError(dict, loadError),
     },
     isHistoryView && {
       id: 'history-view',
@@ -401,7 +406,6 @@ function FormForm({ formId }: { formId?: string }) {
         <FormSubmitterAudience
           key={selectedWorkspaceId ?? 'none'}
           workspaceId={selectedWorkspaceId}
-          token={token ?? undefined}
           canManage={canManageWorkspace}
         />
       </Form>

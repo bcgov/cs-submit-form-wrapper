@@ -15,6 +15,7 @@ import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { deleteSobaSubmission } from '@/src/shared/api/sobaApi';
 import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { isForbidden } from '@/src/shared/api/sobaHelpers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import {
   capitalizeFirstLetter,
@@ -142,8 +143,9 @@ export default function FormSubmissionTab({
   const loadError = useMemo(() => {
     if (!error) return null;
     if (isSessionExpired(error)) return dict.general.sessionExpired;
+    if (isForbidden(error)) return dict.general.noAccess;
     return dict.submission.error;
-  }, [error, dict.general.sessionExpired, dict.submission.error]);
+  }, [error, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error]);
 
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);

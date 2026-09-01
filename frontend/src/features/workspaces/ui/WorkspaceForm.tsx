@@ -300,7 +300,6 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
               <FormSubmitterAudience
                 key={workspaceId ?? 'none'}
                 workspaceId={workspaceId ?? null}
-                token={token ?? undefined}
                 canManage
               />
             </div>

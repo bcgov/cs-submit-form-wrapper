@@ -30,7 +30,8 @@
     "reference": "Reference:",
     "create": "Create",
     "version": "Version",
-    "clearFilters": "Reset Filters"
+    "clearFilters": "Reset Filters",
+    "noAccess": "You do not have access to this."
   },
   "dataTable": {
     "emptyMessage": "No items found.",

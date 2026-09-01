@@ -31,7 +31,8 @@
     "reference": "Référence:",
     "create": "Créer",
     "version": "Version",
-    "clearFilters": "Effacer les filtres"
+    "clearFilters": "Effacer les filtres",
+    "noAccess": "Vous n'avez pas accès à ceci."
   },
   "dataTable": {
     "emptyMessage": "Aucun élément trouvé.",
