@@ -1,6 +1,6 @@
+import { notFound } from 'next/navigation';
 import DictionaryProvider from './Providers';
-import { Locale } from './dictionaries';
-import { getDictionary } from './dictionaries';
+import { getDictionary, hasLocale } from './dictionaries';
 import { Header } from '../ui/Header';
 import { Footer } from '../ui/Footer';
 import { SideNav } from '../ui/SideNav';
@@ -20,9 +20,13 @@ export default async function RootLayout({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await params;
-  const dictionary = await getDictionary(lang as Locale);
-  const locale =
-    dictionary.locale === 'en' || dictionary.locale === 'fr' ? dictionary.locale : 'en';
+  // Every first path segment routes here, including /robots.txt and scanner traffic. The dictionary
+  // is a lookup over the known locales, so an unchecked value throws and the request 500s.
+  if (!hasLocale(lang)) {
+    notFound();
+  }
+  const locale = lang;
+  const dictionary = await getDictionary(locale);
 
   const [featuresMeta, build] = await Promise.all([loadFeaturesMeta(), loadBuildMeta()]);
   const appVersion = build ? formatAppVersion(build) : undefined;
