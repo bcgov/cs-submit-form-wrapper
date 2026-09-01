@@ -66,7 +66,7 @@ describe('resolveRedirect — workspaces enabled', () => {
     expect(resolveRedirect('/en', 'en', { ...readySession, needsOnboarding: true }, true)).toBe(
       '/en/onboarding',
     );
-    expect(resolveRedirect('/en', 'en', readySession, true)).toBe('/en/forms');
+    expect(resolveRedirect('/en', 'en', readySession, true)).toBe('/en/forms?from=nav');
   });
 
   it('sends a brand-new creator from home to workspaces, matching onboarding', () => {
@@ -89,7 +89,7 @@ describe('resolveRedirect — workspaces enabled', () => {
   });
 
   it('redirects off onboarding when access is available', () => {
-    expect(resolveRedirect('/en/onboarding', 'en', readySession, true)).toBe('/en/forms');
+    expect(resolveRedirect('/en/onboarding', 'en', readySession, true)).toBe('/en/forms?from=nav');
     expect(
       resolveRedirect(
         '/en/onboarding',
@@ -109,17 +109,17 @@ describe('resolveRedirect — workspaces enabled', () => {
 describe('resolveRedirect — workspaces disabled', () => {
   it('lands authenticated users on forms regardless of workspace state', () => {
     expect(resolveRedirect('/en', 'en', { ...readySession, needsOnboarding: true }, false)).toBe(
-      '/en/forms',
+      '/en/forms?from=nav',
     );
     const newCreator = { ...readySession, hasWorkspaces: false, canCreateWorkspace: true };
-    expect(resolveRedirect('/en', 'en', newCreator, false)).toBe('/en/forms');
-    expect(resolveRedirect('/en', 'en', readySession, false)).toBe('/en/forms');
+    expect(resolveRedirect('/en', 'en', newCreator, false)).toBe('/en/forms?from=nav');
+    expect(resolveRedirect('/en', 'en', readySession, false)).toBe('/en/forms?from=nav');
   });
 
   it('does not funnel users into the workspace onboarding dead-end', () => {
     const onboarding = { ...readySession, needsOnboarding: true };
     expect(resolveRedirect('/en/forms', 'en', onboarding, false)).toBeNull();
-    expect(resolveRedirect('/en/onboarding', 'en', onboarding, false)).toBe('/en/forms');
+    expect(resolveRedirect('/en/onboarding', 'en', onboarding, false)).toBe('/en/forms?from=nav');
   });
 
   it('does not redirect on workspace routes — the layout 404s instead', () => {

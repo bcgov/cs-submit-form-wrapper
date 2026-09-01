@@ -2,7 +2,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useSWRConfig } from 'swr';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Dropdown } from 'react-bootstrap';
 import { Header as BCHeader } from '@bcgov/design-system-react-components';
 import { FaUser } from 'react-icons/fa6';
@@ -34,6 +34,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   );
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { authenticated, idTokenParsed, token, logout, init, refresh, initStarted, initializing } =
     useKeycloak();
   const currentUser = useCurrentUser();
@@ -112,7 +113,8 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   const handleLanguageChange = (newLocale: string) => {
     if (pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`) {
       const newPath = pathname.replace(`/${locale}`, `/${newLocale}`);
-      router.push(newPath);
+      const search = searchParams.toString();
+      router.push(search ? `${newPath}?${search}` : newPath);
     } else {
       router.push(`/${newLocale}/`);
     }

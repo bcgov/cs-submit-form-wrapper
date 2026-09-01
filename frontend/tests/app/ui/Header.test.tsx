@@ -54,6 +54,7 @@ vi.mock('@/app/[lang]/Providers', () => ({
 vi.mock('next/navigation', () => ({
   usePathname: () => '/en/forms',
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(''),
 }));
 
 import { Header } from '@/app/ui/Header';
