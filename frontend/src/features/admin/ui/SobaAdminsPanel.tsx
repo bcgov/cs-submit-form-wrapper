@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Form, TextField } from '@bcgov/design-system-react-components';
+import { Button, Form, InlineAlert, TextField } from '@bcgov/design-system-react-components';
+import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageToolbar } from '@/src/components/ListPageLayout';
 import { RowActionButton } from '@/src/components/RowActionButton';
@@ -13,7 +14,7 @@ import { addSobaAdmin, fetchSobaAdmins, removeSobaAdmin } from '@/src/shared/api
 import type { SobaAdminItem } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
 
-/** Admins granted by the IdP are re-synced on every login, so they can't be removed here. */
+/** Admins granted by the IdP are re-synced on every request, so they can't be removed here. */
 const SOURCE_IDP = 'idp';
 
 export function SobaAdminsPanel() {
@@ -28,6 +29,8 @@ export function SobaAdminsPanel() {
   const [userId, setUserId] = useState('');
   const [saving, setSaving] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [truncatedAt, setTruncatedAt] = useState<number | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<SobaAdminItem | null>(null);
 
   // Reloads the list; callers set `loading` themselves so the effect never sets state synchronously.
   const reload = useCallback(() => {
@@ -43,6 +46,7 @@ export function SobaAdminsPanel() {
       .then((response) => {
         if (cancelled) return;
         setAdmins(response.items);
+        setTruncatedAt(response.page?.hasMore ? response.page.limit : null);
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -86,28 +90,34 @@ export function SobaAdminsPanel() {
     dictAdmin.admins.addError,
   ]);
 
-  const handleRemove = useCallback(
-    (removeUserId: string) => {
-      if (!token) return;
-      setSaving(true);
-      removeSobaAdmin(token, removeUserId)
-        .then(() => {
-          reload();
-          addNotification({ text: dictAdmin.admins.removeSuccess, type: 'success' });
-        })
-        .catch((cause: unknown) => {
-          addNotification({
-            text: dictAdmin.admins.removeError,
-            type: 'error',
-            consoleError: cause,
-          });
-        })
-        .finally(() => {
-          setSaving(false);
+  const handleRemove = useCallback(() => {
+    const admin = confirmRemove;
+    if (!token || !admin) return;
+    setSaving(true);
+    removeSobaAdmin(token, admin.userId)
+      .then(() => {
+        reload();
+        addNotification({ text: dictAdmin.admins.removeSuccess, type: 'success' });
+      })
+      .catch((cause: unknown) => {
+        addNotification({
+          text: dictAdmin.admins.removeError,
+          type: 'error',
+          consoleError: cause,
         });
-    },
-    [token, reload, addNotification, dictAdmin.admins.removeSuccess, dictAdmin.admins.removeError],
-  );
+      })
+      .finally(() => {
+        setSaving(false);
+        setConfirmRemove(null);
+      });
+  }, [
+    token,
+    confirmRemove,
+    reload,
+    addNotification,
+    dictAdmin.admins.removeSuccess,
+    dictAdmin.admins.removeError,
+  ]);
 
   const columns: Column<SobaAdminItem>[] = useMemo(
     () => [
@@ -141,14 +151,14 @@ export function SobaAdminsPanel() {
           ) : (
             <RowActionButton
               data-testid={`remove-admin-${admin.userId}`}
-              onPress={() => handleRemove(admin.userId)}
+              onPress={() => setConfirmRemove(admin)}
             >
               {dictAdmin.admins.remove}
             </RowActionButton>
           ),
       },
     ],
-    [dictAdmin.admins, handleRemove],
+    [dictAdmin.admins],
   );
 
   return (
@@ -180,6 +190,15 @@ export function SobaAdminsPanel() {
         </Form>
       </ListPageToolbar>
 
+      {truncatedAt !== null ? (
+        <InlineAlert
+          description={dictAdmin.truncated.replace('{limit}', String(truncatedAt))}
+          title={dictAdmin.admins.heading}
+          variant="info"
+          data-testid="admins-truncated"
+        />
+      ) : null}
+
       <DataTable<SobaAdminItem>
         data={admins}
         columns={columns}
@@ -189,6 +208,19 @@ export function SobaAdminsPanel() {
         loadingMessage={dict.general.loading}
         caption={dictAdmin.admins.heading}
         keyExtractor={(admin) => admin.userId}
+      />
+
+      <ConfirmModal
+        show={confirmRemove !== null}
+        title={dictAdmin.admins.removeConfirmTitle}
+        message={dictAdmin.admins.removeConfirmMessage.replace(
+          '{user}',
+          confirmRemove?.displayLabel ?? confirmRemove?.userId ?? '',
+        )}
+        confirmLabel={dictAdmin.admins.remove}
+        pending={saving}
+        onConfirm={handleRemove}
+        onCancel={() => setConfirmRemove(null)}
       />
     </div>
   );

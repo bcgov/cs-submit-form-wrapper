@@ -2,10 +2,17 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-const { mockUseKeycloak } = vi.hoisted(() => ({ mockUseKeycloak: vi.fn() }));
+const { mockUseKeycloak, mockUseCurrentUser } = vi.hoisted(() => ({
+  mockUseKeycloak: vi.fn(),
+  mockUseCurrentUser: vi.fn(),
+}));
 
 vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => mockUseKeycloak(),
+}));
+
+vi.mock('@/lib/useCurrentUser', () => ({
+  useCurrentUser: () => mockUseCurrentUser(),
 }));
 
 vi.mock('@/app/[lang]/Providers', () => ({
@@ -40,9 +47,18 @@ const renderDashboard = async (props?: React.ComponentProps<typeof AdminDashboar
   });
 };
 
+const signedIn = () => {
+  mockUseKeycloak.mockReturnValue({ authenticated: true, initializing: false, token: 'token' });
+};
+
+const currentUser = (isSobaAdmin: boolean) => {
+  mockUseCurrentUser.mockReturnValue({ data: { capabilities: { isSobaAdmin } }, isLoaded: true });
+};
+
 describe('AdminDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseCurrentUser.mockReturnValue({ data: null, isLoaded: true });
   });
 
   it('prompts to sign in when unauthenticated', async () => {
@@ -54,12 +70,8 @@ describe('AdminDashboard', () => {
   });
 
   it('refuses access to a signed-in non-admin', async () => {
-    mockUseKeycloak.mockReturnValue({
-      authenticated: true,
-      initializing: false,
-      token: 'token',
-      idTokenParsed: { realm_access: { roles: ['user'] } },
-    });
+    signedIn();
+    currentUser(false);
 
     await renderDashboard();
 
@@ -71,13 +83,24 @@ describe('AdminDashboard', () => {
     expect(screen.queryByTestId('admins-panel')).not.toBeInTheDocument();
   });
 
-  it('renders document generation administration only when the feature is enabled', async () => {
-    mockUseKeycloak.mockReturnValue({
-      authenticated: true,
-      initializing: false,
-      token: 'token',
-      idTokenParsed: { realm_access: { roles: ['soba_admin'] } },
-    });
+  // The answer lives in /me, so until it lands "not an admin" is unknown, not false.
+  it('waits for the current user rather than refusing access', async () => {
+    signedIn();
+    mockUseCurrentUser.mockReturnValue({ data: null, isLoaded: false });
+
+    await renderDashboard();
+
+    expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        'You do not have the platform administrator role required for this section.',
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it('admits an admin the token says nothing about', async () => {
+    signedIn();
+    currentUser(true);
 
     await renderDashboard();
 
@@ -88,12 +111,8 @@ describe('AdminDashboard', () => {
   });
 
   it('renders the document generation audit tab for a soba_admin when the feature is enabled', async () => {
-    mockUseKeycloak.mockReturnValue({
-      authenticated: true,
-      initializing: false,
-      token: 'token',
-      idTokenParsed: { realm_access: { roles: ['soba_admin'] } },
-    });
+    signedIn();
+    currentUser(true);
 
     await renderDashboard({ documentGenerationEnabled: true });
 

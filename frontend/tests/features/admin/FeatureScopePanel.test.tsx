@@ -17,8 +17,11 @@ vi.mock('@/lib/hooks/useKeycloak', () => ({
     authenticated: true,
     initializing: false,
     token: 'token',
-    idTokenParsed: { realm_access: { roles: ['soba_admin'] } },
   }),
+}));
+
+vi.mock('@/lib/useCurrentUser', () => ({
+  useCurrentUser: () => ({ data: { capabilities: { isSobaAdmin: true } }, isLoaded: true }),
 }));
 
 vi.mock('@/lib/hooks/useNotificationStore', () => ({

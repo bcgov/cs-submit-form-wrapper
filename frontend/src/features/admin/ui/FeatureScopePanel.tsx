@@ -36,8 +36,8 @@ export function FeatureScopePanel({
   const isEdit = featureScopeId !== undefined;
   const dict = useDictionary();
   const dictScopes = dict.admin.featureScopes;
-  const { authenticated, initializing, token } = useKeycloak();
-  const { isSobaAdmin } = useIsSobaAdmin();
+  const { authenticated, token } = useKeycloak();
+  const { isSobaAdmin, initializing } = useIsSobaAdmin();
   const { addNotification } = useNotificationStore();
   const router = useRouter();
   const pathname = usePathname();

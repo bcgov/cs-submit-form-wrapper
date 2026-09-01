@@ -14,7 +14,7 @@ export const getCurrentActor = asyncHandler(async (req: Request, res: Response) 
   if (!actorId) {
     throw new ValidationError('Missing actor identity (actorId or x-soba-user-id)');
   }
-  const result = await meApiService.get(actorId, getActorIdpCode(req));
+  const result = await meApiService.get(actorId, getActorIdpCode(req), req.isSobaAdmin === true);
   if (!result) {
     throw new NotFoundError('Current actor not found');
   }
@@ -26,7 +26,12 @@ export const patchCurrentActor = asyncHandler(async (req: Request, res: Response
   if (!actorId) {
     throw new ValidationError('Missing actor identity (actorId or x-soba-user-id)');
   }
-  const result = await meApiService.patch(actorId, getActorIdpCode(req), req.body as PatchMeBody);
+  const result = await meApiService.patch(
+    actorId,
+    getActorIdpCode(req),
+    req.body as PatchMeBody,
+    req.isSobaAdmin === true,
+  );
   if (!result) {
     throw new NotFoundError('Current actor not found');
   }

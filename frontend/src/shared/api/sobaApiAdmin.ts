@@ -35,9 +35,17 @@ export async function addSobaAdmin(token: string, userId: string): Promise<void>
   if (!response.ok) await parseJson(response);
 }
 
+/**
+ * A 404 means the row was already gone, which is the outcome the caller asked for. Reporting it as
+ * a failure would contradict the refreshed list.
+ */
+async function deleteResource(token: string, path: string): Promise<void> {
+  const response = await sobaFetch(path, { token, method: 'DELETE' });
+  if (!response.ok && response.status !== 404) await parseJson(response);
+}
+
 export async function removeSobaAdmin(token: string, userId: string): Promise<void> {
-  const response = await sobaFetch(`/admin/soba-admins/${userId}`, { token, method: 'DELETE' });
-  if (!response.ok) await parseJson(response);
+  await deleteResource(token, `/admin/soba-admins/${userId}`);
 }
 
 export async function fetchFeatureScopes(
@@ -62,8 +70,7 @@ export async function fetchFeatureScope(token: string, id: string): Promise<Feat
 }
 
 export async function removeFeatureScope(token: string, id: string): Promise<void> {
-  const response = await sobaFetch(`/admin/feature-scopes/${id}`, { token, method: 'DELETE' });
-  if (!response.ok) await parseJson(response);
+  await deleteResource(token, `/admin/feature-scopes/${id}`);
 }
 
 /** Grants (or revokes, with `status: 'inactive'`) a scoped feature for a workspace or form. */

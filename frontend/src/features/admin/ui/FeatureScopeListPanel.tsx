@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, InlineAlert, Switch } from '@bcgov/design-system-react-components';
 import { usePathname, useRouter } from 'next/navigation';
+import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageToolbar } from '@/src/components/ListPageLayout';
 import { RowActionButton } from '@/src/components/RowActionButton';
@@ -18,6 +19,8 @@ import {
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import type { FeatureScopeItem, FeatureScopeStatus } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
+
+const LIST_LIMIT = 200;
 
 type FeatureScopeListPanelProps = {
   /** Feature codes that are currently available for per-scope administration. */
@@ -40,6 +43,10 @@ export function FeatureScopeListPanel({
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [truncatedAt, setTruncatedAt] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<FeatureScopeItem | null>(null);
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const allowedFeatureCodes = useMemo(() => new Set(scopedFeatureCodes), [scopedFeatureCodes]);
 
@@ -53,12 +60,13 @@ export function FeatureScopeListPanel({
     if (scopedFeatureCodes.length === 0) return;
 
     let cancelled = false;
-    fetchFeatureScopes(token, { limit: 200 })
+    fetchFeatureScopes(token, { limit: LIST_LIMIT })
       .then((response) => {
         if (cancelled) return;
         setFeatureScopes(
           response.items.filter((item) => allowedFeatureCodes.has(item.featureCode)),
         );
+        setTruncatedAt(response.page?.hasMore ? response.page.limit : null);
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -112,25 +120,32 @@ export function FeatureScopeListPanel({
     [token, pendingId, addNotification, dictScopes.saveSuccess, dictScopes.saveError, reload],
   );
 
-  const handleDelete = useCallback(
-    (featureScopeId: string) => {
-      if (!token || pendingId) return;
-      setPendingId(featureScopeId);
-      removeFeatureScope(token, featureScopeId)
-        .then(() => {
-          setFeatureScopes((items) => items.filter((item) => item.id !== featureScopeId));
-          addNotification({ text: dictScopes.deleteSuccess, type: 'success' });
-        })
-        .catch((cause: unknown) => {
-          addNotification({ text: dictScopes.deleteError, type: 'error', consoleError: cause });
-          reload();
-        })
-        .finally(() => {
-          setPendingId(null);
-        });
-    },
-    [token, pendingId, addNotification, dictScopes.deleteSuccess, dictScopes.deleteError, reload],
-  );
+  const handleDelete = useCallback(() => {
+    const featureScope = confirmDelete;
+    if (!token || pendingId || !featureScope) return;
+    setPendingId(featureScope.id);
+    removeFeatureScope(token, featureScope.id)
+      .then(() => {
+        setFeatureScopes((items) => items.filter((item) => item.id !== featureScope.id));
+        addNotification({ text: dictScopes.deleteSuccess, type: 'success' });
+      })
+      .catch((cause: unknown) => {
+        addNotification({ text: dictScopes.deleteError, type: 'error', consoleError: cause });
+        reload();
+      })
+      .finally(() => {
+        setPendingId(null);
+        setConfirmDelete(null);
+      });
+  }, [
+    token,
+    pendingId,
+    confirmDelete,
+    addNotification,
+    dictScopes.deleteSuccess,
+    dictScopes.deleteError,
+    reload,
+  ]);
 
   const columns: Column<FeatureScopeItem>[] = useMemo(
     () => [
@@ -190,7 +205,7 @@ export function FeatureScopeListPanel({
             </RowActionButton>
             <RowActionButton
               data-testid={`delete-feature-scope-${featureScope.id}`}
-              onPress={() => handleDelete(featureScope.id)}
+              onPress={() => setConfirmDelete(featureScope)}
             >
               {dictScopes.delete}
             </RowActionButton>
@@ -198,7 +213,14 @@ export function FeatureScopeListPanel({
         ),
       },
     ],
-    [dictScopes, pendingId, handleStatusChange, handleDelete, router, locale, dict.locale],
+    [dictScopes, pendingId, handleStatusChange, router, locale, dict.locale],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(featureScopes.length / pageSize));
+  const effectivePage = Math.min(currentPage, totalPages);
+  const visibleFeatureScopes = featureScopes.slice(
+    (effectivePage - 1) * pageSize,
+    effectivePage * pageSize,
   );
 
   return (
@@ -222,17 +244,47 @@ export function FeatureScopeListPanel({
           data-testid="feature-scope-none"
         />
       ) : (
-        <DataTable<FeatureScopeItem>
-          data={featureScopes}
-          columns={columns}
-          loading={loading}
-          error={error}
-          emptyMessage={dictScopes.empty}
-          loadingMessage={dict.general.loading}
-          caption={dictScopes.heading}
-          keyExtractor={(featureScope) => featureScope.id}
-        />
+        <>
+          {truncatedAt !== null ? (
+            <InlineAlert
+              description={dict.admin.truncated.replace('{limit}', String(truncatedAt))}
+              title={dictScopes.heading}
+              variant="info"
+              data-testid="feature-scope-truncated"
+            />
+          ) : null}
+          <DataTable<FeatureScopeItem>
+            data={visibleFeatureScopes}
+            columns={columns}
+            loading={loading}
+            error={error}
+            emptyMessage={dictScopes.empty}
+            loadingMessage={dict.general.loading}
+            caption={dictScopes.heading}
+            keyExtractor={(featureScope) => featureScope.id}
+            pageSize={pageSize}
+            currentPage={effectivePage}
+            totalItems={featureScopes.length}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
+        </>
       )}
+      <ConfirmModal
+        show={confirmDelete !== null}
+        title={dictScopes.deleteConfirmTitle}
+        message={
+          confirmDelete
+            ? dictScopes.deleteConfirmMessage
+                .replace('{featureCode}', confirmDelete.featureCode)
+                .replace('{scopeType}', dictScopes.scopeTypes[confirmDelete.scopeType])
+            : ''
+        }
+        confirmLabel={dictScopes.delete}
+        pending={pendingId !== null}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

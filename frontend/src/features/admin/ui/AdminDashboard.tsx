@@ -13,8 +13,8 @@ import { FeatureScopeListPanel } from './FeatureScopeListPanel';
 import { SobaAdminsPanel } from './SobaAdminsPanel';
 
 /**
- * Platform administration console. Rendered only for holders of the `soba_admin` role; the
- * backend `/admin/*` routes enforce the same rule, so this gate is presentation-only.
+ * Platform administration console. Rendered only for SOBA platform admins; the backend `/admin/*`
+ * routes enforce the same rule, so this gate is presentation-only.
  */
 export function AdminDashboard({
   defaultActiveTab = 'admins',
@@ -27,8 +27,8 @@ export function AdminDashboard({
 }>) {
   const dict = useDictionary();
   const dictAdmin = dict.admin;
-  const { authenticated, initializing } = useKeycloak();
-  const { isSobaAdmin } = useIsSobaAdmin();
+  const { authenticated } = useKeycloak();
+  const { isSobaAdmin, initializing } = useIsSobaAdmin();
   const [activeTab, setActiveTab] = useState(defaultActiveTab);
 
   if (initializing) {

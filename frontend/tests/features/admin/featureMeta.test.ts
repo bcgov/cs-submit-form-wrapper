@@ -69,4 +69,28 @@ describe('getAdminFeatureMeta', () => {
       scopedFeatureCodes: ['other-scoped'],
     });
   });
+
+  it('keeps a feature whose code only shares the umbrella prefix', () => {
+    const lookalikeMeta: FeaturesMetaPayload = {
+      features: [
+        ...meta.features.map((feature) =>
+          feature.code === 'document-generation' ? { ...feature, platformAllowed: false } : feature,
+        ),
+        {
+          code: 'document-generations-report',
+          name: 'Unrelated feature',
+          description: null,
+          version: null,
+          status: 'enabled',
+          availability: 'scoped',
+          platformAllowed: true,
+        },
+      ],
+    };
+
+    expect(getAdminFeatureMeta(lookalikeMeta).scopedFeatureCodes).toEqual([
+      'document-generations-report',
+      'other-scoped',
+    ]);
+  });
 });

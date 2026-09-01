@@ -23,6 +23,7 @@ export class MeApiService {
   private async toResponse(
     user: NonNullable<Awaited<ReturnType<typeof findAppUserById>>>,
     idpCode: string | null,
+    isSobaAdmin: boolean,
   ) {
     const view = toAppUserView(user);
     // Independent lookups — run concurrently so /me (a bootstrap hot path) pays
@@ -47,17 +48,18 @@ export class MeApiService {
       },
       capabilities: {
         canCreateWorkspace,
+        isSobaAdmin,
       },
     };
   }
 
-  async get(actorId: string, idpCode: string | null) {
+  async get(actorId: string, idpCode: string | null, isSobaAdmin: boolean) {
     const user = await findAppUserById(actorId);
     if (!user) return null;
-    return this.toResponse(user, idpCode);
+    return this.toResponse(user, idpCode, isSobaAdmin);
   }
 
-  async patch(actorId: string, idpCode: string | null, body: PatchMeBody) {
+  async patch(actorId: string, idpCode: string | null, body: PatchMeBody, isSobaAdmin: boolean) {
     const user = await findAppUserById(actorId);
     if (!user) return null;
 
@@ -89,7 +91,7 @@ export class MeApiService {
     const updatedBy = view.displayLabel ?? actorId;
     const updated = await updateAppUserProfile(actorId, nextProfile, updatedBy);
     if (!updated) return null;
-    return this.toResponse(updated, idpCode);
+    return this.toResponse(updated, idpCode, isSobaAdmin);
   }
 }
 

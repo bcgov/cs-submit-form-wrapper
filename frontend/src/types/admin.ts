@@ -34,8 +34,15 @@ export type FeatureScopeItem = {
   updatedBy: string | null;
 };
 
+/** Truncation only: these lists are capped, not cursor-paged, so there is no cursor to hand back. */
+export type AdminPage = {
+  limit: number;
+  hasMore: boolean;
+};
+
 export type FeatureScopesResponse = {
   items: FeatureScopeItem[];
+  page: AdminPage;
 };
 
 export type UpsertFeatureScopeBody = {
@@ -63,6 +70,7 @@ export type DocumentGenerationAuditItem = {
 
 export type DocumentGenerationAuditsResponse = {
   items: DocumentGenerationAuditItem[];
+  page: AdminPage;
 };
 
 export type DocumentGenerationAuditsQuery = {

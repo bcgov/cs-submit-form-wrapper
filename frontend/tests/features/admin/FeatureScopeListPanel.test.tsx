@@ -43,10 +43,15 @@ vi.mock('@/src/shared/api/sobaApiAdmin', () => ({
 vi.mock('@/app/[lang]/Providers', () => ({
   useDictionary: () => ({
     locale: 'en',
-    general: { loading: 'Loading…' },
+    general: { loading: 'Loading…', cancel: 'Cancel' },
     dataTable: { itemName: 'items', pageOf: 'of {totalPages} page(s)' },
+    modal: { dialogActions: 'Dialog actions' },
     admin: {
+      truncated: 'Showing the first {limit}. Narrow the filters to see the rest.',
       featureScopes: {
+        deleteConfirmTitle: 'Delete feature access',
+        deleteConfirmMessage:
+          '{featureCode} stops being available to this {scopeType} immediately.',
         heading: 'Feature access',
         intro: 'Enable or disable a scoped feature for a single workspace or form.',
         featureCodeLabel: 'Feature',
@@ -98,7 +103,10 @@ const HIDDEN_FEATURE_SCOPE = {
 describe('FeatureScopeListPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetchFeatureScopes.mockResolvedValue({ items: [FEATURE_SCOPE, HIDDEN_FEATURE_SCOPE] });
+    mockFetchFeatureScopes.mockResolvedValue({
+      items: [FEATURE_SCOPE, HIDDEN_FEATURE_SCOPE],
+      page: { limit: 200, hasMore: false },
+    });
     mockRemoveFeatureScope.mockResolvedValue(undefined);
     mockUpsertFeatureScope.mockResolvedValue(undefined);
   });
@@ -151,6 +159,7 @@ describe('FeatureScopeListPanel', () => {
     await screen.findByText('document-generation-v3');
 
     await userEvent.click(screen.getByTestId(`delete-feature-scope-${FEATURE_SCOPE.id}`));
+    await userEvent.click(await screen.findByTestId('confirm-modal-confirm'));
 
     await waitFor(() => {
       expect(mockRemoveFeatureScope).toHaveBeenCalledWith('token', FEATURE_SCOPE.id);
@@ -158,6 +167,35 @@ describe('FeatureScopeListPanel', () => {
     await waitFor(() => {
       expect(screen.queryByText('document-generation-v3')).not.toBeInTheDocument();
     });
+  });
+
+  // Irreversible, so the row action only opens the prompt.
+  it('does not delete until the prompt is confirmed', async () => {
+    await act(async () => {
+      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+    });
+    await screen.findByText('document-generation-v3');
+
+    await userEvent.click(screen.getByTestId(`delete-feature-scope-${FEATURE_SCOPE.id}`));
+    expect(mockRemoveFeatureScope).not.toHaveBeenCalled();
+
+    await userEvent.click(await screen.findByTestId('confirm-modal-cancel'));
+
+    expect(mockRemoveFeatureScope).not.toHaveBeenCalled();
+    expect(screen.getByText('document-generation-v3')).toBeInTheDocument();
+  });
+
+  it('reports a list the server cut short', async () => {
+    mockFetchFeatureScopes.mockResolvedValue({
+      items: [FEATURE_SCOPE],
+      page: { limit: 200, hasMore: true },
+    });
+
+    await act(async () => {
+      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+    });
+
+    expect(await screen.findByTestId('feature-scope-truncated')).toBeInTheDocument();
   });
 
   it('does not render the table when no scoped features are available', async () => {

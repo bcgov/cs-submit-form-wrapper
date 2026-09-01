@@ -1,18 +1,22 @@
 'use client';
 
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { hasSobaAdminRole } from '@/src/shared/auth/sobaAdmin';
+import { useCurrentUser } from '@/lib/useCurrentUser';
 
 /**
- * Whether the signed-in user carries the `soba_admin` role. Prefers the access token (where
- * Keycloak puts client/realm roles) and falls back to the id token mirrored in Redux.
+ * Whether the signed-in user is a SOBA platform admin, as reported by `GET /me`. The token's
+ * `soba_admin` role is not enough: the backend authorizes against the `soba_admin` table, and a
+ * grant added directly never appears in a token.
+ *
+ * `initializing` covers the current-user fetch, so callers show a loading state rather than a
+ * forbidden one while the answer is unknown.
  */
 export function useIsSobaAdmin(): { isSobaAdmin: boolean; initializing: boolean } {
-  const { keycloak, idTokenParsed, authenticated, initializing } = useKeycloak();
+  const { authenticated, initializing } = useKeycloak();
+  const { data, isLoaded } = useCurrentUser();
 
-  const accessTokenParsed = keycloak?.tokenParsed as Record<string, unknown> | undefined;
-  const isSobaAdmin =
-    authenticated && (hasSobaAdminRole(accessTokenParsed) || hasSobaAdminRole(idTokenParsed));
-
-  return { isSobaAdmin, initializing };
+  return {
+    isSobaAdmin: authenticated && data?.capabilities?.isSobaAdmin === true,
+    initializing: initializing || (authenticated && !isLoaded),
+  };
 }

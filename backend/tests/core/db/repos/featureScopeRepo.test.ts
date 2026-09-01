@@ -15,7 +15,7 @@ import {
   removeFeatureScope,
 } from '../../../../src/core/db/repos/featureScopeRepo';
 
-describe('featureScopeRepo.hasActiveFeatureGrant', () => {
+describe('featureScopeRepo', () => {
   beforeEach(() => {
     selectMock.mockReset();
     deleteMock.mockReset();
@@ -30,22 +30,31 @@ describe('featureScopeRepo.hasActiveFeatureGrant', () => {
     expect(selectMock).not.toHaveBeenCalled();
   });
 
-  it('lists feature scopes through the expected select chain', async () => {
-    const limitMock = jest.fn().mockResolvedValue([{ id: 'scope-1' }]);
+  const stubList = (rows: { id: string }[]) => {
+    const limitMock = jest.fn().mockResolvedValue(rows);
     const orderByMock = jest.fn(() => ({ limit: limitMock }));
     const whereMock = jest.fn(() => ({ orderBy: orderByMock }));
-    const fromMock = jest.fn(() => ({ where: whereMock }));
-    selectMock.mockReturnValue({ from: fromMock });
+    selectMock.mockReturnValue({ from: jest.fn(() => ({ where: whereMock })) });
+    return limitMock;
+  };
 
-    await expect(
-      listFeatureScopes({ featureCode: 'document-generation-v3', status: 'active', limit: 25 }),
-    ).resolves.toEqual([{ id: 'scope-1' }]);
+  it('trims the lookahead row and reports the list as truncated', async () => {
+    const limitMock = stubList([{ id: 'scope-1' }, { id: 'scope-2' }, { id: 'scope-3' }]);
 
-    expect(selectMock).toHaveBeenCalledWith();
-    expect(fromMock).toHaveBeenCalledTimes(1);
-    expect(whereMock).toHaveBeenCalledTimes(1);
-    expect(orderByMock).toHaveBeenCalledTimes(1);
-    expect(limitMock).toHaveBeenCalledWith(25);
+    await expect(listFeatureScopes({ limit: 2 })).resolves.toEqual({
+      items: [{ id: 'scope-1' }, { id: 'scope-2' }],
+      hasMore: true,
+    });
+    expect(limitMock).toHaveBeenCalledWith(3);
+  });
+
+  it('reports a short list as complete', async () => {
+    stubList([{ id: 'scope-1' }]);
+
+    await expect(listFeatureScopes({ limit: 2 })).resolves.toEqual({
+      items: [{ id: 'scope-1' }],
+      hasMore: false,
+    });
   });
 
   it('gets a feature scope by id', async () => {
@@ -69,13 +78,20 @@ describe('featureScopeRepo.hasActiveFeatureGrant', () => {
     await expect(getFeatureScopeById('scope-1')).resolves.toBeNull();
   });
 
-  it('deletes a feature scope by id', async () => {
-    const whereMock = jest.fn().mockResolvedValue(undefined);
-    deleteMock.mockReturnValue({ where: whereMock });
+  const stubDelete = (deleted: { id: string }[]) => {
+    const returningMock = jest.fn().mockResolvedValue(deleted);
+    deleteMock.mockReturnValue({ where: jest.fn(() => ({ returning: returningMock })) });
+  };
 
-    await expect(removeFeatureScope('scope-1')).resolves.toBeUndefined();
+  it('reports a deleted feature scope', async () => {
+    stubDelete([{ id: 'scope-1' }]);
 
-    expect(deleteMock).toHaveBeenCalledTimes(1);
-    expect(whereMock).toHaveBeenCalledTimes(1);
+    await expect(removeFeatureScope('scope-1')).resolves.toBe(true);
+  });
+
+  it('reports an id that matched no feature scope', async () => {
+    stubDelete([]);
+
+    await expect(removeFeatureScope('scope-1')).resolves.toBe(false);
   });
 });

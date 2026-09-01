@@ -62,9 +62,16 @@ export const DocumentGenerationAuditItemSchema = z
   })
   .openapi('Admin_DocumentGenerationAuditItem');
 
+/** Truncation only: these lists are capped, not cursor-paged, so there is no cursor to hand back. */
+const AdminPageSchema = z.object({
+  limit: z.number().int().min(1),
+  hasMore: z.boolean(),
+});
+
 export const ListDocumentGenerationAuditsResponseSchema = z
   .object({
     items: z.array(DocumentGenerationAuditItemSchema),
+    page: AdminPageSchema,
   })
   .openapi('Admin_ListDocumentGenerationAuditsResponse');
 
@@ -94,6 +101,7 @@ export const ListFeatureScopesQuerySchema = z
 export const ListFeatureScopesResponseSchema = z
   .object({
     items: z.array(FeatureScopeItemSchema),
+    page: AdminPageSchema,
   })
   .openapi('Admin_ListFeatureScopesResponse');
 
@@ -166,7 +174,7 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       204: { description: 'Direct SOBA admin grant added or converted' },
-      400: { description: 'Invalid body (e.g. userId not a UUID)' },
+      400: { description: 'Invalid body: userId not a UUID, or no such user' },
     },
   });
 
@@ -176,8 +184,9 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
     tags: [TAG],
     security: [{ bearerAuth: [] }],
     responses: {
-      204: { description: 'Direct grant removed (or no-op if not direct)' },
+      204: { description: 'Direct grant removed' },
       400: { description: 'Invalid userId' },
+      404: { description: 'No direct grant for that user' },
     },
   });
 
@@ -238,6 +247,7 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
       204: { description: 'Feature scope grant deleted' },
       400: { description: 'Invalid featureScopeId' },
       403: { description: REQUIRES_SOBA_ADMIN },
+      404: { description: 'Feature scope not found' },
     },
   });
 
@@ -261,7 +271,7 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
         description:
           'Feature scope upserted. Creates when missing, otherwise updates existing row status.',
       },
-      400: { description: 'Invalid request body' },
+      400: { description: 'Invalid request body, unknown feature code, or feature is not scoped' },
       403: { description: REQUIRES_SOBA_ADMIN },
     },
   });

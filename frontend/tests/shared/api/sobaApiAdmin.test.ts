@@ -3,6 +3,7 @@ import {
   fetchFeatureScope,
   fetchFeatureScopes,
   removeFeatureScope,
+  removeSobaAdmin,
   upsertFeatureScope,
 } from '@/src/shared/api/sobaApiAdmin';
 
@@ -62,6 +63,22 @@ describe('sobaApiAdmin feature-scope helpers', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain('/admin/feature-scopes/scope-1');
     expect(init.method).toBe('DELETE');
+  });
+
+  // The row is gone either way, so a 404 is the outcome the caller asked for.
+  it.each([
+    ['feature scope', () => removeFeatureScope('tok', 'scope-1')],
+    ['soba admin', () => removeSobaAdmin('tok', 'user-1')],
+  ])('treats a 404 from deleting a %s as success', async (_label, call) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ error: 'Not found' }, 404)));
+
+    await expect(call()).resolves.toBeUndefined();
+  });
+
+  it('still reports a failed delete', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ error: 'Boom' }, 500)));
+
+    await expect(removeFeatureScope('tok', 'scope-1')).rejects.toThrow('Boom');
   });
 
   it('upserts a feature scope', async () => {

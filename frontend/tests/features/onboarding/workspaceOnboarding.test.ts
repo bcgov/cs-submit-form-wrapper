@@ -18,7 +18,7 @@ describe('workspaceOnboarding', () => {
           actor: { id: 'u1', displayLabel: 'User', status: 'active' },
           profile: { displayName: 'User', email: null, preferredUsername: null },
           preferences: { defaultWorkspaceId: null },
-          capabilities: { canCreateWorkspace: false },
+          capabilities: { canCreateWorkspace: false, isSobaAdmin: false },
         },
       }),
     ).toBe(true);
@@ -33,7 +33,7 @@ describe('workspaceOnboarding', () => {
           actor: { id: 'u1', displayLabel: 'User', status: 'active' },
           profile: { displayName: 'User', email: null, preferredUsername: null },
           preferences: { defaultWorkspaceId: null },
-          capabilities: { canCreateWorkspace: true },
+          capabilities: { canCreateWorkspace: true, isSobaAdmin: false },
         },
       }),
     ).toBe(false);
@@ -59,7 +59,7 @@ describe('workspaceOnboarding', () => {
           actor: { id: 'u1', displayLabel: 'User', status: 'active' },
           profile: { displayName: 'User', email: null, preferredUsername: null },
           preferences: { defaultWorkspaceId: null },
-          capabilities: { canCreateWorkspace: false },
+          capabilities: { canCreateWorkspace: false, isSobaAdmin: false },
         },
       }),
     ).toBe(false);

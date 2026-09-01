@@ -28,6 +28,8 @@ export const MePreferencesSchema = z
 export const MeCapabilitiesSchema = z
   .object({
     canCreateWorkspace: z.boolean(),
+    /** Platform admin via the soba_admin table: IdP-sourced or granted directly. */
+    isSobaAdmin: z.boolean(),
   })
   .openapi('Me_Capabilities');
 

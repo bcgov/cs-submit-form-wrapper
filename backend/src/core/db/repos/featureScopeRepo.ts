@@ -1,4 +1,4 @@
-import { and, desc, eq, or, type SQL } from 'drizzle-orm';
+import { and, desc, eq, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../client';
 import { featureScopes } from '../schema';
 import { FeatureScopeStatus, FeatureScopeType } from '../codes';
@@ -44,37 +44,15 @@ export const createFeatureScope = async (input: NewFeatureScope): Promise<Featur
 
 /**
  * Ensure one grant row per (feature, scopeType, scopeId): create it when missing, otherwise update
- * status and audit stamp in place. Keeps test/setup routes idempotent across repeated runs.
+ * status and audit stamp in place. Resolved by the database against
+ * `feature_scope_code_scope_uq`, so concurrent callers cannot race into a duplicate or a 409.
+ * An omitted status leaves an existing row's status alone; a new row starts active. createdBy is
+ * only ever set by the insert.
  */
 export const upsertFeatureScope = async (
   input: UpsertFeatureScopeInput,
 ): Promise<FeatureScopeRecord> => {
-  const existing = await db
-    .select()
-    .from(featureScopes)
-    .where(
-      and(
-        eq(featureScopes.featureCode, input.featureCode),
-        eq(featureScopes.scopeType, input.scopeType),
-        eq(featureScopes.scopeId, input.scopeId),
-      ),
-    )
-    .limit(1);
-
-  if (existing[0]) {
-    const [updated] = await db
-      .update(featureScopes)
-      .set({
-        status: input.status ?? existing[0].status,
-        updatedAt: new Date(),
-        updatedBy: input.updatedBy ?? null,
-      })
-      .where(eq(featureScopes.id, existing[0].id))
-      .returning();
-    return updated;
-  }
-
-  const [created] = await db
+  const [row] = await db
     .insert(featureScopes)
     .values({
       featureCode: input.featureCode,
@@ -84,31 +62,36 @@ export const upsertFeatureScope = async (
       createdBy: input.updatedBy ?? null,
       updatedBy: input.updatedBy ?? null,
     })
+    .onConflictDoUpdate({
+      target: [featureScopes.featureCode, featureScopes.scopeType, featureScopes.scopeId],
+      set: {
+        status: input.status ?? sql`${featureScopes.status}`,
+        updatedAt: new Date(),
+        updatedBy: input.updatedBy ?? null,
+      },
+    })
     .returning();
-  return created;
+  return row;
 };
 
+/** Reads one row past the limit so the caller can report that the list was cut short. */
 export const listFeatureScopes = async (
   input: ListFeatureScopesInput = {},
-): Promise<FeatureScopeRecord[]> => {
+): Promise<{ items: FeatureScopeRecord[]; hasMore: boolean }> => {
   const conditions: SQL<unknown>[] = [];
   if (input.featureCode) conditions.push(eq(featureScopes.featureCode, input.featureCode));
   if (input.scopeType) conditions.push(eq(featureScopes.scopeType, input.scopeType));
   if (input.status) conditions.push(eq(featureScopes.status, input.status));
 
-  let where = undefined;
-  if (conditions.length === 1) {
-    where = conditions[0];
-  } else if (conditions.length > 1) {
-    where = and(...conditions);
-  }
-
-  return db
+  const limit = input.limit ?? 100;
+  const rows = await db
     .select()
     .from(featureScopes)
-    .where(where)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(featureScopes.updatedAt), desc(featureScopes.createdAt))
-    .limit(input.limit ?? 100);
+    .limit(limit + 1);
+
+  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
 };
 
 export const getFeatureScopeById = async (id: string): Promise<FeatureScopeRecord | null> => {
@@ -116,8 +99,13 @@ export const getFeatureScopeById = async (id: string): Promise<FeatureScopeRecor
   return rows[0] ?? null;
 };
 
-export const removeFeatureScope = async (id: string): Promise<void> => {
-  await db.delete(featureScopes).where(eq(featureScopes.id, id));
+/** False when no grant had that id, so the caller can answer 404 the way the read route does. */
+export const removeFeatureScope = async (id: string): Promise<boolean> => {
+  const deleted = await db
+    .delete(featureScopes)
+    .where(eq(featureScopes.id, id))
+    .returning({ id: featureScopes.id });
+  return deleted.length > 0;
 };
 
 export interface FeatureGrantLookup {

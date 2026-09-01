@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Button, Form, TextField } from '@bcgov/design-system-react-components';
+import { Button, Form, InlineAlert, TextField } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { SecondaryText } from '@/src/components/SecondaryText';
 import { StatusTag } from '@/src/components/StatusTag';
@@ -26,9 +26,13 @@ export function DocumentGenerationAuditsPanel() {
   const [items, setItems] = useState<DocumentGenerationAuditItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [truncatedAt, setTruncatedAt] = useState<number | null>(null);
 
-  // The backend requires at least one scope filter, so a blank form can't be submitted.
-  const valid = UUID_PATTERN.test(workspaceId.trim()) || UUID_PATTERN.test(formId.trim());
+  // Both ids are sent when filled, so every filled one has to be a uuid or the backend rejects the
+  // whole request. At least one is required.
+  const filledIds = [workspaceId.trim(), formId.trim()].filter((value) => value !== '');
+  const valid = filledIds.length > 0 && filledIds.every((value) => UUID_PATTERN.test(value));
 
   const handleSearch = useCallback(async () => {
     if (!token || !valid) return;
@@ -40,8 +44,12 @@ export function DocumentGenerationAuditsPanel() {
         limit: AUDIT_LIMIT,
       });
       setItems(response.items);
+      setTruncatedAt(response.page?.hasMore ? response.page.limit : null);
+      setError(null);
     } catch (cause) {
       setItems([]);
+      setTruncatedAt(null);
+      setError(dictAudits.loadError);
       addNotification({ text: dictAudits.loadError, type: 'error', consoleError: cause });
     } finally {
       setSearched(true);
@@ -130,11 +138,21 @@ export function DocumentGenerationAuditsPanel() {
         </Button>
       </Form>
 
+      {searched && truncatedAt !== null ? (
+        <InlineAlert
+          description={dict.admin.truncated.replace('{limit}', String(truncatedAt))}
+          title={dictAudits.heading}
+          variant="info"
+          data-testid="audits-truncated"
+        />
+      ) : null}
+
       {searched ? (
         <DataTable<DocumentGenerationAuditItem>
           data={items}
           columns={columns}
           loading={loading}
+          error={error}
           emptyMessage={dictAudits.empty}
           loadingMessage={dict.general.loading}
           caption={dictAudits.heading}

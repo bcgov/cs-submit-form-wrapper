@@ -13,9 +13,12 @@ import {
   upsertFeatureScope,
 } from '../../db/repos/featureScopeRepo';
 import { listDocumentGenerationAudits } from '../../db/repos/documentGenerationAuditRepo';
+import { getFeatureGateCached } from '../../db/repos/featureRepo';
+import { findAppUserById } from '../../db/repos/appUserRepo';
 import { db } from '../../db/client';
 import { appUsers } from '../../db/schema';
-import { NotFoundError } from '../../errors';
+import { FeatureAvailability } from '../../db/codes';
+import { NotFoundError, ValidationError } from '../../errors';
 import { asyncHandler } from '../shared/asyncHandler';
 import { decodeCursor, encodeCursor } from '../shared/pagination';
 import {
@@ -81,6 +84,11 @@ export const listSobaAdminsHandler = asyncHandler(async (req: Request, res: Resp
 export const addSobaAdminHandler = asyncHandler(
   async (req: Request<unknown, unknown, AddSobaAdminBody>, res: Response) => {
     const body = req.body as AddSobaAdminBody;
+    // user_id is a foreign key, so an unknown id would surface as a 500.
+    if (!(await findAppUserById(body.userId))) {
+      throw new ValidationError(`Unknown user: ${body.userId}`);
+    }
+
     let actorDisplayLabel: string | null = null;
     if (req.actorId) {
       const row = await db
@@ -98,7 +106,9 @@ export const addSobaAdminHandler = asyncHandler(
 export const removeSobaAdminHandler = asyncHandler(
   async (req: Request<{ userId: string }>, res: Response) => {
     const { userId } = req.params;
-    await removeDirectSobaAdmin(userId);
+    // Only direct grants are removable, so this is also the answer for an IdP-sourced admin.
+    const removed = await removeDirectSobaAdmin(userId);
+    if (!removed) throw new NotFoundError('Direct SOBA admin not found');
     res.status(204).send();
   },
 );
@@ -106,6 +116,16 @@ export const removeSobaAdminHandler = asyncHandler(
 export const upsertFeatureScopeHandler = asyncHandler(
   async (req: Request<unknown, unknown, UpsertFeatureScopeBody>, res: Response) => {
     const body = req.body as UpsertFeatureScopeBody;
+    // feature_code is a foreign key, so an unknown code would surface as a 500. A grant on a
+    // non-scoped feature is inert (isFeatureAvailable short-circuits before reading grants), so
+    // storing one would only mislead.
+    const gate = await getFeatureGateCached(body.featureCode, Date.now());
+    if (!gate) {
+      throw new ValidationError(`Unknown feature code: ${body.featureCode}`);
+    }
+    if (gate.availability !== FeatureAvailability.scoped) {
+      throw new ValidationError(`Feature is not scoped: ${body.featureCode}`);
+    }
     await upsertFeatureScope({
       featureCode: body.featureCode,
       scopeType: body.scopeType,
@@ -119,8 +139,11 @@ export const upsertFeatureScopeHandler = asyncHandler(
 
 export const listFeatureScopesHandler = asyncHandler(async (req: Request, res: Response) => {
   const query = req.query as unknown as ListFeatureScopesQuery;
-  const rows = await listFeatureScopes(query);
-  res.json({ items: rows.map(toFeatureScopeItem) });
+  const { items, hasMore } = await listFeatureScopes(query);
+  res.json({
+    items: items.map(toFeatureScopeItem),
+    page: { limit: query.limit, hasMore },
+  });
 });
 
 export const getFeatureScopeHandler = asyncHandler(
@@ -133,7 +156,8 @@ export const getFeatureScopeHandler = asyncHandler(
 
 export const removeFeatureScopeHandler = asyncHandler(
   async (req: Request<z.infer<typeof FeatureScopeIdParamsSchema>>, res: Response) => {
-    await removeFeatureScope(req.params.featureScopeId);
+    const deleted = await removeFeatureScope(req.params.featureScopeId);
+    if (!deleted) throw new NotFoundError('Feature scope not found');
     res.status(204).send();
   },
 );
@@ -141,16 +165,17 @@ export const removeFeatureScopeHandler = asyncHandler(
 export const listDocumentGenerationAuditsHandler = asyncHandler(
   async (req: Request, res: Response) => {
     const query = req.query as unknown as ListDocumentGenerationAuditsQuery;
-    const rows = await listDocumentGenerationAudits({
+    const { items, hasMore } = await listDocumentGenerationAudits({
       workspaceId: query.workspaceId,
       formId: query.formId,
       limit: query.limit,
     });
     res.json({
-      items: rows.map((row) => ({
+      items: items.map((row) => ({
         ...row,
         createdAt: row.createdAt.toISOString(),
       })),
+      page: { limit: query.limit, hasMore },
     });
   },
 );

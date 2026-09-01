@@ -45,26 +45,23 @@ export const createDocumentGenerationAudit = async (
 /**
  * List recent document generation audit rows for a workspace/form scope.
  * Caller should validate at least one scope filter is provided.
+ * Reads one row past the limit so the caller can report that the list was cut short.
  */
 export const listDocumentGenerationAudits = async (
   filters: ListDocumentGenerationAuditFilters,
-): Promise<DocumentGenerationAuditRecord[]> => {
+): Promise<{ items: DocumentGenerationAuditRecord[]; hasMore: boolean }> => {
   const conditions: SQL<unknown>[] = [];
   if (filters.workspaceId)
     conditions.push(eq(documentGenerationAudits.workspaceId, filters.workspaceId));
   if (filters.formId) conditions.push(eq(documentGenerationAudits.formId, filters.formId));
 
-  let where = undefined;
-  if (conditions.length === 1) {
-    where = conditions[0];
-  } else if (conditions.length > 1) {
-    where = and(...conditions);
-  }
-
-  return db
+  const limit = filters.limit ?? 100;
+  const rows = await db
     .select()
     .from(documentGenerationAudits)
-    .where(where)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(documentGenerationAudits.createdAt))
-    .limit(filters.limit ?? 100);
+    .limit(limit + 1);
+
+  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
 };

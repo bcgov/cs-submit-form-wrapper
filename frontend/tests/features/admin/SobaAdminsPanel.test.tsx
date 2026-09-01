@@ -28,10 +28,14 @@ vi.mock('@/src/shared/api/sobaApiAdmin', () => ({
 vi.mock('@/app/[lang]/Providers', () => ({
   useDictionary: () => ({
     locale: 'en',
-    general: { loading: 'Loading…' },
+    general: { loading: 'Loading…', cancel: 'Cancel' },
     dataTable: { itemName: 'items', pageOf: 'of {totalPages} page(s)' },
+    modal: { dialogActions: 'Dialog actions' },
     admin: {
+      truncated: 'Showing the first {limit}. Narrow the filters to see the rest.',
       admins: {
+        removeConfirmTitle: 'Remove platform administrator',
+        removeConfirmMessage: '{user} loses platform administration access immediately.',
         heading: 'Platform administrators',
         intro: 'Users listed here can administer the whole platform.',
         userIdLabel: 'User ID',
@@ -92,6 +96,38 @@ describe('SobaAdminsPanel', () => {
     expect(screen.getByTestId(`remove-admin-${DIRECT_ADMIN.userId}`)).toBeInTheDocument();
     expect(screen.queryByTestId(`remove-admin-${IDP_ADMIN.userId}`)).not.toBeInTheDocument();
     expect(screen.getByText('Managed by identity provider')).toBeInTheDocument();
+  });
+
+  // Irreversible, so the row action only opens the prompt.
+  it('removes a direct administrator once the prompt is confirmed', async () => {
+    mockRemoveSobaAdmin.mockResolvedValue(undefined);
+
+    await act(async () => {
+      render(<SobaAdminsPanel />);
+    });
+    await screen.findByText('Direct Admin');
+
+    await userEvent.click(screen.getByTestId(`remove-admin-${DIRECT_ADMIN.userId}`));
+    expect(mockRemoveSobaAdmin).not.toHaveBeenCalled();
+
+    await userEvent.click(await screen.findByTestId('confirm-modal-confirm'));
+
+    await waitFor(() => {
+      expect(mockRemoveSobaAdmin).toHaveBeenCalledWith('token', DIRECT_ADMIN.userId);
+    });
+  });
+
+  it('reports a list the server cut short', async () => {
+    mockFetchSobaAdmins.mockResolvedValue({
+      items: [DIRECT_ADMIN],
+      page: { limit: 100, hasMore: true, nextCursor: 'x', cursorMode: 'id' },
+    });
+
+    await act(async () => {
+      render(<SobaAdminsPanel />);
+    });
+
+    expect(await screen.findByTestId('admins-truncated')).toBeInTheDocument();
   });
 
   it('adds an administrator and reloads the list', async () => {
