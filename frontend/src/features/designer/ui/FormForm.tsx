@@ -41,15 +41,16 @@ import {
   getFormVersionSchema,
 } from '@/src/shared/api/sobaApi';
 import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
-import { isForbidden } from '@/src/shared/api/sobaHelpers';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 
 type Dict = ReturnType<typeof useDictionary>;
 
 function noticeForLoadError(dict: Dict, loadError: unknown): string {
-  if (isSessionExpired(loadError)) return dict.general.sessionExpired;
-  if (isForbidden(loadError)) return dict.general.noAccess;
-  return dict.form.loadFormError || 'Failed to load form.';
+  return loadErrorMessage(loadError, {
+    sessionExpired: dict.general.sessionExpired,
+    noAccess: dict.general.noAccess,
+    failed: dict.form.loadFormError,
+  });
 }
 
 function draftNotices(args: {

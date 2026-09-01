@@ -13,12 +13,14 @@ vi.mock('@/app/[lang]/Providers', () => ({
       forms: 'Forms',
       loading: 'Loading...',
       sessionExpired: 'Your session has ended.',
+      noAccess: 'You do not have access to this.',
       create: 'Create',
       search: 'Search',
     },
     form: {
       nameLabel: 'Form Name',
       disclaimerRequired: 'Accept the workspace disclaimer before creating a form.',
+      loadFormsError: 'Failed to load forms.',
     },
     header: {
       selectWorkspace: 'Select Workspace',
@@ -335,6 +337,16 @@ describe('FormList', () => {
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     await renderList();
     await waitFor(() => expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument());
+  });
+
+  // The backend's string is untranslated and says things like "Request failed (500)".
+  it('reports a failed load without showing the backend message', async () => {
+    getSobaForms.mockRejectedValue(new Error('Request failed (500)'));
+    seed([{ id: 'ws1', disclaimerAccepted: true }]);
+    await renderList();
+
+    await waitFor(() => expect(screen.getByText(/Failed to load forms\./)).toBeInTheDocument());
+    expect(screen.queryByText(/Request failed/)).not.toBeInTheDocument();
   });
 
   // Clicking the nav link while already on this page is a query-only navigation: the App Router

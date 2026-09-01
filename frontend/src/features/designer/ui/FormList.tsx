@@ -30,7 +30,7 @@ import {
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { FaDatabase, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 
 const CustomActionButtons = ({
   form,
@@ -130,11 +130,17 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
     [data],
   );
 
-  const error = useMemo(() => {
-    if (!loadError) return null;
-    if (isSessionExpired(loadError)) return dict.general.sessionExpired;
-    return loadError instanceof Error ? loadError.message : String(loadError);
-  }, [loadError, dict.general.sessionExpired]);
+  const error = useMemo(
+    () =>
+      loadError
+        ? loadErrorMessage(loadError, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: dict.form.loadFormsError,
+          })
+        : null,
+    [loadError, dict.general.sessionExpired, dict.general.noAccess, dict.form.loadFormsError],
+  );
 
   const writeListParams = useCallback(
     (next: ListQueryParams) => {

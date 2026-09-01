@@ -14,8 +14,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { deleteSobaSubmission } from '@/src/shared/api/sobaApi';
 import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
-import { isForbidden } from '@/src/shared/api/sobaHelpers';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import {
   capitalizeFirstLetter,
@@ -140,12 +139,17 @@ export default function FormSubmissionTab({
     [dict, formatLongDate, deletePress, locale, router],
   );
 
-  const loadError = useMemo(() => {
-    if (!error) return null;
-    if (isSessionExpired(error)) return dict.general.sessionExpired;
-    if (isForbidden(error)) return dict.general.noAccess;
-    return dict.submission.error;
-  }, [error, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error]);
+  const loadError = useMemo(
+    () =>
+      error
+        ? loadErrorMessage(error, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: dict.submission.error,
+          })
+        : null,
+    [error, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error],
+  );
 
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);

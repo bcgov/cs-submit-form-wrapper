@@ -12,8 +12,7 @@ import {
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getSubmitterAudience, setSubmitterAudience } from '@/src/shared/api/sobaApiGroups';
 import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
-import { isForbidden } from '@/src/shared/api/sobaHelpers';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import type { SubmitterAudience } from '@/src/types/groups';
 import styles from './FormSubmitterAudience.module.css';
@@ -43,13 +42,19 @@ export function FormSubmitterAudience({ workspaceId, canManage }: Props) {
     (authToken) => getSubmitterAudience(authToken, workspaceId as string),
   );
 
-  const readError = useMemo(() => {
-    if (!loadError) return null;
-    if (isSessionExpired(loadError)) return dict.general.sessionExpired;
-    // Reading the audience needs a workspace permission the form's designer need not hold.
-    if (isForbidden(loadError)) return dict.general.noAccess;
-    return t.submitterAudienceLoadError;
-  }, [loadError, dict.general.sessionExpired, dict.general.noAccess, t.submitterAudienceLoadError]);
+  // Reading the audience needs a workspace permission the form's designer need not hold, so the
+  // no-access branch is a normal outcome here rather than a misconfiguration.
+  const readError = useMemo(
+    () =>
+      loadError
+        ? loadErrorMessage(loadError, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: t.submitterAudienceLoadError,
+          })
+        : null,
+    [loadError, dict.general.sessionExpired, dict.general.noAccess, t.submitterAudienceLoadError],
+  );
 
   // Seed the editable state from the saved audience whenever the panel opens.
   const openPanel = () => {

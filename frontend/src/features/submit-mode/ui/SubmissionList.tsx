@@ -6,8 +6,7 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
-import { isForbidden } from '@/src/shared/api/sobaHelpers';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { DataTable, Column } from '@/src/components/DataTable';
 import { RowActionButton } from '@/src/components/RowActionButton';
@@ -30,12 +29,17 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
   // no request to make. `formId` is the SOBA formId, routed from FormList.
   const { submissions, isLoading, error: loadError } = useFormSubmissions(formId, true);
 
-  const error = useMemo(() => {
-    if (!loadError) return null;
-    if (isSessionExpired(loadError)) return dict.general.sessionExpired;
-    if (isForbidden(loadError)) return dict.general.noAccess;
-    return dict.submission.error;
-  }, [loadError, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error]);
+  const error = useMemo(
+    () =>
+      loadError
+        ? loadErrorMessage(loadError, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: dict.submission.error,
+          })
+        : null,
+    [loadError, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error],
+  );
 
   const paginatedSubmissions = useMemo(
     () => submissions.slice((currentPage - 1) * pageSize, currentPage * pageSize),
