@@ -119,8 +119,11 @@ export class MetaApiService {
       api: {
         baseUrl: env.getOptionalEnv('SOBA_API_BASE_URL') ?? 'http://localhost:4000/api/v1',
       },
+      // Reported only when configured. A guessed URL would be served to every client and silently
+      // produce links to the wrong host.
       app: {
-        submitUrl: env.getOptionalEnv('SUBMIT_APP_URL') ?? 'http://localhost:3000',
+        designerUrl: env.getDesignerAppUrl(),
+        formsUrl: env.getFormsAppUrl(),
       },
       build: {
         name: packageJson.name,

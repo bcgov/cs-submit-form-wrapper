@@ -170,6 +170,16 @@ export function createEnvReader(source: EnvSource) {
       const raw = getOptionalEnvFrom(source, 'STORAGE_PROFILES');
       return raw ? parseCsvValue(raw) : [];
     },
+    /** Public URL of the designer (staff) app. Unset is reported as absent, never guessed. */
+    getDesignerAppUrl: () => getOptionalEnvFrom(source, 'DESIGNER_APP_URL'),
+    /** Public URL of the forms (submitter) app. Unset is reported as absent, never guessed. */
+    getFormsAppUrl: () => getOptionalEnvFrom(source, 'FORMS_APP_URL'),
+    /**
+     * Same values for composing links that leave the system, such as email. These throw rather than
+     * fall back: a message carrying a wrong or localhost link cannot be recalled.
+     */
+    requireDesignerAppUrl: () => getRequiredEnvFrom(source, 'DESIGNER_APP_URL'),
+    requireFormsAppUrl: () => getRequiredEnvFrom(source, 'FORMS_APP_URL'),
     getRateLimitWindowMs: () => getNumberEnvFrom(source, 'RATE_LIMIT_WINDOW_MS'),
     getRateLimitMax: () => getNumberEnvFrom(source, 'RATE_LIMIT_MAX'),
     getRateLimitApiWindowMs: () => getNumberEnvFrom(source, 'RATE_LIMIT_API_WINDOW_MS'),
@@ -239,6 +249,16 @@ export const env = {
     const raw = getOptionalEnv('STORAGE_PROFILES');
     return raw ? parseCsvValue(raw) : [];
   },
+  /** Public URL of the designer (staff) app. Unset is reported as absent, never guessed. */
+  getDesignerAppUrl: () => getOptionalEnv('DESIGNER_APP_URL'),
+  /** Public URL of the forms (submitter) app. Unset is reported as absent, never guessed. */
+  getFormsAppUrl: () => getOptionalEnv('FORMS_APP_URL'),
+  /**
+   * Same values for composing links that leave the system, such as email. These throw rather than
+   * fall back: a message carrying a wrong or localhost link cannot be recalled.
+   */
+  requireDesignerAppUrl: () => getRequiredEnv('DESIGNER_APP_URL'),
+  requireFormsAppUrl: () => getRequiredEnv('FORMS_APP_URL'),
   getRateLimitWindowMs: () => getNumberEnv('RATE_LIMIT_WINDOW_MS'),
   getRateLimitMax: () => getNumberEnv('RATE_LIMIT_MAX'),
   getRateLimitApiWindowMs: () => getNumberEnv('RATE_LIMIT_API_WINDOW_MS'),

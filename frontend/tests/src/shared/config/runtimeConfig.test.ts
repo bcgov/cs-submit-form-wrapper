@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { formatAppVersion, isRuntimeConfigPayload } from '@/src/shared/config/runtimeConfig';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  formatAppVersion,
+  getFormsAppBaseUrl,
+  isRuntimeConfigPayload,
+} from '@/src/shared/config/runtimeConfig';
 
 describe('isRuntimeConfigPayload', () => {
   it('validates expected payload shape', () => {
@@ -41,6 +45,29 @@ describe('isRuntimeConfigPayload', () => {
       api: { baseUrl: 'http://localhost:4000/api/v1' },
     };
     expect(isRuntimeConfigPayload(noBuild)).toBe(false);
+  });
+});
+
+describe('getFormsAppBaseUrl', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    delete window.__SOBA_FORMS_APP_URL;
+  });
+
+  it('falls back to this origin when nothing is configured', () => {
+    // One deployment serving both modes: the forms app is this app.
+    expect(getFormsAppBaseUrl()).toBe(window.location.origin);
+  });
+
+  it('prefers the injected value over the build-time env', () => {
+    vi.stubEnv('NEXT_PUBLIC_SOBA_FORMS_APP_URL', 'https://built-in.example.ca');
+    window.__SOBA_FORMS_APP_URL = 'https://injected.example.ca';
+    expect(getFormsAppBaseUrl()).toBe('https://injected.example.ca');
+  });
+
+  it('uses the build-time env when nothing was injected', () => {
+    vi.stubEnv('NEXT_PUBLIC_SOBA_FORMS_APP_URL', 'https://built-in.example.ca');
+    expect(getFormsAppBaseUrl()).toBe('https://built-in.example.ca');
   });
 });
 
