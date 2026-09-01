@@ -248,10 +248,6 @@ The backend uses a **plugin architecture** so that form engines, auth (IdP), cac
 
 IdP plugins are ordered via env (`IDP_PLUGINS`); the first successful IdP wins. Passport orchestrates the ordered plugin attempts and the winning plugin supplies the mapped identity used by core. IdP env prefixes follow plugin codes (e.g. `bcgov-sso` → `PLUGIN_BCGOV_SSO_*`, `idp-github` → `PLUGIN_IDP_GITHUB_*`).
 
-### Workspace context
-
-Resolved per route by the `workspaceContext` middleware, not a plugin chain. List/create routes read the `workspaceId` query param; deep-link routes derive it from the target resource. Both check membership and echo the workspace back in the `x-soba-workspace-id` response header.
-
 ### Features
 
 **Concept:** Features are optional capabilities that can be enabled or disabled per deployment. The `soba.feature` table holds a registry (code, name, description, version, **status**). Status values live in `soba.feature_status` (e.g. `enabled`, `disabled`, `experimental`, `deprecated`). Only features with status `enabled` are considered on for behaviour that checks feature flags. Codes and roles are extensible: **code tables** (e.g. `form_status`, `form_version_state`, `workspace_membership_role`, `role_status`) use `(code, source)` with `source = 'core'` or a feature code so features can add their own codes; **roles** can have `source = 'feature'` and `feature_code` set. Seed data inserts core codes and feature statuses; see [In Detail — Enable/Disable features, add codes + roles](#enabledisable-features-add-codes--roles-for-feature).

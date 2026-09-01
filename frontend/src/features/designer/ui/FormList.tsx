@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  Button as DSButton,
-} from '@bcgov/design-system-react-components';
+import { Button as DSButton } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { Tag } from '@/src/components/Tag';
 import { ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
@@ -20,25 +18,29 @@ import { usePageNotices } from '@/src/components/PageHeader';
 import { useAppSelector, useAppDispatch } from '@/lib/store';
 import { setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
-import { FaFolder, FaLink } from 'react-icons/fa6';
+import { FaDatabase, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 
 const CustomActionButtons = ({
   form,
   onAction,
-  submitModeEnabled,
+  designModeEnabled,
 }: {
   form: SobaFormSummary;
   onAction: (name: string, id: string) => void;
-  submitModeEnabled?: boolean;
+  designModeEnabled?: boolean;
 }) => {
   // All actions (manage/submit/submissions) are keyed on the SOBA formId.
   const sobaFormId = form.id;
 
   const actions = [];
-  if (submitModeEnabled) {
-    actions.push({ name: 'submit', icon: <FaLink /> }, { name: 'submissions', icon: <FaFolder /> });
+  // Both quick links open designer tabs, and the designer page 404s without design mode.
+  if (designModeEnabled) {
+    actions.push(
+      { name: 'submit', icon: <FaLink /> },
+      { name: 'submissions', icon: <FaDatabase /> },
+    );
   }
 
   return (
@@ -59,13 +61,7 @@ const CustomActionButtons = ({
   );
 };
 
-function FormList({
-  designModeEnabled = true,
-  submitModeEnabled = true,
-}: {
-  designModeEnabled?: boolean;
-  submitModeEnabled?: boolean;
-}) {
+function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean }) {
   const dict = useDictionary();
   const dictFormList = dict.submission?.formList;
   const dictForm = dict.form;
@@ -162,14 +158,18 @@ function FormList({
   const handleAction = useCallback(
     (name: string, id: string) => {
       if (name === 'manage') {
-        router.push(`/${locale}/designer/${id}`);
+        if (designModeEnabled) {
+          router.push(`/${locale}/designer/${id}`);
+        } else {
+          router.push(`/${locale}/form/${id}`);
+        }
       } else if (name === 'submit') {
-        router.push(`/${locale}/form/${id}`);
+        router.push(`/${locale}/designer/${id}?tab=share`);
       } else if (name === 'submissions') {
-        router.push(`/${locale}/submissions/${id}`);
+        router.push(`/${locale}/designer/${id}?tab=submissions`);
       }
     },
-    [router, locale],
+    [router, locale, designModeEnabled],
   );
 
   usePageNotices([
@@ -191,7 +191,7 @@ function FormList({
         label: dictFormList?.columns?.name || dictForm?.nameLabel || 'Form Name',
         width: '40%',
         render: (form: SobaFormSummary) => {
-          return designModeEnabled ? (
+          return (
             <RowActionButton
               main
               data-testid={'form-link-' + form.id}
@@ -199,8 +199,6 @@ function FormList({
             >
               {form.name || dictForm?.nameLabel || 'Untitled Form'}
             </RowActionButton>
-          ) : (
-            <span>{form.name || dictForm?.nameLabel || 'Untitled Form'}</span>
           );
         },
       },
@@ -226,8 +224,15 @@ function FormList({
           <CustomActionButtons
             form={form}
             onAction={handleAction}
-            submitModeEnabled={submitModeEnabled}
+            designModeEnabled={designModeEnabled}
           />
+        ),
+      },
+      {
+        key: 'updated',
+        label: dictFormList?.columns?.createdAt || 'Created Date',
+        render: (form: SobaFormSummary) => (
+          <span className="small">{formatLongDate(form.createdAt)}</span>
         ),
       },
       {
@@ -238,13 +243,6 @@ function FormList({
           return <span className="small">{form.createdBy}</span>;
         },
       },
-      {
-        key: 'updated',
-        label: dictFormList?.columns?.createdAt || 'Created Date',
-        render: (form: SobaFormSummary) => (
-          <span className="small">{formatLongDate(form.createdAt)}</span>
-        ),
-      },
     ],
     [
       handleAction,
@@ -253,7 +251,6 @@ function FormList({
       dict.workspaces,
       workspaces,
       designModeEnabled,
-      submitModeEnabled,
       formatLongDate,
     ],
   );
@@ -284,8 +281,9 @@ function FormList({
           </DSButton>
         ) : null}
       </ListPageToolbar>
-      <div className={`mb-2 ${styles.workspaceField}`}>
+      <div className={`d-flex align-items-end gap-2`}>
         <WorkspaceSelector
+          className={`${styles.workspaceField}`}
           workspaces={workspaces}
           selectedWorkspaceId={stateSelectedWorkspaceId}
           label={dict.workspaces.workspace}
@@ -293,6 +291,16 @@ function FormList({
           allLabel={dict.workspaces.allWorkspaces}
           size="medium"
         />
+        <DSButton
+          variant="secondary"
+          data-testid="clear-filters-button"
+          onPress={() => {
+            setSearchQuery('');
+            handleWorkspaceChange(null);
+          }}
+        >
+          {dict.general.clearFilters || 'Clear'}
+        </DSButton>
       </div>
 
       <DataTable<SobaFormSummary>

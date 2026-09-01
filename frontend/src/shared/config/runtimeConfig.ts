@@ -12,6 +12,11 @@ export type FrontendRuntimeConfig = {
   api: {
     baseUrl: string;
   };
+  /** Absent when the deployment has not configured the frontend app URLs. */
+  app?: {
+    designerUrl?: string;
+    formsUrl?: string;
+  };
   build: {
     name: string;
     version: string;
@@ -98,6 +103,36 @@ export function getSobaApiBaseUrl(): string {
   // public ingress, and under Docker Compose it resolves to the frontend container itself.
   if (typeof window === 'undefined') return getBootstrapApiBaseUrl();
   return cachedConfig?.api.baseUrl ?? getBootstrapApiBaseUrl();
+}
+
+/**
+ * Public URL of a frontend app. Runtime config wins, then the value the server injected from its
+ * own env, then this origin, which is correct for a deployment serving both modes.
+ */
+function getAppBaseUrl(
+  fromConfig: string | undefined,
+  injected: string | undefined,
+  fromEnv: string | undefined,
+): string {
+  const configured = fromConfig || injected || fromEnv;
+  if (configured) return configured;
+  return typeof window === 'undefined' ? '' : window.location.origin;
+}
+
+export function getDesignerAppBaseUrl(): string {
+  return getAppBaseUrl(
+    cachedConfig?.app?.designerUrl,
+    typeof window === 'undefined' ? undefined : window.__SOBA_DESIGNER_APP_URL,
+    process.env.NEXT_PUBLIC_SOBA_DESIGNER_APP_URL,
+  );
+}
+
+export function getFormsAppBaseUrl(): string {
+  return getAppBaseUrl(
+    cachedConfig?.app?.formsUrl,
+    typeof window === 'undefined' ? undefined : window.__SOBA_FORMS_APP_URL,
+    process.env.NEXT_PUBLIC_SOBA_FORMS_APP_URL,
+  );
 }
 
 /**

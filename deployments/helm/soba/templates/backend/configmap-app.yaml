@@ -76,4 +76,6 @@ data:
   DB_LOCK_TIMEOUT_MS: {{ .Values.database.lockTimeoutMs | quote }}
   DB_MIGRATION_READY_ATTEMPTS: {{ .Values.database.migrationReadyAttempts | quote }}
   DB_MIGRATION_READY_SLEEP_MS: {{ .Values.database.migrationReadySleepMs | quote }}
-  # Pipeline performance fix: Revert if needed.
+  # Frontend app URLs, for links the backend composes (email) and for /meta/frontend-config.
+  DESIGNER_APP_URL: {{ include "soba.frontendAppUrlFor" (dict "root" . "name" "designer") | quote }}
+  FORMS_APP_URL: {{ include "soba.frontendAppUrlFor" (dict "root" . "name" "forms") | quote }}

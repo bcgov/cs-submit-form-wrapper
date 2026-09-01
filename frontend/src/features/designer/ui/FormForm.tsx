@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
   InlineAlert,
@@ -23,33 +23,58 @@ import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { usePageHeading, usePageNotices } from '@/src/components/PageHeader';
 import FormSettingsTab from './FormSettingsTab';
 import FormTeamTab from './FormTeamTab';
+import FormHistoryTab from './FormHistoryTab';
+import FormSubmissionTab from './FormSubmissionTab';
+import FormShareTab from './FormShareTab';
 import { FormSubmitterAudience } from './FormSubmitterAudience';
 import { isWorkspaceManageRole } from '@/src/features/workspaces/workspaceRoles';
-import { useAppSelector } from '@/lib/store';
+import { useAppSelector, useAppDispatch } from '@/lib/store';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
+import type { SobaFormVersionType } from '@/src/types/forms';
 
 import {
-  createSobaFormioForm,
-  createFormVersion,
-  saveFormVersionSchema,
-  getFormVersionSchema,
-  getSobaForm,
-  getSobaFormVersions,
-  publishSobaFormVersion,
-} from '@/src/shared/api/sobaApi';
-import type { SobaFormType, SobaFormVersionType } from '@/src/types/forms';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+  loadForm,
+  loadVersionSchemaThunk,
+  createNewVersionThunk,
+  saveFormThunk,
+  setFormName,
+  setFormSchema,
+  setFormWorkspaceId,
+  clearFormState,
+} from '@/lib/slices/formSlice';
 
 function FormForm({ formId }: { formId?: string }) {
   const dict = useDictionary();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const lang = params.lang as string;
 
   const { authenticated, token, initializing } = useKeycloak();
-  const { status: workspaceStatus, workspaces, writableWorkspaces } = useAppSelector(
-    (state) => state.workspace,
-  );
+  const {
+    status: workspaceStatus,
+    workspaces,
+    writableWorkspaces,
+  } = useAppSelector((state) => state.workspace);
+
+  const dispatch = useAppDispatch();
+  const {
+    formName,
+    formWorkspaceId,
+    formDesc,
+    formSchema,
+    currentVersion,
+    versions,
+    selectedVersionId,
+    isHistoryView,
+    historicalVersionNo,
+    loading,
+    isSaving,
+    isDirty,
+    error,
+    isSessionExpiredError,
+  } = useAppSelector((state) => state.form);
+
   const { addNotification } = useNotificationStore();
   // A new form can only go to a workspace the user can create in whose disclaimer is accepted
   // (the backend rejects the rest), so those are the only ones ever offered.
@@ -57,27 +82,21 @@ function FormForm({ formId }: { formId?: string }) {
     () => writableWorkspaces.filter((w) => w.disclaimerAccepted),
     [writableWorkspaces],
   );
-  // Not seeded from the forms-list filter: that scopes what you are looking at, not where a
-  // new form belongs. Edit mode sets this from the loaded form below.
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
 
-  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId);
+  const activeWorkspace = workspaces.find((w) => w.id === formWorkspaceId);
   const canManageWorkspace = !!activeWorkspace && isWorkspaceManageRole(activeWorkspace.role);
-  const [activeTab, setActiveTab] = useState('designer');
-  const [formName, setFormName] = useState('');
-  const [formWorkspaceId, setFormWorkspaceId] = useState('');
-  const [formDesc, setFormDesc] = useState('');
-  const [formSchema, setFormSchema] = useState<FormType | null>(null);
-  const [currentVersion, setCurrentVersion] = useState<SobaFormVersionType | null>(null);
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam || 'designer');
 
-  const [versions, setVersions] = useState<SobaFormVersionType[]>([]);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
-  const [isHistoryView, setIsHistoryView] = useState(false);
-  const [historicalVersionNo, setHistoricalVersionNo] = useState<number | null>(null);
+  useEffect(() => {
+    if (tabParam) {
+      const setTab = () => {
+        setActiveTab(tabParam);
+      };
+      setTab();
+    }
+  }, [tabParam]);
 
-  const [loading, setLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   // Load once per form. `token` is a dep (the load needs one), but a rotation mints a new token for
   // the same user — reloading on that would blank the builder and drop unsaved edits with isDirty.
@@ -86,99 +105,62 @@ function FormForm({ formId }: { formId?: string }) {
   useEffect(() => {
     if (formId && token && loadedFormRef.current !== formId) {
       loadedFormRef.current = formId;
-      async function loadForm() {
-        setLoading(true);
-        try {
-          const [form, versionsData] = await Promise.all([
-            getSobaForm(token as string, formId as string),
-            getSobaFormVersions(token as string, formId as string),
-          ]);
-
-          setFormName(form?.name ?? '');
-          setFormWorkspaceId(form?.workspaceId ?? '');
-          setFormDesc(form?.description ?? '');
-          if (form?.workspaceId) setSelectedWorkspaceId(form.workspaceId);
-
-          const items = versionsData.items || [];
-          setVersions(items);
-
-          // Default to the highest versionNo (the current/latest version).
-          const current = items.reduce<SobaFormVersionType | null>(
-            (acc, v) => (!acc || v.versionNo > acc.versionNo ? v : acc),
-            null,
-          );
-          setCurrentVersion(current);
-          setSelectedVersionId('current');
-          setIsHistoryView(false);
-
-          if (current?.id) {
-            const schema = await getFormVersionSchema(token as string, current.id);
-            setFormSchema((schema as FormType) ?? null);
-          } else {
-            setFormSchema(null);
-          }
-          setIsDirty(false);
-        } catch (e: unknown) {
-          addNotification({
-            text: isSessionExpired(e)
-              ? dict.general.sessionExpired
-              : `${dict.form.loadFormError || 'Failed to load form:'} ${(e as Error).message}`,
-            type: 'error',
-            consoleError: e,
-          });
-        } finally {
-          setLoading(false);
-        }
-      }
-      loadForm();
+      dispatch(loadForm({ token: token as string, formId }));
     }
-  }, [formId, token, dict.form.loadFormError, dict.general.sessionExpired, addNotification]);
+  }, [formId, token, dispatch]);
 
-  const handleNameChange = useCallback((name: string) => {
-    setFormName(name);
-    setIsDirty(true);
-  }, []);
+  useEffect(() => {
+    return () => {
+      // The ref guards against reloading a form that is already in the store, so it has to be
+      // released with the store state. Keeping it would skip the reload on the next mount.
+      loadedFormRef.current = null;
+      dispatch(clearFormState());
+    };
+  }, [dispatch]);
 
-  const updateFormSchema = useCallback((data: FormType) => {
-    setFormSchema(data);
-    setIsDirty(true);
-  }, []);
-
-  const loadVersionSchema = async (version: SobaFormVersionType) => {
-    setLoading(true);
-    try {
-      const schema = await getFormVersionSchema(token as string, version.id);
-      setFormSchema((schema as FormType) ?? null);
-      setIsDirty(false);
-    } catch (err) {
+  useEffect(() => {
+    if (error) {
       addNotification({
-        text: dict.form.loadVersionSchemaError || 'Failed to load version schema.',
+        text: isSessionExpiredError
+          ? dict.general.sessionExpired
+          : `${dict.form.loadFormError || 'Failed to load form:'} ${error}`,
         type: 'error',
-        consoleError: err,
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [
+    error,
+    isSessionExpiredError,
+    dict.general.sessionExpired,
+    dict.form.loadFormError,
+    addNotification,
+  ]);
 
-  const handleVersionChange = async (versionId: string) => {
+  const handleNameChange = useCallback(
+    (name: string) => {
+      dispatch(setFormName(name));
+    },
+    [dispatch],
+  );
+
+  const updateFormSchema = useCallback(
+    (data: FormType) => {
+      dispatch(setFormSchema(data));
+    },
+    [dispatch],
+  );
+
+  // The view follows the schema that actually loaded, so the selection is not moved up front: a
+  // failed load would leave the editable current-draft view showing the previous version's schema.
+  const handleVersionChange = (versionId: string) => {
     if (!token) return;
 
-    if (versionId === 'current') {
-      setIsHistoryView(false);
-      setSelectedVersionId('current');
-      setHistoricalVersionNo(null);
-      if (currentVersion) await loadVersionSchema(currentVersion);
-      return;
-    }
-
-    const targetVersion = versions.find((v: SobaFormVersionType) => v.id === versionId);
+    const targetVersion =
+      versionId === 'current'
+        ? currentVersion
+        : versions.find((v: SobaFormVersionType) => v.id === versionId);
     if (!targetVersion) return;
 
-    setIsHistoryView(true);
-    setSelectedVersionId(versionId);
-    setHistoricalVersionNo(targetVersion.versionNo);
-    await loadVersionSchema(targetVersion);
+    dispatch(loadVersionSchemaThunk({ token: token as string, version: targetVersion }));
   };
 
   const isCurrentPublished = currentVersion?.state === 'published';
@@ -217,37 +199,30 @@ function FormForm({ formId }: { formId?: string }) {
   const createNewVersion = async () => {
     if (isSaving || loading || !token) return;
     if (!formId) return;
-    setIsSaving(true);
-    setLoading(true);
 
     try {
-      // The engine strips engine-managed fields on save, so the raw schema can be submitted as-is.
-      const newVersion = await createFormVersion(token as string, formId);
-      await saveFormVersionSchema(token as string, newVersion.id, (formSchema ?? {}) as FormType);
-
-      // Refresh the version list and select the new draft in-page.
-      const versionsData = await getSobaFormVersions(token as string, formId);
-      setVersions(versionsData.items || []);
-      setCurrentVersion(newVersion);
-      setSelectedVersionId('current');
-      setIsHistoryView(false);
-      setIsDirty(false);
+      await dispatch(
+        createNewVersionThunk({
+          token: token as string,
+          formId,
+          formSchema: (formSchema ?? {}) as FormType,
+        }),
+      ).unwrap();
 
       addNotification({
         text: (
           dict.form.versionDraftCreated || 'Version {version} draft created successfully!'
-        ).replace('{version}', String(newVersion.versionNo)),
+        ).replace('{version}', String((currentVersion?.versionNo ?? 0) + 1)),
         type: 'success',
       });
     } catch (e: unknown) {
       addNotification({
-        text: dict.form.createVersionError || 'Failed to create new version.',
+        text:
+          e instanceof Error
+            ? e.message
+            : dict.form.createVersionError || 'Failed to create new version.',
         type: 'error',
-        consoleError: e,
       });
-    } finally {
-      setIsSaving(false);
-      setLoading(false);
     }
   };
 
@@ -259,55 +234,39 @@ function FormForm({ formId }: { formId?: string }) {
     await saveForm(false);
   };
 
-  // CREATE: one-call create (form + empty v1), scoped to the active workspace, then provision.
-  const createAndProvisionForm = async (schema: FormType, publish: boolean) => {
-    const data: SobaFormType = { name: formName, description: formDesc };
-    const created = await createSobaFormioForm(
-      token as string,
-      data,
-      selectedWorkspaceId || undefined,
-    );
-    const versionId = created.formVersion?.id;
-    if (versionId) {
-      await saveFormVersionSchema(token as string, versionId, schema);
-      if (publish) {
-        await publishSobaFormVersion(token as string, versionId);
-      }
-    }
-    router.push(`/${lang}/designer/${created.id}`);
-  };
-
   const saveForm = async (publish: boolean = false) => {
     if (isSaving || loading) return;
     // Creating a form is workspace-scoped: without a selected workspace the backend
     // rejects the request with a generic error, so surface a clear message instead.
-    if (!formId && !selectedWorkspaceId) {
+    if (!formId && !formWorkspaceId) {
       addNotification({ text: dict.form.noActiveWorkspaceError, type: 'error' });
       return;
     }
-    setIsSaving(true);
-    const schema = (formSchema ?? {}) as FormType;
 
     try {
-      if (currentVersion?.id) {
-        // UPDATE: re-provision the current version's schema (server owns name/path).
-        await saveFormVersionSchema(token as string, currentVersion.id, schema);
-        if (publish) {
-          await publishSobaFormVersion(token as string, currentVersion.id);
-        }
-      } else {
-        await createAndProvisionForm(schema, publish);
-      }
+      const result = await dispatch(
+        saveFormThunk({
+          token: token as string,
+          formId: formId ?? null,
+          formName,
+          formDesc,
+          selectedWorkspaceId: formWorkspaceId,
+          formSchema: (formSchema ?? {}) as FormType,
+          publish,
+          currentVersionId: currentVersion?.id,
+        }),
+      ).unwrap();
 
       addNotification({
         text: publish ? dict.form.published || 'Form published successfully!' : dict.form.saved,
         type: 'success',
       });
-      setIsDirty(false);
+
+      if (result.isNew && result.createdId) {
+        router.push(`/${lang}/designer/${result.createdId}`);
+      }
     } catch (e: unknown) {
-      addNotification({ text: dict.form.saveError, type: 'error', consoleError: e });
-    } finally {
-      setIsSaving(false);
+      addNotification({ text: (e as Error).message || dict.form.saveError, type: 'error' });
     }
   };
 
@@ -403,9 +362,12 @@ function FormForm({ formId }: { formId?: string }) {
           <WorkspaceSelector
             label={dict.workspaces.workspace}
             workspaces={creatableWorkspaces}
-            selectedWorkspaceId={selectedWorkspaceId}
-            onChange={(id) => setSelectedWorkspaceId(id as string)}
+            selectedWorkspaceId={formWorkspaceId}
+            onChange={(id) => {
+              dispatch(setFormWorkspaceId(id as string));
+            }}
             size="medium"
+            className=""
           />
         )}
 
@@ -429,8 +391,8 @@ function FormForm({ formId }: { formId?: string }) {
         )}
 
         <FormSubmitterAudience
-          key={selectedWorkspaceId ?? 'none'}
-          workspaceId={selectedWorkspaceId}
+          key={formWorkspaceId || 'none'}
+          workspaceId={formWorkspaceId || null}
           token={token ?? undefined}
           canManage={canManageWorkspace}
         />
@@ -488,14 +450,52 @@ function FormForm({ formId }: { formId?: string }) {
           onSelect={(k) => setActiveTab(k || 'designer')}
           className="mb-3"
         >
-          <Tab eventKey="designer" title={dict.form.designerTab || 'Designer'}>
+          <Tab
+            eventKey="designer"
+            title={dict.form.designerTab || 'Designer'}
+            data-testid="designer-tab"
+          >
             {renderDesignerContent()}
           </Tab>
-          <Tab eventKey="settings" title={dict.form.settingsTab || 'Settings'}>
+          <Tab
+            eventKey="settings"
+            data-testid="settings-tab"
+            disabled={isSaving || loading}
+            title={dict.form.settingsTab || 'Settings'}
+          >
             <FormSettingsTab dict={dict} />
           </Tab>
-          <Tab eventKey="team" title={dict.form.teamTab || 'Team'}>
+          <Tab
+            eventKey="team"
+            data-testid="team-tab"
+            disabled={isSaving || loading}
+            title={dict.form.teamTab || 'Team'}
+          >
             <FormTeamTab dict={dict} />
+          </Tab>
+          <Tab
+            eventKey="version"
+            data-testid="version-tab"
+            disabled={isSaving || loading}
+            title={dict.form.historyTab || 'History'}
+          >
+            <FormHistoryTab dict={dict} onNavigateToDesigner={() => setActiveTab('designer')} />
+          </Tab>
+          <Tab
+            eventKey="submissions"
+            data-testid="submission-tab"
+            disabled={isSaving || loading}
+            title={dict.form.submissionTab || 'Submissions'}
+          >
+            <FormSubmissionTab dict={dict} />
+          </Tab>
+          <Tab
+            eventKey="share"
+            data-testid="share-tab"
+            disabled={isSaving || loading}
+            title={dict.form.shareTab || 'Share'}
+          >
+            <FormShareTab dict={dict} />
           </Tab>
         </Tabs>
       ) : (

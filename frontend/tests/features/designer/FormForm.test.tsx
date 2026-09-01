@@ -23,31 +23,85 @@ vi.mock('@/app/[lang]/Providers', () => ({
     modal: {
       dialogActions: 'Dialog actions',
     },
+    dataTable: {
+      loadingMessage: 'Loading...',
+      emptyMessage: 'none',
+      pageOf: 'of {totalPages} page(s)',
+    },
+    submission: {
+      deleteConfirm: 'Confirm Delete',
+    },
+    ministries: {
+      CITZ: 'CITZ',
+    },
   }),
 }));
 
 type Workspace = { id: string; name?: string; kind?: string; disclaimerAccepted: boolean };
 
-const { mockDispatch, mockWorkspaceState } = vi.hoisted(() => ({
-  mockDispatch: vi.fn(),
-  mockWorkspaceState: {
+const { mockDispatch, mockWorkspaceState, mockFormState } = vi.hoisted(() => {
+  const workspaceState = {
     selectedWorkspaceId: 'ws1' as string | null,
     status: 'succeeded' as string,
     workspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
     writableWorkspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
-  },
-}));
+  };
+
+  const formState = {
+    formName: '',
+    formWorkspaceId: '' as string | null,
+    formDesc: 'desc',
+    formSchema: '',
+    currentVersion: 1,
+    versions: [],
+    selectedVersionId: 1,
+    isHistoryView: false,
+    historicalVersionNo: null,
+    loading: false,
+    isSaving: false,
+    isDirty: false,
+    error: null,
+    isSessionExpiredError: false,
+    submissions: [],
+  };
+
+  const dispatchMock = vi.fn((action) => {
+    if (typeof action === 'function') {
+      return action(
+        dispatchMock,
+        () => ({ workspace: workspaceState, notification: { notifications: [] }, form: formState }),
+        undefined,
+      );
+    }
+    return action;
+  });
+
+  return {
+    mockDispatch: dispatchMock,
+    mockWorkspaceState: workspaceState,
+    mockFormState: formState,
+  };
+});
 vi.mock('@/lib/store', () => ({
   useAppSelector: (fn: (s: unknown) => unknown) =>
-    fn({ workspace: mockWorkspaceState, notification: { notifications: [] } }),
+    fn({ workspace: mockWorkspaceState, notification: { notifications: [] }, form: mockFormState }),
   useAppDispatch: () => mockDispatch,
 }));
 
 // Mock the soba API functions used by FormForm
 vi.mock('@/src/shared/api/sobaApi', () => ({
-  getSobaForm: vi.fn().mockResolvedValue({ id: 'f1', name: 'Test', description: '' }),
+  getSobaForm: vi.fn().mockImplementation(async () => {
+    const fetchedForm = { id: 'f1', name: 'Test', description: 'desc' };
+
+    // Update the hoisted mockFormState directly when called
+    mockFormState.formName = fetchedForm.name;
+    mockFormState.formDesc = fetchedForm.description;
+
+    return fetchedForm;
+  }),
   getSobaFormVersions: vi.fn().mockResolvedValue({ items: [] }),
   getFormVersionSchema: vi.fn().mockResolvedValue(null),
+  getSobaSubmissions: vi.fn().mockResolvedValue({ items: [] }),
 }));
 
 // Mock DynamicForm and FormDesigner components used in FormForm
@@ -62,6 +116,8 @@ vi.mock('@/src/features/designer/ui/FormDesigner', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: () => {} }),
   useParams: () => ({ lang: 'en' }),
+  useSearchParams: () => ({ get: () => {} }),
+  usePathname: () => ({}),
 }));
 
 import FormForm from '@/src/features/designer/ui/FormForm';
@@ -73,12 +129,22 @@ describe('FormForm', () => {
     mockWorkspaceState.status = 'succeeded';
     mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: true }];
     mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: true }];
+    mockFormState.formName = ''; // reset formName before each test
   });
 
   it('renders designer tab content when authenticated and not initializing', async () => {
-    render(<FormForm formId="f1" />);
+    const { rerender } = render(<FormForm formId="f1" />);
+
+    // Wait for the mock state to be updated by the thunk
+    await waitFor(() => {
+      expect(mockFormState.formName).toBe('Test');
+    });
+
+    // Force a re-render so the mockAppSelector picks up the mutated state
+    rerender(<FormForm formId="f1" />);
+
     // The designer area includes a form name input; assert it renders with loaded value
-    await waitFor(() => expect(screen.getByDisplayValue('Test')).toBeInTheDocument());
+    expect(screen.getByDisplayValue('Test')).toBeInTheDocument();
   });
 
   it('blocks new-form designer access when the user has no workspaces', async () => {

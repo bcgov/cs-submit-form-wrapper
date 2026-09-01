@@ -4,6 +4,7 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import keycloakReducer, { KeycloakState } from './slices/keycloakSlice';
 import currentUserReducer, { CurrentUserState } from './slices/currentUserSlice';
 import notificationReducer, { NotificationState } from './slices/notificationSlice';
+import formReducer, { FormState } from './slices/formSlice';
 
 import workspaceReducer, { WorkspaceState } from './slices/workspaceSlice';
 
@@ -12,6 +13,7 @@ const reducer = {
   currentUser: currentUserReducer,
   notification: notificationReducer,
   workspace: workspaceReducer,
+  form: formReducer,
 };
 
 const makeStore = () =>
@@ -32,6 +34,7 @@ export type RootState = {
   currentUser: CurrentUserState;
   notification: NotificationState;
   workspace: WorkspaceState;
+  form: FormState;
 };
 export type RootDispatch = AppDispatch;
 
