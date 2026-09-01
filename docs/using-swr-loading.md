@@ -234,10 +234,17 @@ const selectedWorkspaceId =
   workspaceParam && workspaces.some((w) => w.id === workspaceParam) ? workspaceParam : undefined;
 ```
 
-Hold the key at `null` until you can resolve it, or an unresolved filter falls through to
-an unscoped read and shows rows from everywhere. An unresolvable id gets the unfiltered
-table and a notice with a Clear action. Use the same message for unknown and forbidden, so
-the page does not confirm which ids exist.
+Hold the key at `null` while the list you resolve against is still loading. Resolving too
+early scopes the request to nothing.
+
+An id that never resolves reads unscoped, and the screen says so: the picker returns to all
+workspaces and a notice explains that the filter was not applied, with a Clear action. Do
+not leave the table asserting a filter it does not have, and do not show an empty table
+instead, which asserts there is nothing to see. Use the same message for unknown and
+forbidden, so the page does not confirm which ids exist.
+
+Forget a rejected id rather than remembering it. It is not a view worth restoring, and the
+memory would otherwise hand it back on every arrival and raise the notice again.
 
 Write filter changes with `history.replaceState`, not `router.replace`. A router
 navigation re-runs the page's server component, which re-reads the features and build

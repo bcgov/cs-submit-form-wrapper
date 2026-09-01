@@ -118,7 +118,9 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
     isLoading,
     error: loadError,
   } = useAuthedSWR(
-    // An unresolved filter must not fall through to an unscoped read, so wait for the workspaces.
+    // Wait for the workspace list before reading, or the id resolves against nothing and every
+    // arrival scopes to no workspace. An id that never resolves reads unscoped on purpose: the
+    // picker reads "all workspaces" and the notice says the filter was not applied.
     workspaceParam && !workspacesLoaded ? null : ['forms', selectedWorkspaceId ?? null],
     (token) => getSobaForms(token, selectedWorkspaceId),
   );
@@ -188,6 +190,12 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
       rememberListQuery(FORMS_LIST_QUERY, readUrlParams(FORMS_LIST_QUERY, searchParams));
     }
   }, [arrivalQuery, searchParams, writeListParams]);
+
+  // A filter this user cannot resolve is not a view worth restoring. Without this it stays in the
+  // memory and every later arrival from the nav replays it and raises the same notice again.
+  useEffect(() => {
+    if (workspaceRejected) rememberListQuery(FORMS_LIST_QUERY, {});
+  }, [workspaceRejected]);
 
   // The picker filters this list only; a new form is targeted in the designer. So creation
   // depends on having any workspace the user can create in with its disclaimer accepted.
