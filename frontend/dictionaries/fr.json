@@ -9,6 +9,7 @@
     "acronym": "CHEFS",
     "description": "Bienvenue sur Common Hosted Forms Service (CHEFS) où vous pouvez créer et publier des formulaires, recevoir et examiner des soumissions, et intégrer avec vos systèmes métier.",
     "notAuthenticated": "Vous n'êtes pas authentifié. Veuillez vous connecter pour accéder à cette section.",
+    "unknown": "Inconnu",
     "home": "Accueil",
     "forms": "Formulaires",
     "formDesigner": "Concepteur de formulaires",

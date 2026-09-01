@@ -17,6 +17,7 @@ import { usePageHeading } from '@/src/components/PageHeader';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
+import { codeItems } from '@/src/shared/util/codeList';
 import {
   useWorkspace,
   useRefreshWorkspace,
@@ -139,7 +140,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
         data-testid="workspace-name"
       />
       <Select
-        items={Object.entries(dict.ministries).map(([id, label]) => ({ id, label }))}
+        items={codeItems(dict.ministries, workspace?.org)}
         label={dictWorkspaces.yourOrgReq}
         selectionMode="single"
         size="medium"
@@ -149,7 +150,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
         onChange={handleOrgChange}
       />
       <Select
-        items={Object.entries(dict.useCases).map(([id, label]) => ({ id, label }))}
+        items={codeItems(dict.useCases, workspace?.useCase)}
         label={dictWorkspaces.useCase}
         selectionMode="single"
         size="medium"

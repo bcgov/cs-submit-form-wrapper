@@ -8,6 +8,7 @@ import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { getFormsAppBaseUrl } from '@/src/shared/config/runtimeConfig';
+import { codeLabel } from '@/src/shared/util/codeList';
 
 interface FormShareTabProps {
   dict: Dictionary;
@@ -51,7 +52,7 @@ export default function FormShareTab({
       <p data-testid="share-tab-formDesc">{formDesc}</p>
       <p data-testid="share-tab-ministryOrOrg">
         {dict.form.ministryOrOrg}:{' '}
-        {dict.ministries[formWorkspace?.org as keyof typeof dict.ministries] || 'Unknown'}
+        {codeLabel(dict.ministries, formWorkspace?.org) ?? dict.general.unknown}
       </p>
       <p>
         <Button variant="secondary" data-testid="share-tab-copyToClip" onPress={copyToClipboard}>
