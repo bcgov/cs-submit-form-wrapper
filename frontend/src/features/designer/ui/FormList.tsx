@@ -25,17 +25,18 @@ import { isSessionExpired } from '@/src/shared/api/sobaFetch';
 const CustomActionButtons = ({
   form,
   onAction,
-  submitModeEnabled,
+  designModeEnabled,
 }: {
   form: SobaFormSummary;
   onAction: (name: string, id: string) => void;
-  submitModeEnabled?: boolean;
+  designModeEnabled?: boolean;
 }) => {
   // All actions (manage/submit/submissions) are keyed on the SOBA formId.
   const sobaFormId = form.id;
 
   const actions = [];
-  if (!submitModeEnabled) {
+  // Both quick links open designer tabs, and the designer page 404s without design mode.
+  if (designModeEnabled) {
     actions.push(
       { name: 'submit', icon: <FaLink /> },
       { name: 'submissions', icon: <FaDatabase /> },
@@ -60,13 +61,7 @@ const CustomActionButtons = ({
   );
 };
 
-function FormList({
-  designModeEnabled = true,
-  submitModeEnabled = true,
-}: {
-  designModeEnabled?: boolean;
-  submitModeEnabled?: boolean;
-}) {
+function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean }) {
   const dict = useDictionary();
   const dictFormList = dict.submission?.formList;
   const dictForm = dict.form;
@@ -229,7 +224,7 @@ function FormList({
           <CustomActionButtons
             form={form}
             onAction={handleAction}
-            submitModeEnabled={submitModeEnabled}
+            designModeEnabled={designModeEnabled}
           />
         ),
       },
@@ -255,7 +250,7 @@ function FormList({
       dictForm,
       dict.workspaces,
       workspaces,
-      submitModeEnabled,
+      designModeEnabled,
       formatLongDate,
     ],
   );

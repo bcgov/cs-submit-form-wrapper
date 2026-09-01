@@ -27,10 +27,7 @@ export default async function Page({ params }: Readonly<PageProps>) {
 
   return (
     <PageLayout headingId="forms-heading" heading={dict.general.forms}>
-      <FormList
-        designModeEnabled={isFeatureAllowed(FEATURE_CODES.DESIGN_MODE)}
-        submitModeEnabled={isFeatureAllowed(FEATURE_CODES.SUBMIT_MODE)}
-      />
+      <FormList designModeEnabled={isFeatureAllowed(FEATURE_CODES.DESIGN_MODE)} />
     </PageLayout>
   );
 }
