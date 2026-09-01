@@ -120,36 +120,33 @@ export async function upsertSobaAdminFromIdp(
 
 /**
  * Manually add (or pin) a user as SOBA admin (source='direct').
- * If they already have an idp-sourced row, converts to direct so they remain admin even if IdP revokes.
+ * An idp-sourced row becomes direct so they remain admin even if the IdP revokes.
+ * user_id is a foreign key to app_user, so the caller must confirm the user exists.
  */
 export async function addDirectSobaAdmin(
   userId: string,
   addedByDisplayLabel: string | null,
 ): Promise<void> {
-  const now = new Date();
-  const existing = await db.select().from(sobaAdmins).where(eq(sobaAdmins.userId, userId)).limit(1);
-
-  if (existing[0]) {
-    await db
-      .update(sobaAdmins)
-      .set({
-        source: SOBA_ADMIN_SOURCE_DIRECT,
-        identityProviderCode: null,
-        syncedAt: null,
-        updatedAt: now,
-        updatedBy: addedByDisplayLabel,
-      })
-      .where(eq(sobaAdmins.userId, userId));
-  } else {
-    await db.insert(sobaAdmins).values({
+  await db
+    .insert(sobaAdmins)
+    .values({
       userId,
       source: SOBA_ADMIN_SOURCE_DIRECT,
       identityProviderCode: null,
       syncedAt: null,
       createdBy: addedByDisplayLabel,
       updatedBy: addedByDisplayLabel,
+    })
+    .onConflictDoUpdate({
+      target: sobaAdmins.userId,
+      set: {
+        source: SOBA_ADMIN_SOURCE_DIRECT,
+        identityProviderCode: null,
+        syncedAt: null,
+        updatedAt: new Date(),
+        updatedBy: addedByDisplayLabel,
+      },
     });
-  }
 }
 
 /**
