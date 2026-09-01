@@ -187,7 +187,8 @@ export const saveFormThunk = createAsyncThunk(
         await updateSobaForm(token, formId, { name: formName, description: formDesc });
         await saveFormVersionSchema(token, currentVersionId, formSchema);
         if (publish) {
-          await publishSobaFormVersion(token, currentVersionId);
+          const published = await publishSobaFormVersion(token, currentVersionId);
+          return { isNew: false, publishedVersion: published as SobaFormVersionType };
         }
         return { isNew: false };
       } else {
@@ -234,13 +235,6 @@ const formSlice = createSlice({
     },
     setFormDirty: (state, action: PayloadAction<boolean>) => {
       state.isDirty = action.payload;
-    },
-    setSelectedVersionId: (state, action: PayloadAction<string | null>) => {
-      state.selectedVersionId = action.payload;
-      if (action.payload === 'current' || action.payload === null) {
-        state.isHistoryView = false;
-        state.historicalVersionNo = null;
-      }
     },
   },
   extraReducers: (builder) => {
@@ -312,10 +306,14 @@ const formSlice = createSlice({
       .addCase(loadVersionSchemaThunk.fulfilled, (state, action) => {
         state.loading = false;
         const { schema, version } = action.payload;
+        // The version picker offers a 'current' entry and omits currentVersion from the rest of the
+        // list, so loading the current version has to resolve back to 'current'. Selecting it by id
+        // would leave the picker with no matching item.
+        const isCurrent = version.id === state.currentVersion?.id;
         state.formSchema = schema;
-        state.isHistoryView = true;
-        state.selectedVersionId = version.id;
-        state.historicalVersionNo = version.versionNo;
+        state.selectedVersionId = isCurrent ? 'current' : version.id;
+        state.isHistoryView = !isCurrent;
+        state.historicalVersionNo = isCurrent ? null : version.versionNo;
         state.isDirty = false;
       })
       .addCase(loadVersionSchemaThunk.rejected, (state, action) => {
@@ -338,6 +336,7 @@ const formSlice = createSlice({
         state.currentVersion = newVersion;
         state.selectedVersionId = 'current';
         state.isHistoryView = false;
+        state.historicalVersionNo = null;
         state.isDirty = false;
       })
       .addCase(createNewVersionThunk.rejected, (state, action) => {
@@ -358,6 +357,13 @@ const formSlice = createSlice({
         if (action.payload.isNew && action.payload.createdId) {
           state.formId = action.payload.createdId;
         }
+        // Publishing changes the version's state, which gates the read-only notice and the Save and
+        // Publish controls. Take the server's record rather than leaving a stale draft state behind.
+        const published = action.payload.publishedVersion;
+        if (published) {
+          state.currentVersion = published;
+          state.versions = state.versions.map((v) => (v.id === published.id ? published : v));
+        }
       })
       .addCase(saveFormThunk.rejected, (state, action) => {
         state.isSaving = false;
@@ -374,7 +380,6 @@ export const {
   setFormWorkspaceId,
   setFormSchema,
   setFormDirty,
-  setSelectedVersionId,
 } = formSlice.actions;
 
 export default formSlice.reducer;

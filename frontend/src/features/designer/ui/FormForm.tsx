@@ -39,7 +39,6 @@ import {
   saveFormThunk,
   setFormName,
   setFormSchema,
-  setSelectedVersionId,
   setFormWorkspaceId,
   clearFormState,
 } from '@/lib/slices/formSlice';
@@ -147,18 +146,15 @@ function FormForm({ formId }: { formId?: string }) {
     [dispatch],
   );
 
-  const handleVersionChange = async (versionId: string) => {
+  // The view follows the schema that actually loaded, so the selection is not moved up front: a
+  // failed load would leave the editable current-draft view showing the previous version's schema.
+  const handleVersionChange = (versionId: string) => {
     if (!token) return;
 
-    if (versionId === 'current') {
-      dispatch(setSelectedVersionId('current'));
-      if (currentVersion) {
-        dispatch(loadVersionSchemaThunk({ token: token as string, version: currentVersion }));
-      }
-      return;
-    }
-
-    const targetVersion = versions.find((v: SobaFormVersionType) => v.id === versionId);
+    const targetVersion =
+      versionId === 'current'
+        ? currentVersion
+        : versions.find((v: SobaFormVersionType) => v.id === versionId);
     if (!targetVersion) return;
 
     dispatch(loadVersionSchemaThunk({ token: token as string, version: targetVersion }));

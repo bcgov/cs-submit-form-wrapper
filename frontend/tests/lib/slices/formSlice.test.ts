@@ -7,7 +7,6 @@ import formReducer, {
   setFormWorkspaceId,
   setFormSchema,
   setFormDirty,
-  setSelectedVersionId,
   loadForm,
   loadVersionSchemaThunk,
   createNewVersionThunk,
@@ -84,21 +83,6 @@ describe('formSlice', () => {
     expect(next.isDirty).toBe(true);
   });
 
-  it('setSelectedVersionId sets history view when not current', () => {
-    const next = formReducer(baseState, setSelectedVersionId('some-id'));
-    expect(next.selectedVersionId).toBe('some-id');
-  });
-
-  it('setSelectedVersionId clears history view when current', () => {
-    const next = formReducer(
-      { ...baseState, isHistoryView: true, historicalVersionNo: 5 },
-      setSelectedVersionId('current'),
-    );
-    expect(next.selectedVersionId).toBe('current');
-    expect(next.isHistoryView).toBe(false);
-    expect(next.historicalVersionNo).toBeNull();
-  });
-
   // loadForm
   it('handles loadForm.pending', () => {
     const next = formReducer(baseState, {
@@ -145,15 +129,37 @@ describe('formSlice', () => {
     expect(next.loading).toBe(true);
   });
 
-  it('handles loadVersionSchemaThunk.fulfilled', () => {
-    const payload = { schema: { components: [] }, version: mockVersion };
-    const next = formReducer(baseState, { type: loadVersionSchemaThunk.fulfilled.type, payload });
+  it('handles loadVersionSchemaThunk.fulfilled for an older version', () => {
+    const older: SobaFormVersionType = { ...mockVersion, id: 'v0-id', versionNo: 0 };
+    const payload = { schema: { components: [] }, version: older };
+    const next = formReducer(
+      { ...baseState, currentVersion: mockVersion, selectedVersionId: 'current' },
+      { type: loadVersionSchemaThunk.fulfilled.type, payload },
+    );
     expect(next.loading).toBe(false);
     expect(next.formSchema).toEqual({ components: [] });
     expect(next.isHistoryView).toBe(true);
-    expect(next.selectedVersionId).toBe(mockVersion.id);
-    expect(next.historicalVersionNo).toBe(mockVersion.versionNo);
+    expect(next.selectedVersionId).toBe('v0-id');
+    expect(next.historicalVersionNo).toBe(0);
     expect(next.isDirty).toBe(false);
+  });
+
+  it('handles loadVersionSchemaThunk.fulfilled for the current version', () => {
+    const payload = { schema: { components: [] }, version: mockVersion };
+    const next = formReducer(
+      {
+        ...baseState,
+        currentVersion: mockVersion,
+        isHistoryView: true,
+        selectedVersionId: 'v0-id',
+        historicalVersionNo: 0,
+      },
+      { type: loadVersionSchemaThunk.fulfilled.type, payload },
+    );
+    // 'current' is the only key the version picker offers for the current draft.
+    expect(next.selectedVersionId).toBe('current');
+    expect(next.isHistoryView).toBe(false);
+    expect(next.historicalVersionNo).toBeNull();
   });
 
   // createNewVersionThunk
@@ -165,13 +171,28 @@ describe('formSlice', () => {
 
   it('handles createNewVersionThunk.fulfilled', () => {
     const payload = { newVersion: mockVersion, versions: [mockVersion] };
-    const next = formReducer(baseState, { type: createNewVersionThunk.fulfilled.type, payload });
+    const next = formReducer(
+      { ...baseState, isHistoryView: true, historicalVersionNo: 5 },
+      { type: createNewVersionThunk.fulfilled.type, payload },
+    );
     expect(next.loading).toBe(false);
     expect(next.isSaving).toBe(false);
     expect(next.currentVersion).toEqual(mockVersion);
     expect(next.versions).toHaveLength(1);
     expect(next.selectedVersionId).toBe('current');
     expect(next.isHistoryView).toBe(false);
+    expect(next.historicalVersionNo).toBeNull();
+    expect(next.isDirty).toBe(false);
+  });
+
+  it('handles saveFormThunk.fulfilled with a published version', () => {
+    const published: SobaFormVersionType = { ...mockVersion, state: 'published' };
+    const next = formReducer(
+      { ...baseState, currentVersion: mockVersion, versions: [mockVersion] },
+      { type: saveFormThunk.fulfilled.type, payload: { isNew: false, publishedVersion: published } },
+    );
+    expect(next.currentVersion?.state).toBe('published');
+    expect(next.versions[0].state).toBe('published');
     expect(next.isDirty).toBe(false);
   });
 
