@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
 import type { useKeycloak as useKeycloakHook } from '@/lib/hooks/useKeycloak';
 
 // Use a mutable keycloakState so tests can set it per-case.
@@ -20,29 +21,34 @@ vi.mock('@/app/[lang]/Providers', () => ({
   }),
 }));
 
-const { mockDispatch } = vi.hoisted(() => ({ mockDispatch: vi.fn() }));
-vi.mock('@/lib/store', () => ({
-  useAppSelector: (fn: (s: unknown) => unknown) =>
-    fn({ notification: { notifications: [] }, workspace: { activeWorkspaceId: 'ws1' } }),
-  useAppDispatch: () => mockDispatch,
-}));
-
+import makeStore from '@/lib/store';
 import FormDesigner from '@/src/features/designer/ui/FormDesigner';
+
+let store: ReturnType<typeof makeStore>;
+
+function renderDesigner() {
+  return render(
+    <Provider store={store}>
+      <FormDesigner onUpdateModel={() => {}} initialModel={null} />
+    </Provider>,
+  );
+}
 
 describe('FormDesigner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    store = makeStore();
   });
 
   it('shows the loading indicator when initializing', () => {
     keycloakState = { authenticated: false, initializing: true };
-    render(<FormDesigner onUpdateModel={() => {}} initialModel={null} />);
+    renderDesigner();
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('shows login required when not authenticated', () => {
     keycloakState = { authenticated: false, initializing: false };
-    render(<FormDesigner onUpdateModel={() => {}} initialModel={null} />);
+    renderDesigner();
     expect(screen.getByText('Login Required')).toBeInTheDocument();
   });
 });

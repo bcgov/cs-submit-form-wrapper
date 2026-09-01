@@ -8,15 +8,11 @@ it.
 
 ## Adding a read to a screen
 
-`SubmissionList` is the smallest example:
+`useFormSubmissions` is the smallest example, and it serves two screens:
 
-```tsx
-const {
-  data,
-  isLoading,
-  error: loadError,
-} = useAuthedSWR(
-  formId ? ['submissions', formId] : null,
+```ts
+const { data, isLoading, error, mutate } = useAuthedSWR(
+  formId && opened ? ['form-submissions', formId] : null,
   (token) => getSobaSubmissions(token, { formId: formId as string }),
 );
 
@@ -30,7 +26,8 @@ Three things to copy:
 
 Return `null` for the key when the request is not ready. That replaces the old
 `if (authenticated && token)` guard. Here there is no request to make without a form,
-because the endpoint rejects an unscoped list.
+because the endpoint rejects an unscoped list, and none until the tab has been opened,
+because the read needs a permission the form's designer need not hold.
 
 Take the token as a fetcher argument. Never put it in the key. See below.
 
@@ -67,10 +64,14 @@ For the submit surface use `useMaybeAuthedSWR`, which allows an anonymous read. 
 must say which identity it is, or signing in gets served the anonymous reader's copy:
 
 ```ts
-initializing || !submissionId
+!initStarted || initializing || !submissionId
   ? null
   : ['submit-submission', submissionId, token ? 'user' : 'anonymous'];
 ```
+
+`!initStarted` is the guard that matters. Before Keycloak has run, "no token" is the
+default rather than an answer, and a read started there is anonymous even for a signed-in
+caller.
 
 ## Resource hooks
 
@@ -96,6 +97,8 @@ Existing hooks, in `src/shared/api/`:
 - `useCurrentUser`, `useRefreshCurrentUser`
 - `useFormDraft` (in `src/features/designer/`) for a form, its versions and the selected
   version's schema
+- `useFormSubmissions` (in `src/features/designer/`) for one form's submissions, read by the
+  designer tab and the submissions page
 - `useSobaAdmins`, `useFeatureScopes`, `useFeatureScope` (in `src/features/admin/`)
 
 ## Config
@@ -130,9 +133,19 @@ refetching the list:
 
 ```ts
 await upsertFeatureScope(token, body);
-await mutate((current) => ({ ...current, items: patched(current.items) }), {
+await mutate((current) => (current ? { ...current, items: patched(current.items) } : current), {
   revalidate: false,
 });
+```
+
+Guard `current`. A key with nothing in it yet hands the updater `undefined`.
+
+To forget a key rather than patch it, go through the cache: `mutate(key, undefined)` reads
+as "revalidate", not "forget", and leaves the old value in place.
+
+```ts
+const { cache } = useSWRConfig();
+cache.delete(unstable_serialize(key));
 ```
 
 ## Editing a loaded record
@@ -149,8 +162,22 @@ return <WorkspaceSettings key={workspace.id} workspace={workspace} />;
 ```
 
 The alert matters: a form that renders without its record posts its empty fields as a new
-one. After the write, refresh the record's own key as well as any list it appears in, or
-reopening the screen seeds the form from the pre-save values.
+one.
+
+The record is read to seed a form that cannot re-seed itself, so it must not outlive the
+screen. Drop it on unmount, as `useFeatureScope` does. Otherwise the next visit seeds from
+whatever the cache still holds, a save or a toggle elsewhere having moved on from it, and
+saving there writes the stale value straight back. Refreshing the key after your own write
+is not enough on its own: it does not cover the writes made from a list.
+
+Send only the fields that changed. The record behind the form can move while the fields
+cannot, so a whole-form save carries the values this person was shown over anything edited
+elsewhere since:
+
+```ts
+const patch: UpdateWorkspaceBody = {};
+if (trimmedName !== seed.name) patch.name = trimmedName;
+```
 
 ## Loading
 
@@ -162,13 +189,20 @@ A filter change is not a background refresh. The key changes, there is no data f
 key, and the table shows its loading state. That is deliberate: the alternative is the
 previous workspace's rows sitting under the new workspace's name.
 
-Keep the session-expired branch when you render an error:
+Render an error in three branches, in this order:
 
 ```ts
 if (isSessionExpired(loadError)) return dict.general.sessionExpired;
+if (isForbidden(loadError)) return dict.general.noAccess;
+return dict.somewhere.loadError;
 ```
 
-Without it the user gets the raw `Error.message`.
+Never fall through to `Error.message`. It is the backend's string, untranslated, and it
+reaches the user as `Request failed (403)`.
+
+The two are not interchangeable. `isForbidden` is 403 only, which is what the API answers a
+permission refusal with. A 401 an authenticated caller cannot refresh past is the session
+being refused, and `sobaFetch` has already turned it into a `SessionExpiredError`.
 
 ## Session and routing
 
@@ -263,5 +297,5 @@ total, per-resource sort options, and search on the endpoints that lack it.
 
 How much of a screen changes then depends on where its key and fetcher live. Put them in a
 resource hook, as `useWorkspaces` and `useFormDraft` do, and the screen does not move at
-all. `FormList` and `SubmissionList` still call `useAuthedSWR` inline, so those two will be
+all. `FormList` is the last list screen still calling `useAuthedSWR` inline, so it will be
 edited directly.
