@@ -27,8 +27,23 @@ import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { createWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
 import { isWorkspaceManageRole } from '../workspaceRoles';
-import type { WorkspaceItem } from '@/src/types/workspaces';
+import type { UpdateWorkspaceBody, WorkspaceItem } from '@/src/types/workspaces';
 import styles from './WorkspaceForm.module.css';
+
+/** Only the fields that differ from what the form was seeded with. */
+function changedFields(
+  seed: WorkspaceItem,
+  fields: { name: string; org: string; useCase: string; disclaimerAccepted: boolean },
+): UpdateWorkspaceBody {
+  const patch: UpdateWorkspaceBody = {};
+  if (fields.name !== seed.name) patch.name = fields.name;
+  if (fields.org !== seed.org) patch.org = fields.org;
+  if (fields.useCase !== seed.useCase) patch.useCase = fields.useCase;
+  if (fields.disclaimerAccepted !== seed.disclaimerAccepted) {
+    patch.disclaimerAccepted = fields.disclaimerAccepted;
+  }
+  return patch;
+}
 
 type WorkspaceSettingsProps = {
   /** The workspace being edited, or null to create one. Seeds the fields on mount. */
@@ -48,12 +63,13 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
   const refreshWorkspace = useRefreshWorkspace();
   const { addNotification } = useNotificationStore();
 
-  const [name, setName] = useState(workspace?.name ?? '');
-  const [org, setOrg] = useState(workspace?.org ?? '');
-  const [useCase, setUseCase] = useState(workspace?.useCase ?? '');
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(
-    workspace?.disclaimerAccepted ?? false,
-  );
+  // What the fields were seeded from. The `workspace` prop moves with a revalidation while the
+  // fields cannot, so the saved value is diffed against what the user was actually shown.
+  const [seed] = useState(workspace);
+  const [name, setName] = useState(seed?.name ?? '');
+  const [org, setOrg] = useState(seed?.org ?? '');
+  const [useCase, setUseCase] = useState(seed?.useCase ?? '');
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(seed?.disclaimerAccepted ?? false);
   const [saving, setSaving] = useState(false);
 
   const valid = useMemo(() => {
@@ -73,31 +89,36 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
   }, [router, locale]);
 
   const handleSave = useCallback(async () => {
+    if (!token) return;
     const trimmedName = name.trim();
-    // Saving an unchanged workspace is a no-op, not a request.
-    const needsUpdate =
-      isCreate ||
-      trimmedName !== workspace.name ||
-      disclaimerAccepted !== workspace.disclaimerAccepted ||
-      useCase !== workspace.useCase ||
-      org !== workspace.org;
-    if (!token || !needsUpdate) return;
 
     setSaving(true);
     try {
-      const body = { name: trimmedName, disclaimerAccepted, useCase, org };
-      if (isCreate) {
-        await createWorkspace(token, body);
+      if (!seed) {
+        await createWorkspace(token, {
+          name: trimmedName,
+          disclaimerAccepted,
+          useCase,
+          org,
+        });
       } else {
-        await updateWorkspace(token, workspace.id, body);
-        await refreshWorkspace(workspace.id);
+        // Sending the untouched fields too would carry the values this person was shown over
+        // anything edited elsewhere since, reverting it without either of them seeing.
+        const patch = changedFields(seed, { name: trimmedName, org, useCase, disclaimerAccepted });
+        // Saving an unchanged workspace is a no-op, not a request.
+        if (Object.keys(patch).length === 0) {
+          router.push(`/${locale}/workspaces`);
+          return;
+        }
+        await updateWorkspace(token, seed.id, patch);
+        await refreshWorkspace(seed.id);
       }
 
       await refreshWorkspaces();
       router.push(`/${locale}/workspaces`);
     } catch (error) {
       addNotification({
-        text: isCreate ? dictWorkspaces.createError : dictWorkspaces.saveError,
+        text: seed ? dictWorkspaces.saveError : dictWorkspaces.createError,
         type: 'error',
         consoleError: error,
       });
@@ -109,8 +130,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
     org,
     useCase,
     token,
-    isCreate,
-    workspace,
+    seed,
     disclaimerAccepted,
     refreshWorkspace,
     refreshWorkspaces,
@@ -140,7 +160,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
         data-testid="workspace-name"
       />
       <Select
-        items={codeItems(dict.ministries, workspace?.org)}
+        items={codeItems(dict.ministries, seed?.org)}
         label={dictWorkspaces.yourOrgReq}
         selectionMode="single"
         size="medium"
@@ -150,7 +170,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
         onChange={handleOrgChange}
       />
       <Select
-        items={codeItems(dict.useCases, workspace?.useCase)}
+        items={codeItems(dict.useCases, seed?.useCase)}
         label={dictWorkspaces.useCase}
         selectionMode="single"
         size="medium"

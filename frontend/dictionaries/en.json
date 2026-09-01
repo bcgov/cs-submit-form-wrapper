@@ -235,7 +235,7 @@
     "published": "Form published successfully!",
     "versionDraftCreated": "Version {version} draft created successfully!",
     "createVersionError": "Failed to create new version.",
-    "loadFormError": "Failed to load form:",
+    "loadFormError": "Failed to load form.",
     "loadVersionSchemaError": "Failed to load version schema.",
     "invalidJson": "Invalid JSON format.",
     "nameLabel": "Form Name",

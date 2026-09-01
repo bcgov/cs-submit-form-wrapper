@@ -18,6 +18,7 @@ vi.mock('@/app/[lang]/Providers', () => ({
       noActiveWorkspaceError: 'Select a workspace before saving this form.',
       disclaimerRequired: 'Accept the workspace disclaimer before creating a form.',
       schemaNotAvailable: 'Form schema not available.',
+      loadFormError: 'Failed to load form.',
     },
     general: { notAuthenticated: 'Not authed' },
     workspaces: { workspace: 'Workspace' },
@@ -46,11 +47,12 @@ const { mockWorkspaceState, api, builder } = vi.hoisted(() => ({
     createSobaFormioForm: vi.fn(),
     updateSobaForm: vi.fn().mockResolvedValue({}),
     getFormVersionSchema: vi.fn(),
+    getSobaForm: vi.fn(),
   },
 }));
 
 vi.mock('@/src/shared/api/sobaApi', () => ({
-  getSobaForm: vi.fn().mockResolvedValue({ id: 'f1', name: 'Test', description: '' }),
+  getSobaForm: api.getSobaForm,
   getSobaFormVersions: vi.fn(() => Promise.resolve({ items: mockWorkspaceState.versions })),
   getFormVersionSchema: api.getFormVersionSchema,
   saveFormVersionSchema: api.saveFormVersionSchema,
@@ -60,7 +62,9 @@ vi.mock('@/src/shared/api/sobaApi', () => ({
   updateSobaForm: api.updateSobaForm,
   fetchWorkspaces: vi.fn((_token: string, requiredPermission?: string) =>
     Promise.resolve({
-      items: requiredPermission ? mockWorkspaceState.writableWorkspaces : mockWorkspaceState.workspaces,
+      items: requiredPermission
+        ? mockWorkspaceState.writableWorkspaces
+        : mockWorkspaceState.workspaces,
     }),
   ),
 }));
@@ -128,6 +132,7 @@ describe('FormForm', () => {
     api.getFormVersionSchema.mockImplementation((_token: string, versionId: string) =>
       Promise.resolve(mockWorkspaceState.schemas[versionId] ?? { components: [] }),
     );
+    api.getSobaForm.mockResolvedValue({ id: 'f1', name: 'Test', description: '' });
     api.createFormVersion.mockResolvedValue({ id: 'v-new', versionNo: 3, state: 'draft' });
     builder.onUpdateModel = null;
   });
@@ -314,5 +319,17 @@ describe('FormForm', () => {
 
     expect(screen.queryByText('Form schema not available.')).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('form-designer')).toBeInTheDocument());
+  });
+
+  // These reads do not revalidate on their own, so a failed load that still reports loading leaves
+  // the designer on a spinner with every tab and action disabled, for the life of the page.
+  it('reports a failed load instead of spinning', async () => {
+    api.getSobaForm.mockRejectedValue(new Error('boom'));
+    renderForm({ formId: 'f1' });
+
+    expect(await screen.findByTestId('designer-load-error')).toHaveTextContent(
+      'Failed to load form.',
+    );
+    expect(screen.queryByText('Loading')).not.toBeInTheDocument();
   });
 });

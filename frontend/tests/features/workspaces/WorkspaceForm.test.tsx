@@ -277,17 +277,14 @@ describe('WorkspaceForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', {
-        name: 'Renamed',
-        disclaimerAccepted: false,
-        useCase: 'testUseCase',
-        org: 'testOrg',
-      });
+      expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', { name: 'Renamed' });
       expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
     });
   });
 
-  it('save on manage sends the disclaimer acceptance', async () => {
+  // The fields seed once and the record behind them can move on, so sending the whole form would
+  // carry the values this person was shown over anything edited elsewhere since.
+  it('save on manage sends only the fields that changed', async () => {
     await act(async () => {
       renderForm('ws2');
     });
@@ -297,10 +294,7 @@ describe('WorkspaceForm', () => {
 
     await waitFor(() => {
       expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', {
-        name: 'Team Workspace',
         disclaimerAccepted: true,
-        useCase: 'testUseCase',
-        org: 'testOrg',
       });
     });
   });

@@ -1,16 +1,19 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   fetchFeatureScope,
   fetchFeatureScopes,
   fetchSobaAdmins,
 } from '@/src/shared/api/sobaApiAdmin';
+import { unstable_serialize, useSWRConfig } from 'swr';
 import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
 import type { FeatureScopeItem, SobaAdminItem } from '@/src/types/admin';
 
 const ADMIN_LIST_LIMIT = 100;
 const SCOPE_LIST_LIMIT = 200;
+
+const scopeKey = (featureScopeId: string) => ['feature-scope', featureScopeId];
 
 /**
  * A failed reload leaves the table showing the rows it already had, where the table's own error
@@ -78,10 +81,23 @@ export function useFeatureScope(
   onError: (cause: unknown) => void,
 ) {
   const { data, isLoading, error } = useAuthedSWR(
-    featureScopeId && enabled ? ['feature-scope', featureScopeId] : null,
+    featureScopeId && enabled ? scopeKey(featureScopeId) : null,
     (token) => fetchFeatureScope(token, featureScopeId as string),
     reportOnce(onError),
   );
+
+  const { cache } = useSWRConfig();
+  useEffect(() => {
+    if (!featureScopeId) return;
+    // The record is read once to seed the form, which cannot re-seed itself. A cached copy would
+    // seed the next visit from a status the save that just happened, or a toggle in the list, has
+    // already moved on from, and saving there would write that stale status back. Dropping the
+    // entry is what makes the next visit read the record again. `mutate(key, undefined)` reads as
+    // "revalidate", not "forget", so the eviction goes through the cache itself.
+    return () => {
+      cache.delete(unstable_serialize(scopeKey(featureScopeId)));
+    };
+  }, [featureScopeId, cache]);
 
   return { featureScope: data ?? null, isLoading, error };
 }

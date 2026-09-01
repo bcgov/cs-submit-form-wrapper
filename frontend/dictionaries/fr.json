@@ -236,7 +236,7 @@
     "published": "Formulaire publié avec succès !",
     "versionDraftCreated": "Brouillon de la version {version} créé avec succès !",
     "createVersionError": "Échec de la création d'une nouvelle version.",
-    "loadFormError": "Échec du chargement du formulaire :",
+    "loadFormError": "Échec du chargement du formulaire.",
     "loadVersionSchemaError": "Échec du chargement du schéma de version.",
     "invalidJson": "Format JSON invalide.",
     "nameLabel": "Nom du Formulaire",

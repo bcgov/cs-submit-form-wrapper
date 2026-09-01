@@ -180,6 +180,54 @@ describe('FeatureScopePanel', () => {
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
   });
 
+  // The form seeds from the record once and cannot re-seed itself, so a record left in the cache
+  // makes the next visit show the status as it was before the last write, and saving there writes
+  // that stale status straight back.
+  it('does not save a status carried over from a previous visit', async () => {
+    const cache = new Map();
+    const tree = (
+      <Provider store={store}>
+        <SWRConfig
+          value={{ provider: () => cache, dedupingInterval: 0, shouldRetryOnError: false }}
+        >
+          <FeatureScopePanel
+            scopedFeatureCodes={['document-generation-v3']}
+            featureScopeId={FEATURE_SCOPE_ID}
+          />
+        </SWRConfig>
+      </Provider>
+    );
+
+    const first = render(tree);
+    expect(await screen.findByDisplayValue(SCOPE_ID)).toBeInTheDocument();
+    first.unmount();
+
+    // The scope was enabled since that visit, by this admin or another one.
+    mockFetchFeatureScope.mockResolvedValue({
+      id: FEATURE_SCOPE_ID,
+      featureCode: 'document-generation-v3',
+      scopeType: 'workspace',
+      scopeId: SCOPE_ID,
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-03T00:00:00.000Z',
+      createdBy: null,
+      updatedBy: null,
+    });
+
+    render(tree);
+    await screen.findByDisplayValue(SCOPE_ID);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpsertFeatureScope).toHaveBeenCalled());
+    expect(mockUpsertFeatureScope).toHaveBeenCalledWith('token', {
+      featureCode: 'document-generation-v3',
+      scopeType: 'workspace',
+      scopeId: SCOPE_ID,
+      status: 'active',
+    });
+  });
+
   it('returns to the table when cancelled', async () => {
     await renderPanel({ scopedFeatureCodes: ['document-generation-v3'] });
 

@@ -145,6 +145,10 @@ function FormForm({ formId }: { formId?: string }) {
     refreshVersions,
   } = useFormDraft(formId);
 
+  // A draft that failed to load leaves nothing to edit, save or publish. Distinct from `loading`,
+  // which these reads leave behind for good once a read has failed.
+  const draftUnavailable = loading || !!loadError;
+
   const isCurrentPublished = currentVersion?.state === 'published';
 
   const selectedWorkspaceId = formId ? (form?.workspaceId ?? null) : pickedWorkspaceId;
@@ -155,7 +159,8 @@ function FormForm({ formId }: { formId?: string }) {
     // Editing claims no heading until the name arrives, so the page's own stands rather than
     // flashing the create-form label on an existing form.
     heading: formId ? formName || undefined : dict.form.createForm,
-    eyebrow: formId && selectedWorkspaceId ? activeWorkspace?.name || selectedWorkspaceId : undefined,
+    eyebrow:
+      formId && selectedWorkspaceId ? activeWorkspace?.name || selectedWorkspaceId : undefined,
   });
 
   usePageNotices(
@@ -170,7 +175,7 @@ function FormForm({ formId }: { formId?: string }) {
   );
 
   const createNewVersion = async (sourceSchema?: FormType) => {
-    if (isSaving || loading || !token) return;
+    if (isSaving || draftUnavailable || !token) return;
     if (!formId) return;
     setIsSaving(true);
 
@@ -236,7 +241,7 @@ function FormForm({ formId }: { formId?: string }) {
   };
 
   const saveForm = async (publish: boolean = false) => {
-    if (isSaving || loading) return;
+    if (isSaving || draftUnavailable) return;
     // Creating a form is workspace-scoped: without a selected workspace the backend
     // rejects the request with a generic error, so surface a clear message instead.
     if (!formId && !pickedWorkspaceId) {
@@ -323,6 +328,13 @@ function FormForm({ formId }: { formId?: string }) {
           formName={formName}
           isDirty={isDirty}
         />
+      );
+    }
+    if (loadError) {
+      return (
+        <div className="my-4" data-testid="designer-load-error">
+          {noticeForLoadError(dict, loadError)}
+        </div>
       );
     }
     if (loading) {
@@ -420,21 +432,25 @@ function FormForm({ formId }: { formId?: string }) {
         className={`${styles.floatingActions} shadow-lg p-3 rounded-pill d-flex gap-2 bg-white border`}
       >
         {formId && (
-          <Button variant="secondary" onPress={() => createNewVersion()} isDisabled={isSaving || loading}>
+          <Button
+            variant="secondary"
+            onPress={() => createNewVersion()}
+            isDisabled={isSaving || draftUnavailable}
+          >
             {getNewVersionLabel()}
           </Button>
         )}
         <Button
           variant="primary"
           onPress={saveFormDraft}
-          isDisabled={isHistoryView || isCurrentPublished || isSaving || loading}
+          isDisabled={isHistoryView || isCurrentPublished || isSaving || draftUnavailable}
         >
           {isSaving ? dict.form.saving || 'Saving...' : dict.form.save || 'Save'}
         </Button>
         <Button
           variant="tertiary"
           onPress={() => setShowPreview(true)}
-          isDisabled={isSaving || loading}
+          isDisabled={isSaving || draftUnavailable}
         >
           {dict.form.preview || 'Preview'}
         </Button>
@@ -443,7 +459,9 @@ function FormForm({ formId }: { formId?: string }) {
             <Button
               variant="primary"
               onPress={saveFormPublish}
-              isDisabled={isHistoryView || isCurrentPublished || isDirty || isSaving || loading}
+              isDisabled={
+                isHistoryView || isCurrentPublished || isDirty || isSaving || draftUnavailable
+              }
             >
               {dict.form.publish || 'Publish'}
             </Button>
@@ -475,7 +493,7 @@ function FormForm({ formId }: { formId?: string }) {
           <Tab
             eventKey="settings"
             data-testid="settings-tab"
-            disabled={isSaving || loading}
+            disabled={isSaving || draftUnavailable}
             title={dict.form.settingsTab || 'Settings'}
           >
             <FormSettingsTab dict={dict} />
@@ -483,7 +501,7 @@ function FormForm({ formId }: { formId?: string }) {
           <Tab
             eventKey="team"
             data-testid="team-tab"
-            disabled={isSaving || loading}
+            disabled={isSaving || draftUnavailable}
             title={dict.form.teamTab || 'Team'}
           >
             <FormTeamTab dict={dict} />
@@ -491,7 +509,7 @@ function FormForm({ formId }: { formId?: string }) {
           <Tab
             eventKey="version"
             data-testid="version-tab"
-            disabled={isSaving || loading}
+            disabled={isSaving || draftUnavailable}
             title={dict.form.historyTab || 'History'}
           >
             <FormHistoryTab
@@ -506,7 +524,7 @@ function FormForm({ formId }: { formId?: string }) {
           <Tab
             eventKey="submissions"
             data-testid="submission-tab"
-            disabled={isSaving || loading}
+            disabled={isSaving || draftUnavailable}
             title={dict.form.submissionTab || 'Submissions'}
           >
             <FormSubmissionTab
@@ -518,7 +536,7 @@ function FormForm({ formId }: { formId?: string }) {
           <Tab
             eventKey="share"
             data-testid="share-tab"
-            disabled={isSaving || loading}
+            disabled={isSaving || draftUnavailable}
             title={dict.form.shareTab || 'Share'}
           >
             <FormShareTab
