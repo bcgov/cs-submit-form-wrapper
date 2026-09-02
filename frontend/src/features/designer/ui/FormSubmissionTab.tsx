@@ -109,6 +109,7 @@ export default function FormSubmissionTab({
       {
         key: 'submittedAt',
         label: dict.submission?.submittedAt || 'Submission Date',
+        sortField: 'submittedAt',
         render: (sub) => (
           <span className="small" data-testid={`${sub.id}-submitted-date`}>
             {sub.submittedAt ? formatLongDate(sub.submittedAt) : 'N/A'}
@@ -174,6 +175,8 @@ export default function FormSubmissionTab({
         onPageChange={listQuery.setPage}
         onPageSizeChange={listQuery.setPageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
+        sort={listQuery.sort}
+        onSortChange={listQuery.setSort}
         keyExtractor={(sub) => sub.id}
       />
       <Modal

@@ -14,6 +14,8 @@ import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { removeFeatureScope, upsertFeatureScope } from '@/src/shared/api/sobaApiAdmin';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useFeatureScopes } from '../useAdminData';
+import { FEATURE_SCOPES_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import type { FeatureScopeItem, FeatureScopeStatus } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
 
@@ -35,8 +37,6 @@ export function FeatureScopeListPanel({
 
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<FeatureScopeItem | null>(null);
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const reportLoadError = useCallback(
     (cause: unknown) => {
@@ -44,14 +44,24 @@ export function FeatureScopeListPanel({
     },
     [addNotification, dictScopes.loadError],
   );
+  const listQuery = useListQuery(FEATURE_SCOPES_LIST_QUERY);
   const {
     featureScopes,
-    truncatedAt,
+    total,
     isLoading: loading,
     error: loadError,
     refresh: reload,
     updateItems,
-  } = useFeatureScopes(scopedFeatureCodes, reportLoadError);
+  } = useFeatureScopes(
+    scopedFeatureCodes,
+    {
+      offset: listQuery.offset,
+      limit: listQuery.pageSize,
+      sort: listQuery.sort,
+      q: listQuery.q,
+    },
+    reportLoadError,
+  );
   const error = loadError ? dictScopes.loadError : null;
 
   const handleStatusChange = useCallback(
@@ -125,6 +135,7 @@ export function FeatureScopeListPanel({
       {
         key: 'featureCode',
         label: dictScopes.columns.feature,
+        sortField: 'featureCode',
         width: '40%',
         render: (featureScope) => (
           <span className="d-inline-flex flex-column">
@@ -136,6 +147,7 @@ export function FeatureScopeListPanel({
       {
         key: 'scopeType',
         label: dictScopes.columns.scope,
+        sortField: 'scopeType',
         render: (featureScope) => dictScopes.scopeTypes[featureScope.scopeType],
       },
       {
@@ -146,6 +158,7 @@ export function FeatureScopeListPanel({
       {
         key: 'status',
         label: dictScopes.columns.status,
+        sortField: 'status',
         align: 'center',
         render: (featureScope) => (
           <Switch
@@ -163,6 +176,7 @@ export function FeatureScopeListPanel({
       {
         key: 'updatedAt',
         label: dictScopes.columns.updated,
+        sortField: 'updatedAt',
         render: (featureScope) => new Date(featureScope.updatedAt).toLocaleString(dict.locale),
       },
       {
@@ -189,13 +203,6 @@ export function FeatureScopeListPanel({
     [dictScopes, pendingId, handleStatusChange, router, locale, dict.locale],
   );
 
-  const totalPages = Math.max(1, Math.ceil(featureScopes.length / pageSize));
-  const effectivePage = Math.min(currentPage, totalPages);
-  const visibleFeatureScopes = featureScopes.slice(
-    (effectivePage - 1) * pageSize,
-    effectivePage * pageSize,
-  );
-
   return (
     <div className={styles.tabContent}>
       <p className={styles.panelIntro}>{dictScopes.intro}</p>
@@ -218,16 +225,8 @@ export function FeatureScopeListPanel({
         />
       ) : (
         <>
-          {truncatedAt !== null ? (
-            <InlineAlert
-              description={dict.admin.truncated.replace('{limit}', String(truncatedAt))}
-              title={dictScopes.heading}
-              variant="info"
-              data-testid="feature-scope-truncated"
-            />
-          ) : null}
           <DataTable<FeatureScopeItem>
-            data={visibleFeatureScopes}
+            data={featureScopes}
             columns={columns}
             loading={loading}
             error={error}
@@ -235,11 +234,14 @@ export function FeatureScopeListPanel({
             loadingMessage={dict.general.loading}
             caption={dictScopes.heading}
             keyExtractor={(featureScope) => featureScope.id}
-            pageSize={pageSize}
-            currentPage={effectivePage}
-            totalItems={featureScopes.length}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
+            totalItems={total}
+            pageSize={listQuery.pageSize}
+            currentPage={listQuery.page}
+            onPageChange={listQuery.setPage}
+            onPageSizeChange={listQuery.setPageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            sort={listQuery.sort}
+            onSortChange={listQuery.setSort}
           />
         </>
       )}

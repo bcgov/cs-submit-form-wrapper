@@ -33,6 +33,7 @@ vi.mock('next/navigation', async () => {
     ...(actual as Record<string, unknown>),
     useRouter: () => ({ push: mockPush }),
     usePathname: () => '/en/admin/feature-scopes',
+    useSearchParams: () => new URLSearchParams(''),
   };
 });
 
@@ -112,12 +113,6 @@ const FEATURE_SCOPE = {
   updatedBy: null,
 };
 
-const HIDDEN_FEATURE_SCOPE = {
-  ...FEATURE_SCOPE,
-  id: '33333333-3333-4333-8333-333333333333',
-  featureCode: 'disabled-feature',
-};
-
 describe('FeatureScopeListPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -125,21 +120,24 @@ describe('FeatureScopeListPanel', () => {
     store.dispatch(setToken('token'));
     store.dispatch(setAuthenticated(true));
     mockFetchFeatureScopes.mockResolvedValue({
-      items: [FEATURE_SCOPE, HIDDEN_FEATURE_SCOPE],
-      page: { limit: 200, hasMore: false },
+      items: [FEATURE_SCOPE],
+      page: { offset: 0, limit: 10, total: 1 },
     });
     mockRemoveFeatureScope.mockResolvedValue(undefined);
     mockUpsertFeatureScope.mockResolvedValue(undefined);
   });
 
-  it('lists administrable feature scopes and filters out unavailable feature codes', async () => {
+  it('lists administrable feature scopes and asks the server for only those codes', async () => {
     await act(async () => {
       renderPanel(['document-generation-v3']);
     });
 
     expect(await screen.findByText('document-generation-v3')).toBeInTheDocument();
     expect(screen.getByText(FEATURE_SCOPE.scopeId)).toBeInTheDocument();
-    expect(screen.queryByText('disabled-feature')).not.toBeInTheDocument();
+    expect(mockFetchFeatureScopes).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ featureCodes: ['document-generation-v3'] }),
+    );
   });
 
   it('routes to create and manage pages', async () => {
@@ -226,17 +224,18 @@ describe('FeatureScopeListPanel', () => {
     expect(screen.getByText('document-generation-v3')).toBeInTheDocument();
   });
 
-  it('reports a list the server cut short', async () => {
+  it('pages against the total the server reports', async () => {
     mockFetchFeatureScopes.mockResolvedValue({
       items: [FEATURE_SCOPE],
-      page: { limit: 200, hasMore: true },
+      page: { offset: 0, limit: 10, total: 42 },
     });
 
     await act(async () => {
       renderPanel(['document-generation-v3']);
     });
 
-    expect(await screen.findByTestId('feature-scope-truncated')).toBeInTheDocument();
+    expect(await screen.findByText(/of 5 page\(s\)/)).toBeInTheDocument();
+    expect(screen.queryByTestId('feature-scope-truncated')).not.toBeInTheDocument();
   });
 
   it('does not render the table when no scoped features are available', async () => {

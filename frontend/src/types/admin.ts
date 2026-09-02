@@ -1,4 +1,5 @@
 /** Platform-administration payloads served by the backend `/admin/*` routes. */
+import type { ListPage, ListQueryArgs } from './list';
 
 export type SobaAdminItem = {
   userId: string;
@@ -10,12 +11,7 @@ export type SobaAdminItem = {
 
 export type SobaAdminsResponse = {
   items: SobaAdminItem[];
-  page: {
-    limit: number;
-    hasMore: boolean;
-    nextCursor: string | null;
-    cursorMode: string;
-  };
+  page: ListPage;
 };
 
 export type FeatureScopeType = 'workspace' | 'form';
@@ -35,14 +31,9 @@ export type FeatureScopeItem = {
 };
 
 /** Truncation only: these lists are capped, not cursor-paged, so there is no cursor to hand back. */
-export type AdminPage = {
-  limit: number;
-  hasMore: boolean;
-};
-
 export type FeatureScopesResponse = {
   items: FeatureScopeItem[];
-  page: AdminPage;
+  page: ListPage;
 };
 
 export type UpsertFeatureScopeBody = {
@@ -70,11 +61,10 @@ export type DocumentGenerationAuditItem = {
 
 export type DocumentGenerationAuditsResponse = {
   items: DocumentGenerationAuditItem[];
-  page: AdminPage;
+  page: ListPage;
 };
 
-export type DocumentGenerationAuditsQuery = {
+export type DocumentGenerationAuditsQuery = ListQueryArgs & {
   workspaceId?: string;
   formId?: string;
-  limit?: number;
 };

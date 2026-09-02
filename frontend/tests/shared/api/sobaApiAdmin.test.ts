@@ -28,9 +28,12 @@ describe('sobaApiAdmin feature-scope helpers', () => {
     await expect(
       fetchFeatureScopes('tok', {
         featureCode: 'document-generation-v3',
+        featureCodes: ['document-generation-v3', 'files'],
         scopeType: 'workspace',
         status: 'active',
+        offset: 0,
         limit: 25,
+        sort: 'updatedAt:desc',
       }),
     ).resolves.toEqual({ items: [] });
 
@@ -40,6 +43,8 @@ describe('sobaApiAdmin feature-scope helpers', () => {
     expect(String(url)).toContain('scopeType=workspace');
     expect(String(url)).toContain('status=active');
     expect(String(url)).toContain('limit=25');
+    expect(String(url)).toContain('sort=updatedAt%3Adesc');
+    expect(String(url)).toContain('featureCodes=document-generation-v3%2Cfiles');
     expect(init.headers.Authorization).toBe('Bearer tok');
   });
 

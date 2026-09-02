@@ -1,5 +1,6 @@
 import { parseJson } from './sobaHelpers';
 import { sobaFetch } from './sobaFetch';
+import { toListRequestQuery, type ListQueryArgs } from '../../types/list';
 
 import type {
   DocumentGenerationAuditsQuery,
@@ -17,11 +18,11 @@ import type {
 
 export async function fetchSobaAdmins(
   token: string,
-  params: { limit?: number; cursor?: string } = {},
+  args: ListQueryArgs,
 ): Promise<SobaAdminsResponse> {
   const response = await sobaFetch('/admin/soba-admins', {
     token,
-    query: { limit: params.limit, cursor: params.cursor },
+    query: toListRequestQuery(args),
   });
   return parseJson(response);
 }
@@ -50,15 +51,22 @@ export async function removeSobaAdmin(token: string, userId: string): Promise<vo
 
 export async function fetchFeatureScopes(
   token: string,
-  params: { featureCode?: string; scopeType?: string; status?: string; limit?: number } = {},
+  args: ListQueryArgs & {
+    featureCode?: string;
+    /** The features this deployment scopes. The rest are not the admin's to manage. */
+    featureCodes?: string[];
+    scopeType?: string;
+    status?: string;
+  },
 ): Promise<FeatureScopesResponse> {
   const response = await sobaFetch('/admin/feature-scopes', {
     token,
     query: {
-      featureCode: params.featureCode,
-      scopeType: params.scopeType,
-      status: params.status,
-      limit: params.limit,
+      ...toListRequestQuery(args),
+      featureCode: args.featureCode,
+      featureCodes: args.featureCodes?.join(','),
+      scopeType: args.scopeType,
+      status: args.status,
     },
   });
   return parseJson(response);
@@ -92,7 +100,11 @@ export async function fetchDocumentGenerationAudits(
 ): Promise<DocumentGenerationAuditsResponse> {
   const response = await sobaFetch('/admin/document-generation/audits', {
     token,
-    query: { workspaceId: query.workspaceId, formId: query.formId, limit: query.limit },
+    query: {
+      ...toListRequestQuery(query),
+      workspaceId: query.workspaceId,
+      formId: query.formId,
+    },
   });
   return parseJson(response);
 }

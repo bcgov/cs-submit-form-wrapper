@@ -2,16 +2,21 @@
 
 import { useCallback, useEffect, useMemo } from 'react';
 import {
+  fetchDocumentGenerationAudits,
   fetchFeatureScope,
   fetchFeatureScopes,
   fetchSobaAdmins,
 } from '@/src/shared/api/sobaApiAdmin';
 import { unstable_serialize, useSWRConfig } from 'swr';
 import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
-import type { FeatureScopeItem, SobaAdminItem } from '@/src/types/admin';
-
-const ADMIN_LIST_LIMIT = 100;
-const SCOPE_LIST_LIMIT = 200;
+import { listReadConfig } from '@/src/shared/api/swrConfig';
+import type { ListQueryArgs } from '@/src/types/list';
+import type {
+  DocumentGenerationAuditItem,
+  FeatureScopeItem,
+  FeatureScopesResponse,
+  SobaAdminItem,
+} from '@/src/types/admin';
 
 const scopeKey = (featureScopeId: string) => ['feature-scope', featureScopeId];
 
@@ -25,41 +30,42 @@ const reportOnce = (onError: (cause: unknown) => void) => ({
   onError,
 });
 
-/** The limit the server stopped at, for the "showing the first N" notice. */
-function truncatedAt(page?: { limit: number; hasMore: boolean }): number | null {
-  return page?.hasMore ? page.limit : null;
-}
-
-export function useSobaAdmins(onError: (cause: unknown) => void) {
+export function useSobaAdmins(query: ListQueryArgs, onError: (cause: unknown) => void) {
   const { data, isLoading, error, mutate } = useAuthedSWR(
-    ['soba-admins'],
-    (token) => fetchSobaAdmins(token, { limit: ADMIN_LIST_LIMIT }),
-    reportOnce(onError),
+    ['soba-admins', query.offset, query.limit, query.sort, query.q ?? ''],
+    (token) => fetchSobaAdmins(token, query),
+    { ...listReadConfig, ...reportOnce(onError) },
   );
 
   const admins: SobaAdminItem[] = useMemo(() => data?.items ?? [], [data]);
 
-  return { admins, truncatedAt: truncatedAt(data?.page), isLoading, error, refresh: mutate };
+  return { admins, total: data?.page?.total, isLoading, error, refresh: mutate };
 }
 
-/** Only scopes for features this deployment scopes; the rest are not the admin's to manage. */
-export function useFeatureScopes(allowedFeatureCodes: string[], onError: (cause: unknown) => void) {
+/**
+ * The server applies the allow-list, so the total it reports is the total the table can show.
+ */
+export function useFeatureScopes(
+  allowedFeatureCodes: string[],
+  query: ListQueryArgs,
+  onError: (cause: unknown) => void,
+) {
+  const codes = useMemo(() => [...allowedFeatureCodes].sort().join(','), [allowedFeatureCodes]);
   const { data, isLoading, error, mutate } = useAuthedSWR(
-    allowedFeatureCodes.length > 0 ? ['feature-scopes'] : null,
-    (token) => fetchFeatureScopes(token, { limit: SCOPE_LIST_LIMIT }),
-    reportOnce(onError),
+    allowedFeatureCodes.length > 0
+      ? ['feature-scopes', codes, query.offset, query.limit, query.sort, query.q ?? '']
+      : null,
+    (token) => fetchFeatureScopes(token, { ...query, featureCodes: allowedFeatureCodes }),
+    { ...listReadConfig, ...reportOnce(onError) },
   );
 
-  const allowed = useMemo(() => new Set(allowedFeatureCodes), [allowedFeatureCodes]);
-  const featureScopes: FeatureScopeItem[] = useMemo(
-    () => (data?.items ?? []).filter((item) => allowed.has(item.featureCode)),
-    [data, allowed],
-  );
+  const featureScopes: FeatureScopeItem[] = useMemo(() => data?.items ?? [], [data]);
 
   // A write the server accepted is applied to the cached rows rather than refetching the list.
   const updateItems = useCallback(
     (update: (items: FeatureScopeItem[]) => FeatureScopeItem[]) =>
-      mutate((current) => (current ? { ...current, items: update(current.items) } : current), {
+      mutate((current: FeatureScopesResponse | undefined) =>
+        current ? { ...current, items: update(current.items) } : current, {
         revalidate: false,
       }),
     [mutate],
@@ -67,12 +73,41 @@ export function useFeatureScopes(allowedFeatureCodes: string[], onError: (cause:
 
   return {
     featureScopes,
-    truncatedAt: truncatedAt(data?.page),
+    total: data?.page?.total,
     isLoading,
     error,
     refresh: mutate,
     updateItems,
   };
+}
+
+/**
+ * Audits for one workspace or form. The endpoint requires one of them, so there is no read until
+ * the admin has searched.
+ */
+export function useDocumentGenerationAudits(
+  filter: { workspaceId?: string; formId?: string } | null,
+  query: ListQueryArgs,
+  onError: (cause: unknown) => void,
+) {
+  const { data, isLoading, error } = useAuthedSWR(
+    filter
+      ? [
+          'docgen-audits',
+          filter.workspaceId ?? '',
+          filter.formId ?? '',
+          query.offset,
+          query.limit,
+          query.sort,
+        ]
+      : null,
+    (token) => fetchDocumentGenerationAudits(token, { ...query, ...filter }),
+    { ...listReadConfig, ...reportOnce(onError) },
+  );
+
+  const audits: DocumentGenerationAuditItem[] = useMemo(() => data?.items ?? [], [data]);
+
+  return { audits, total: data?.page?.total, isLoading, error };
 }
 
 export function useFeatureScope(

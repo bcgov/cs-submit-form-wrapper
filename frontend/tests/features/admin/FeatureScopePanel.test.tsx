@@ -36,6 +36,7 @@ vi.mock('next/navigation', async () => {
     ...(actual as Record<string, unknown>),
     useRouter: () => ({ push: mockPush }),
     usePathname: () => '/en/admin/feature-scopes/create',
+    useSearchParams: () => new URLSearchParams(''),
   };
 });
 

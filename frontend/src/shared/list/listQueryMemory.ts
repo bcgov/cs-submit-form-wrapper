@@ -30,6 +30,9 @@ export const listQueryParams = (spec: ListQuerySpec): string[] => [
 const sortOptionsFor = (fields: readonly string[]): string[] =>
   fields.flatMap((field) => [`${field}:asc`, `${field}:desc`]);
 
+const SUBMISSION_SORT_FIELDS = ['formName', 'submittedAt', 'createdAt', 'updatedAt'] as const;
+const UPDATED_DESC = 'updatedAt:desc';
+
 export const FORMS_LIST_QUERY: ListQuerySpec = {
   resource: 'forms',
   filters: ['workspace'],
@@ -48,8 +51,8 @@ export const WORKSPACES_LIST_QUERY: ListQuerySpec = {
 export const FORM_SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
   resource: 'formSubmissions',
   filters: [],
-  sortOptions: sortOptionsFor(['formName', 'submittedAt', 'createdAt', 'updatedAt']),
-  defaultSort: 'updatedAt:desc',
+  sortOptions: sortOptionsFor(SUBMISSION_SORT_FIELDS),
+  defaultSort: UPDATED_DESC,
 };
 
 export const SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
@@ -57,6 +60,27 @@ export const SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
   filters: [],
   sortOptions: sortOptionsFor(['formName', 'submittedAt', 'createdAt', 'updatedAt']),
   defaultSort: 'updatedAt:desc',
+};
+
+export const SOBA_ADMINS_LIST_QUERY: ListQuerySpec = {
+  resource: 'sobaAdmins',
+  filters: [],
+  sortOptions: sortOptionsFor(['displayLabel', 'source', 'syncedAt']),
+  defaultSort: 'displayLabel:asc',
+};
+
+export const FEATURE_SCOPES_LIST_QUERY: ListQuerySpec = {
+  resource: 'featureScopes',
+  filters: [],
+  sortOptions: sortOptionsFor(['featureCode', 'scopeType', 'status', 'createdAt', 'updatedAt']),
+  defaultSort: UPDATED_DESC,
+};
+
+export const DOCGEN_AUDITS_LIST_QUERY: ListQuerySpec = {
+  resource: 'docgenAudits',
+  filters: [],
+  sortOptions: sortOptionsFor(['createdAt', 'outcome', 'durationMs']),
+  defaultSort: 'createdAt:desc',
 };
 
 const KEY_PREFIX = 'soba.listQuery.';
