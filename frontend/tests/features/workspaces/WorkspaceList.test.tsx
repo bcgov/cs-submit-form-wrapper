@@ -179,8 +179,6 @@ describe('WorkspaceList', () => {
     await act(async () => {
       renderList();
     });
-    await waitFor(() =>
-      expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument());
   });
 });

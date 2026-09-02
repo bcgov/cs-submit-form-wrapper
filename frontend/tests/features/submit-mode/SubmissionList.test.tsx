@@ -15,7 +15,13 @@ vi.mock('@/app/[lang]/Providers', () => ({
       submissions: 'Submissions',
       empty: 'No submissions found yet.',
       loading: 'Loading submissions...',
-      columns: { id: 'Submission ID', formName: 'Form Name', formId: 'Form ID', version: 'Version', status: 'Status' },
+      columns: {
+        id: 'Submission ID',
+        formName: 'Form Name',
+        formId: 'Form ID',
+        version: 'Version',
+        status: 'Status',
+      },
     },
   }),
 }));
@@ -45,8 +51,8 @@ async function renderList(props: { formId?: string } = {}) {
     render(
       <Provider store={store}>
         <SWRConfig
-        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
-      >
+          value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+        >
           <SubmissionList {...props} />
         </SWRConfig>
       </Provider>,
@@ -86,8 +92,6 @@ describe('SubmissionList', () => {
     expired.name = 'SessionExpiredError';
     getSobaSubmissions.mockRejectedValue(expired);
     await renderList({ formId: 'f1' });
-    await waitFor(() =>
-      expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument());
   });
 });

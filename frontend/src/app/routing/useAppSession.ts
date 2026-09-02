@@ -12,7 +12,11 @@ export function useAppSession(): AppSessionSnapshot {
 
   const { workspaces, loaded: workspacesLoaded, error: workspacesError } = useWorkspaces();
   const { loaded: writableLoaded, error: writableError } = useWritableWorkspaces();
-  const { data: currentUser, loaded: currentUserLoaded, error: currentUserError } = useCurrentUser();
+  const {
+    data: currentUser,
+    loaded: currentUserLoaded,
+    error: currentUserError,
+  } = useCurrentUser();
 
   // SWR keeps the last data on error, so this survives a failed reload and resets only when the
   // session ends.

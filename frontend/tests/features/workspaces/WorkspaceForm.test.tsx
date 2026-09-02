@@ -45,7 +45,6 @@ vi.mock('@/app/[lang]/Providers', () => ({
       loadError: 'Failed to load workspace.',
       manageForbidden: 'Only workspace owners or admins can manage this workspace.',
       createForbidden: 'Only BC Government identity provider users can create workspaces.',
-      defaultWorkspaceFormLabel: 'Set as default workspace',
       disclaimerLabel: 'I agree to the disclaimer and statement of responsibility',
     },
   }),
@@ -98,10 +97,7 @@ vi.mock('@/src/shared/api/useWorkspaces', async (importOriginal) => ({
 
 vi.mock('@/src/shared/api/useCurrentUser', () => ({
   useCurrentUser: () => ({
-    data: {
-      preferences: { defaultWorkspaceId: 'ws1' },
-      capabilities: { canCreateWorkspace: true },
-    },
+    data: { capabilities: { canCreateWorkspace: true } },
     loaded: true,
   }),
 }));
@@ -194,7 +190,7 @@ describe('WorkspaceForm', () => {
     expect(screen.getByRole('tab', { name: 'Team' })).toBeInTheDocument();
   });
 
-  it('save on create posts workspace and optional default preference', async () => {
+  it('save on create posts the workspace', async () => {
     await act(async () => {
       renderForm();
     });
@@ -232,28 +228,6 @@ describe('WorkspaceForm', () => {
         useCase: 'testUseCase',
         org: 'testOrg',
       });
-    });
-  });
-
-  it('create without toggling default preserves the existing default', async () => {
-    // currentUser already has defaultWorkspaceId 'ws1'. Creating a second workspace
-    // without touching the switch must NOT PATCH /me (which would clear the default).
-    await act(async () => {
-      renderForm();
-    });
-    await userEvent.type(screen.getByRole('textbox'), 'Second Team');
-    await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
-    await userEvent.selectOptions(screen.getByTestId('workspace-use-case'), 'testUseCase');
-    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
-
-    await waitFor(() => {
-      expect(mockCreateWorkspace).toHaveBeenCalledWith('token', {
-        name: 'Second Team',
-        disclaimerAccepted: false,
-        useCase: 'testUseCase',
-        org: 'testOrg',
-      });
-      expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
     });
   });
 

@@ -238,7 +238,6 @@
     "createVersionError": "Échec de la création d'une nouvelle version.",
     "loadFormError": "Échec du chargement du formulaire.",
     "loadFormsError": "Échec du chargement des formulaires.",
-    "loadVersionSchemaError": "Échec du chargement du schéma de version.",
     "invalidJson": "Format JSON invalide.",
     "nameLabel": "Nom du Formulaire",
     "loading": "Chargement du formulaire...",

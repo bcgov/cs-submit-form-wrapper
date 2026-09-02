@@ -60,8 +60,8 @@ async function renderView() {
     view = render(
       <Provider store={store}>
         <SWRConfig
-        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
-      >
+          value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+        >
           <SubmissionView />
         </SWRConfig>
       </Provider>,
@@ -115,9 +115,7 @@ describe('SubmissionView', () => {
     initAnswered();
     getSubmitSubmission.mockRejectedValue(new Error('Request failed (404)'));
     await renderView();
-    await waitFor(() =>
-      expect(screen.getByTestId('submission-view-notfound')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId('submission-view-notfound')).toBeInTheDocument());
   });
 
   // An ended session is not a missing submission; saying "not found" hides why.

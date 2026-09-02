@@ -4,9 +4,9 @@
  * written by an older tool, or a code retired since. Show what is stored rather than hiding it.
  */
 
-export type CodeDictionary = Record<string, string>;
+type CodeDictionary = Record<string, string>;
 
-export type CodeItem = { id: string; label: string };
+type CodeItem = { id: string; label: string };
 
 /** The dictionary label, falling back to the stored value. Null only when nothing is stored. */
 export function codeLabel(dictionary: CodeDictionary, value: string | null | undefined) {

@@ -237,7 +237,6 @@
     "createVersionError": "Failed to create new version.",
     "loadFormError": "Failed to load form.",
     "loadFormsError": "Failed to load forms.",
-    "loadVersionSchemaError": "Failed to load version schema.",
     "invalidJson": "Invalid JSON format.",
     "nameLabel": "Form Name",
     "loading": "Loading form...",
