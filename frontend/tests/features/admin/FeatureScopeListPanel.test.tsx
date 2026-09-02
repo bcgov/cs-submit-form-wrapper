@@ -173,6 +173,26 @@ describe('FeatureScopeListPanel', () => {
     });
   });
 
+  // The row is patched into the cached list rather than refetched. A reload would answer with the
+  // pre-toggle status from the server fixture and the switch would snap back.
+  it('leaves the toggled row showing its new status', async () => {
+    await act(async () => {
+      renderPanel(['document-generation-v3']);
+    });
+    await screen.findByText('document-generation-v3');
+    const toggleId = `feature-scope-status-${FEATURE_SCOPE.id}`;
+    const checked = () =>
+      screen.getByTestId(toggleId).querySelector('input')?.checked ??
+      screen.getByTestId(toggleId).getAttribute('data-selected') !== null;
+    expect(checked()).toBe(true);
+
+    await userEvent.click(screen.getByTestId(toggleId));
+
+    await waitFor(() => expect(mockUpsertFeatureScope).toHaveBeenCalled());
+    await waitFor(() => expect(checked()).toBe(false));
+    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(1);
+  });
+
   it('deletes a feature scope from the table', async () => {
     await act(async () => {
       renderPanel(['document-generation-v3']);

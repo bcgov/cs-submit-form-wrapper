@@ -24,7 +24,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
     <Provider store={store}>
       <SWRConfig
         value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
-      >{children}</SWRConfig>
+      >
+        {children}
+      </SWRConfig>
     </Provider>
   );
 }

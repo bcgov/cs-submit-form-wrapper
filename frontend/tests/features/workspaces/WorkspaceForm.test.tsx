@@ -331,6 +331,21 @@ describe('WorkspaceForm', () => {
     expect(mockUpdateWorkspace).not.toHaveBeenCalled();
   });
 
+  // The record's own key too, not just the lists: the manage form seeds from it once and cannot
+  // re-seed, so a stale copy would show the pre-save values on the next visit.
+  it('re-reads the workspace after saving it', async () => {
+    await act(async () => {
+      renderForm('ws2');
+    });
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
+    expect(mockSelectWorkspace).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockSelectWorkspace).toHaveBeenCalledTimes(2));
+  });
+
   it('refreshes the workspace lists after saving', async () => {
     await act(async () => {
       renderForm('ws2');
