@@ -47,7 +47,6 @@ vi.mock('@/app/[lang]/Providers', () => ({
     dataTable: { itemName: 'items', pageOf: 'of {totalPages} page(s)' },
     modal: { dialogActions: 'Dialog actions' },
     admin: {
-      truncated: 'Showing the first {limit}. Narrow the filters to see the rest.',
       admins: {
         removeConfirmTitle: 'Remove platform administrator',
         removeConfirmMessage: '{user} loses platform administration access immediately.',
@@ -188,7 +187,6 @@ describe('SobaAdminsPanel', () => {
     });
 
     expect(await screen.findByText(/of 5 page\(s\)/)).toBeInTheDocument();
-    expect(screen.queryByTestId('admins-truncated')).not.toBeInTheDocument();
   });
 
   it('adds an administrator and reloads the list', async () => {

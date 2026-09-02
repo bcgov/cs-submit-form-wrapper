@@ -30,7 +30,6 @@ export type FeatureScopeItem = {
   updatedBy: string | null;
 };
 
-/** Truncation only: these lists are capped, not cursor-paged, so there is no cursor to hand back. */
 export type FeatureScopesResponse = {
   items: FeatureScopeItem[];
   page: ListPage;

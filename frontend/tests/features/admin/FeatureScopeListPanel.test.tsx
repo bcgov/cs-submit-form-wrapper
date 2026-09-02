@@ -50,7 +50,6 @@ vi.mock('@/app/[lang]/Providers', () => ({
     dataTable: { itemName: 'items', pageOf: 'of {totalPages} page(s)' },
     modal: { dialogActions: 'Dialog actions' },
     admin: {
-      truncated: 'Showing the first {limit}. Narrow the filters to see the rest.',
       featureScopes: {
         deleteConfirmTitle: 'Delete feature access',
         deleteConfirmMessage:
@@ -235,7 +234,6 @@ describe('FeatureScopeListPanel', () => {
     });
 
     expect(await screen.findByText(/of 5 page\(s\)/)).toBeInTheDocument();
-    expect(screen.queryByTestId('feature-scope-truncated')).not.toBeInTheDocument();
   });
 
   it('does not render the table when no scoped features are available', async () => {

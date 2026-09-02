@@ -257,10 +257,14 @@ empty with no way back.
 The page resets whenever the rows underneath it change: a new filter, sort or search term.
 Page 4 of one query is not page 4 of another.
 
-`q` reaches the URL after the user stops typing, or immediately via `commitSearch` when the user
-presses Enter or the Search button. Keying on every keystroke is a request per character. The term
+Typing does not search. `q` reaches the URL through `commitSearch`, which the Search button and
+Enter both call, so a term is sent when the user asks for it rather than once per pause. The term
 is trimmed on the way out: the API trims and then rejects an empty one, so a whitespace-only term
 is a cleared search, not a search for a space.
+
+Each list's params are named for its resource: `forms.page`, `formVersions.sort`. Two lists can
+share a route, and the designer holds version history and submissions at once, so a bare `page`
+would have each of them answering for the other's table.
 
 Paged reads pass `listReadConfig`. SWR drops `data` when the key changes, and the table draws its
 paging controls from the total in that data, so without it the footer unmounts mid-request and
