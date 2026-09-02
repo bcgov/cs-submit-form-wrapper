@@ -118,7 +118,6 @@ describe('workspaceFromQuery', () => {
       workspaceSource: 'query',
       role: 'owner',
     });
-    expect(res.set).toHaveBeenCalledWith('x-soba-workspace-id', 'ws1');
     expect(next).toHaveBeenCalledWith();
   });
 
@@ -234,7 +233,6 @@ describe('workspaceListScope', () => {
       selectedWorkspaceId: 'ws1',
     });
     expect(req.coreContext?.workspaceSource).toBe('list:workspaceId');
-    expect(res.set).toHaveBeenCalledWith('x-soba-workspace-id', 'ws1');
     expect(next).toHaveBeenCalledWith();
   });
 
@@ -254,7 +252,6 @@ describe('workspaceListScope', () => {
       selectedWorkspaceId: 'ws-form',
     });
     expect(req.coreContext?.workspaceSource).toBe('list:formId');
-    expect(res.set).toHaveBeenCalledWith('x-soba-workspace-id', 'ws-form');
     expect(next).toHaveBeenCalledWith();
   });
 
@@ -306,7 +303,6 @@ describe('workspaceFromResource', () => {
     expect(getWorkspaceIdForForm).toHaveBeenCalledWith('form1');
     expect(req.coreContext?.workspaceId).toBe('ws9');
     expect(req.coreContext?.workspaceSource).toBe('resource:form');
-    expect(res.set).toHaveBeenCalledWith('x-soba-workspace-id', 'ws9');
     expect(next).toHaveBeenCalledWith();
   });
 
@@ -380,7 +376,6 @@ describe('workspaceFromResource (kind: workspace)', () => {
 
     expect(req.coreContext?.workspaceId).toBe('ws1');
     expect(req.coreContext?.workspaceSource).toBe('resource:workspace');
-    expect(res.set).toHaveBeenCalledWith('x-soba-workspace-id', 'ws1');
     expect(next).toHaveBeenCalledWith();
   });
 });

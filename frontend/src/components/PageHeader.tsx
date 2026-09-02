@@ -97,7 +97,12 @@ export function PageHeaderProvider({
               data-testid={`page-notice-${notice.id}`}
               buttons={
                 notice.action ? (
-                  <Button size="small" variant="secondary" onPress={notice.action.onPress}>
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    onPress={notice.action.onPress}
+                    data-testid={`page-notice-${notice.id}-action`}
+                  >
                     {notice.action.label}
                   </Button>
                 ) : undefined

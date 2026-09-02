@@ -8,27 +8,22 @@ it.
 
 ## Adding a read to a screen
 
-`SubmissionList` is the smallest example:
+`useFormSubmissions` is the smallest example, and it serves two screens:
 
-```tsx
-const listQuery = useListQuery(SUBMISSIONS_LIST_QUERY);
-
-const {
-  data,
-  isLoading,
-  error: loadError,
-} = useAuthedSWR(
-  formId
-    ? ['submissions', formId, listQuery.offset, listQuery.pageSize, listQuery.sort, listQuery.q]
+```ts
+const { data, isLoading, error, mutate } = useAuthedSWR(
+  formId && opened
+    ? ['form-submissions', formId, query.offset, query.limit, query.sort, query.q ?? '']
     : null,
   (token) =>
     getSobaSubmissions(token, {
-      offset: listQuery.offset,
-      limit: listQuery.pageSize,
-      sort: listQuery.sort,
-      q: listQuery.q,
+      offset: query.offset,
+      limit: query.limit,
+      sort: query.sort,
+      q: query.q,
       formId: formId as string,
     }),
+  listReadConfig,
 );
 
 const submissions: SubmissionListItem[] = useMemo(
@@ -41,7 +36,8 @@ Three things to copy:
 
 Return `null` for the key when the request is not ready. That replaces the old
 `if (authenticated && token)` guard. Here there is no request to make without a form,
-because the endpoint rejects an unscoped list.
+because the endpoint rejects an unscoped list, and none until the tab has been opened,
+because the read needs a permission the form's designer need not hold.
 
 Everything that changes the rows is in the key. A page, sort or search change is a
 different request, not a different slice of one.
@@ -81,10 +77,14 @@ For the submit surface use `useMaybeAuthedSWR`, which allows an anonymous read. 
 must say which identity it is, or signing in gets served the anonymous reader's copy:
 
 ```ts
-initializing || !submissionId
+!initStarted || initializing || !submissionId
   ? null
   : ['submit-submission', submissionId, token ? 'user' : 'anonymous'];
 ```
+
+`!initStarted` is the guard that matters. Before Keycloak has run, "no token" is the
+default rather than an answer, and a read started there is anonymous even for a signed-in
+caller.
 
 ## Resource hooks
 
@@ -109,10 +109,14 @@ truncated picker.
 
 Existing hooks, in `src/shared/api/`:
 
-- `useWorkspaces`, `useWritableWorkspaces`, `useRefreshWorkspaces`
+- `useWorkspaces`, `useWritableWorkspaces`, `useWorkspace`, `useRefreshWorkspaces`,
+  `useRefreshWorkspace`
 - `useCurrentUser`, `useRefreshCurrentUser`
 - `useFormDraft` (in `src/features/designer/`) for a form, its versions and the selected
   version's schema
+- `useFormSubmissions` (in `src/features/designer/`) for one form's submissions, read by the
+  designer tab and the submissions page
+- `useSobaAdmins`, `useFeatureScopes`, `useFeatureScope` (in `src/features/admin/`)
 
 ## Config
 
@@ -141,6 +145,57 @@ router.push(`/${locale}/workspaces`);
 
 Do not reach for `useSWRMutation`.
 
+When the write tells you what the row now holds, apply it to the cache instead of
+refetching the list:
+
+```ts
+await upsertFeatureScope(token, body);
+await mutate((current) => (current ? { ...current, items: patched(current.items) } : current), {
+  revalidate: false,
+});
+```
+
+Guard `current`. A key with nothing in it yet hands the updater `undefined`.
+
+To forget a key rather than patch it, go through the cache: `mutate(key, undefined)` reads
+as "revalidate", not "forget", and leaves the old value in place.
+
+```ts
+const { cache } = useSWRConfig();
+cache.delete(unstable_serialize(key));
+```
+
+## Editing a loaded record
+
+Read in the outer component and render the form only once the record is there, so the
+fields can be `useState` initialized from it. Key the form on the record id. Do not mirror
+each field into a second `loaded` state to diff against on save, and do not push the
+record into state from an effect.
+
+```tsx
+if (isLoading) return <CenteredProgress label={dict.general.loading} />;
+if (!workspace) return <InlineAlert description={dict.workspaces.loadError} ... />;
+return <WorkspaceSettings key={workspace.id} workspace={workspace} />;
+```
+
+The alert matters: a form that renders without its record posts its empty fields as a new
+one.
+
+The record is read to seed a form that cannot re-seed itself, so it must not outlive the
+screen. Drop it on unmount, as `useFeatureScope` does. Otherwise the next visit seeds from
+whatever the cache still holds, a save or a toggle elsewhere having moved on from it, and
+saving there writes the stale value straight back. Refreshing the key after your own write
+is not enough on its own: it does not cover the writes made from a list.
+
+Send only the fields that changed. The record behind the form can move while the fields
+cannot, so a whole-form save carries the values this person was shown over anything edited
+elsewhere since:
+
+```ts
+const patch: UpdateWorkspaceBody = {};
+if (trimmedName !== seed.name) patch.name = trimmedName;
+```
+
 ## Loading
 
 - No data yet: show `CenteredProgress`, or pass `isLoading` to the table's `loading`.
@@ -151,13 +206,20 @@ A filter change is not a background refresh. The key changes, there is no data f
 key, and the table shows its loading state. That is deliberate: the alternative is the
 previous workspace's rows sitting under the new workspace's name.
 
-Keep the session-expired branch when you render an error:
+Render an error in three branches, in this order:
 
 ```ts
 if (isSessionExpired(loadError)) return dict.general.sessionExpired;
+if (isForbidden(loadError)) return dict.general.noAccess;
+return dict.somewhere.loadError;
 ```
 
-Without it the user gets the raw `Error.message`.
+Never fall through to `Error.message`. It is the backend's string, untranslated, and it
+reaches the user as `Request failed (403)`.
+
+The two are not interchangeable. `isForbidden` is 403 only, which is what the API answers a
+permission refusal with. A 401 an authenticated caller cannot refresh past is the session
+being refused, and `sobaFetch` has already turned it into a `SessionExpiredError`.
 
 ## Session and routing
 
@@ -213,10 +275,17 @@ const selectedWorkspaceId =
   workspaceParam && workspaces.some((w) => w.id === workspaceParam) ? workspaceParam : undefined;
 ```
 
-Hold the key at `null` until you can resolve it, or an unresolved filter falls through to
-an unscoped read and shows rows from everywhere. An unresolvable id gets the unfiltered
-table and a notice with a Clear action. Use the same message for unknown and forbidden, so
-the page does not confirm which ids exist.
+Hold the key at `null` while the list you resolve against is still loading. Resolving too
+early scopes the request to nothing.
+
+An id that never resolves reads unscoped, and the screen says so: the picker returns to all
+workspaces and a notice explains that the filter was not applied, with a Clear action. Do
+not leave the table asserting a filter it does not have, and do not show an empty table
+instead, which asserts there is nothing to see. Use the same message for unknown and
+forbidden, so the page does not confirm which ids exist.
+
+Forget a rejected id rather than remembering it. It is not a view worth restoring, and the
+memory would otherwise hand it back on every arrival and raise the notice again.
 
 Write filter changes with `history.replaceState`, not `router.replace`. A router
 navigation re-runs the page's server component, which re-reads the features and build
@@ -231,13 +300,11 @@ memory.
 
 ## Screens with their own loading
 
-`FormioV5SubmissionFillClient`, `StartSubmission` and `WorkspaceForm`.
+`FormioV5SubmissionFillClient` and `StartSubmission`.
 
 The fill client holds answers the user has typed that no server has seen, and Form.io
 resets the live webform when the submission prop is not deep-equal to what is on screen. A
 revalidating cache over it discards work. `StartSubmission` is a fire-once idempotent POST.
-`WorkspaceForm` reads one workspace through a plain effect; it has no reason to stay that
-way beyond nobody needing it yet.
 
 ## Testing
 

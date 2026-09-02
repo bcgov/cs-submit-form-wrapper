@@ -7,7 +7,7 @@ import type { RootState } from '@/lib/store';
 import { SessionExpiredError } from './sobaFetch';
 
 /** Key parts for a read. `null` from the caller means the request is not ready. */
-export type AuthedKey = readonly unknown[] | null;
+type AuthedKey = readonly unknown[] | null;
 
 /**
  * Authenticated read through SWR. The key is the caller's, gated on a usable session; the token is

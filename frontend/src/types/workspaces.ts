@@ -29,9 +29,10 @@ export type CreateWorkspaceBody = {
   org: string;
 };
 
+/** A patch: every field is optional, and the backend requires at least one. */
 export type UpdateWorkspaceBody = {
   name?: string;
   disclaimerAccepted?: boolean;
-  useCase: string;
-  org: string;
+  useCase?: string;
+  org?: string;
 };

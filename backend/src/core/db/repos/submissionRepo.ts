@@ -23,6 +23,8 @@ export interface SubmissionListRow {
   submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  createdBy: string | null;
+  submittedBy: string | null;
 }
 
 export interface SubmissionDetailRow extends SubmissionListRow {
@@ -190,6 +192,8 @@ export const getSubmissionById = async (
       submittedAt: submissions.submittedAt,
       createdAt: submissions.createdAt,
       updatedAt: submissions.updatedAt,
+      createdBy: submissions.createdBy,
+      submittedBy: submissions.submittedBy,
     })
     .from(submissions)
     .leftJoin(forms, eq(submissions.formId, forms.id))
@@ -303,6 +307,8 @@ export const listSubmissionsForWorkspace = async (
         submittedAt: submissions.submittedAt,
         createdAt: submissions.createdAt,
         updatedAt: submissions.updatedAt,
+        createdBy: submissions.createdBy,
+        submittedBy: submissions.submittedBy,
       })
       .from(submissions)
       .innerJoin(forms, eq(submissions.formId, forms.id))

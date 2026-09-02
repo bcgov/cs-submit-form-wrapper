@@ -2,19 +2,17 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
 
 const mockPush = vi.fn();
-const {
-  mockCreateWorkspace,
-  mockUpdateWorkspace,
-  mockSelectWorkspace,
-  mockRefreshWorkspaces,
-} = vi.hoisted(() => ({
-  mockCreateWorkspace: vi.fn(),
-  mockUpdateWorkspace: vi.fn(),
-  mockSelectWorkspace: vi.fn(),
-  mockRefreshWorkspaces: vi.fn().mockResolvedValue([]),
-}));
+const { mockCreateWorkspace, mockUpdateWorkspace, mockSelectWorkspace, mockRefreshWorkspaces } =
+  vi.hoisted(() => ({
+    mockCreateWorkspace: vi.fn(),
+    mockUpdateWorkspace: vi.fn(),
+    mockSelectWorkspace: vi.fn(),
+    mockRefreshWorkspaces: vi.fn().mockResolvedValue([]),
+  }));
 
 vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => ({ authenticated: true, token: 'token', initializing: false }),
@@ -47,7 +45,6 @@ vi.mock('@/app/[lang]/Providers', () => ({
       loadError: 'Failed to load workspace.',
       manageForbidden: 'Only workspace owners or admins can manage this workspace.',
       createForbidden: 'Only BC Government identity provider users can create workspaces.',
-      defaultWorkspaceFormLabel: 'Set as default workspace',
       disclaimerLabel: 'I agree to the disclaimer and statement of responsibility',
     },
   }),
@@ -65,17 +62,20 @@ vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
       value,
       onChange,
       items,
+      isDisabled,
     }: {
       'data-testid'?: string;
       value?: string | number | null;
       onChange?: (val: string) => void;
       items?: SelectItem[];
+      isDisabled?: boolean;
     }) => (
       <select
         data-testid={testId}
         value={value ?? ''}
         onChange={(e) => onChange?.(e.target.value)}
         aria-label={testId}
+        disabled={isDisabled}
       >
         <option value="">Select...</option>
         {items?.map((item) => (
@@ -93,16 +93,14 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/en/workspace',
 }));
 
-vi.mock('@/src/shared/api/useWorkspaces', () => ({
+vi.mock('@/src/shared/api/useWorkspaces', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/src/shared/api/useWorkspaces')>()),
   useRefreshWorkspaces: () => mockRefreshWorkspaces,
 }));
 
 vi.mock('@/src/shared/api/useCurrentUser', () => ({
   useCurrentUser: () => ({
-    data: {
-      preferences: { defaultWorkspaceId: 'ws1' },
-      capabilities: { canCreateWorkspace: true },
-    },
+    data: { capabilities: { canCreateWorkspace: true } },
     loaded: true,
   }),
 }));
@@ -117,11 +115,30 @@ vi.mock('@/src/shared/api/sobaApi', () => ({
   selectWorkspace: mockSelectWorkspace,
 }));
 
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import WorkspaceForm from '@/src/features/workspaces/ui/WorkspaceForm';
+
+let store: ReturnType<typeof makeStore>;
+
+function renderForm(workspaceId?: string) {
+  return render(
+    <Provider store={store}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
+        <WorkspaceForm workspaceId={workspaceId} />
+      </SWRConfig>
+    </Provider>,
+  );
+}
 
 describe('WorkspaceForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
     mockCreateWorkspace.mockResolvedValue({
       id: 'ws-new',
       name: 'New Team',
@@ -153,7 +170,7 @@ describe('WorkspaceForm', () => {
 
   it('create mode renders empty name and does not load workspace', async () => {
     await act(async () => {
-      render(<WorkspaceForm />);
+      renderForm();
     });
     expect(screen.getByRole('textbox')).toHaveValue('');
     expect(mockSelectWorkspace).not.toHaveBeenCalled();
@@ -161,7 +178,7 @@ describe('WorkspaceForm', () => {
 
   it('manage mode loads workspace name', async () => {
     await act(async () => {
-      render(<WorkspaceForm workspaceId="ws2" />);
+      renderForm('ws2');
     });
     expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     expect(mockSelectWorkspace).toHaveBeenCalledWith('token', 'ws2');
@@ -169,16 +186,16 @@ describe('WorkspaceForm', () => {
 
   it('manage mode shows Settings and Team tabs', async () => {
     await act(async () => {
-      render(<WorkspaceForm workspaceId="ws2" />);
+      renderForm('ws2');
     });
     await waitFor(() => expect(mockSelectWorkspace).toHaveBeenCalled());
     expect(screen.getByRole('tab', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Team' })).toBeInTheDocument();
   });
 
-  it('save on create posts workspace and optional default preference', async () => {
+  it('save on create posts the workspace', async () => {
     await act(async () => {
-      render(<WorkspaceForm />);
+      renderForm();
     });
     await userEvent.type(screen.getByRole('textbox'), 'New Team');
     await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
@@ -199,7 +216,7 @@ describe('WorkspaceForm', () => {
 
   it('save on create sends the disclaimer acceptance', async () => {
     await act(async () => {
-      render(<WorkspaceForm />);
+      renderForm();
     });
     await userEvent.type(screen.getByRole('textbox'), 'New Team');
     await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
@@ -217,31 +234,9 @@ describe('WorkspaceForm', () => {
     });
   });
 
-  it('create without toggling default preserves the existing default', async () => {
-    // currentUser already has defaultWorkspaceId 'ws1'. Creating a second workspace
-    // without touching the switch must NOT PATCH /me (which would clear the default).
-    await act(async () => {
-      render(<WorkspaceForm />);
-    });
-    await userEvent.type(screen.getByRole('textbox'), 'Second Team');
-    await userEvent.selectOptions(screen.getByTestId('workspace-your-org'), 'testOrg');
-    await userEvent.selectOptions(screen.getByTestId('workspace-use-case'), 'testUseCase');
-    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
-
-    await waitFor(() => {
-      expect(mockCreateWorkspace).toHaveBeenCalledWith('token', {
-        name: 'Second Team',
-        disclaimerAccepted: false,
-        useCase: 'testUseCase',
-        org: 'testOrg',
-      });
-      expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
-    });
-  });
-
   it('cancel navigates back without saving', async () => {
     await act(async () => {
-      render(<WorkspaceForm />);
+      renderForm();
     });
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(mockCreateWorkspace).not.toHaveBeenCalled();
@@ -250,7 +245,7 @@ describe('WorkspaceForm', () => {
 
   it('save on manage patches workspace when name changes', async () => {
     await act(async () => {
-      render(<WorkspaceForm workspaceId="ws2" />);
+      renderForm('ws2');
     });
     expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     const nameInput = screen.getByRole('textbox');
@@ -259,19 +254,16 @@ describe('WorkspaceForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', {
-        name: 'Renamed',
-        disclaimerAccepted: false,
-        useCase: 'testUseCase',
-        org: 'testOrg',
-      });
+      expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', { name: 'Renamed' });
       expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
     });
   });
 
-  it('save on manage sends the disclaimer acceptance', async () => {
+  // The fields seed once and the record behind them can move on, so sending the whole form would
+  // carry the values this person was shown over anything edited elsewhere since.
+  it('save on manage sends only the fields that changed', async () => {
     await act(async () => {
-      render(<WorkspaceForm workspaceId="ws2" />);
+      renderForm('ws2');
     });
     expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
@@ -279,17 +271,88 @@ describe('WorkspaceForm', () => {
 
     await waitFor(() => {
       expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', {
-        name: 'Team Workspace',
         disclaimerAccepted: true,
-        useCase: 'testUseCase',
-        org: 'testOrg',
       });
+    });
+  });
+
+  // Without the record the form would post its empty fields as a new workspace.
+  it('withholds the form when the workspace cannot be loaded', async () => {
+    mockSelectWorkspace.mockRejectedValue(new Error('boom'));
+
+    await act(async () => {
+      renderForm('ws2');
+    });
+
+    expect(await screen.findByTestId('workspace-load-error')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  });
+
+  it('sends a member who cannot manage the workspace back to the list', async () => {
+    mockSelectWorkspace.mockResolvedValue({
+      id: 'ws2',
+      name: 'Team Workspace',
+      kind: 'team',
+      role: 'submitter',
+      status: 'active',
+      disclaimerAccepted: false,
+      useCase: 'testUseCase',
+      org: 'testOrg',
+    });
+
+    await act(async () => {
+      renderForm('ws2');
+    });
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/workspaces'));
+    expect(mockUpdateWorkspace).not.toHaveBeenCalled();
+  });
+
+  // The record's own key too, not just the lists: the manage form seeds from it once and cannot
+  // re-seed, so a stale copy would show the pre-save values on the next visit.
+  it('re-reads the workspace after saving it', async () => {
+    await act(async () => {
+      renderForm('ws2');
+    });
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
+    expect(mockSelectWorkspace).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockSelectWorkspace).toHaveBeenCalledTimes(2));
+  });
+
+  // A field left live during the write implies the change will be included. It will not: the
+  // request body was built when Save was pressed.
+  it('locks the fields while the save is in flight', async () => {
+    let release: (() => void) | undefined;
+    mockUpdateWorkspace.mockImplementation(
+      () => new Promise<void>((resolve) => (release = () => resolve())),
+    );
+
+    await act(async () => {
+      renderForm('ws2');
+    });
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateWorkspace).toHaveBeenCalled());
+    expect(screen.getByTestId('workspace-your-org')).toBeDisabled();
+    expect(screen.getByTestId('workspace-use-case')).toBeDisabled();
+    // The testid lands on the design system's wrapper, so the control itself is the input inside.
+    expect(screen.getByTestId('workspace-name').querySelector('input')).toBeDisabled();
+
+    await act(async () => {
+      release?.();
     });
   });
 
   it('refreshes the workspace lists after saving', async () => {
     await act(async () => {
-      render(<WorkspaceForm workspaceId="ws2" />);
+      renderForm('ws2');
     });
     expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
     await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));

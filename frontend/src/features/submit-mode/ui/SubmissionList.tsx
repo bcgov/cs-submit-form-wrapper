@@ -5,10 +5,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
-import { getSobaSubmissions } from '@/src/shared/api/sobaApiDesign';
-import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
-import { listReadConfig } from '@/src/shared/api/swrConfig';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import { SUBMISSIONS_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
 import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import type { SubmissionListItem } from '@/src/types/submissions';
@@ -28,37 +26,31 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
   const locale = getLocaleFromPath(pathname);
   const listQuery = useListQuery(SUBMISSIONS_LIST_QUERY);
 
+  // The endpoint requires a scope anchor and rejects an unscoped list, so without a form there is
+  // no request to make. `formId` is the SOBA formId, routed from FormList.
   const {
-    data,
+    submissions,
+    total,
     isLoading,
     error: loadError,
-  } = useAuthedSWR(
-    // The endpoint requires a scope anchor and rejects an unscoped list, so without a form there is
-    // no request to make. `formId` is the SOBA formId, routed from FormList.
-    formId
-      ? ['submissions', formId, listQuery.offset, listQuery.pageSize, listQuery.sort, listQuery.q]
-      : null,
-    (token) =>
-      getSobaSubmissions(token, {
-        offset: listQuery.offset,
-        limit: listQuery.pageSize,
-        sort: listQuery.sort,
-        q: listQuery.q,
-        formId: formId as string,
-      }),
-    listReadConfig,
-  );
+  } = useFormSubmissions(formId, true, {
+    offset: listQuery.offset,
+    limit: listQuery.pageSize,
+    sort: listQuery.sort,
+    q: listQuery.q,
+  });
 
-  const submissions: SubmissionListItem[] = useMemo(
-    () => (Array.isArray(data?.items) ? data.items : []),
-    [data],
+  const error = useMemo(
+    () =>
+      loadError
+        ? loadErrorMessage(loadError, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: dict.submission.error,
+          })
+        : null,
+    [loadError, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error],
   );
-
-  const error = useMemo(() => {
-    if (!loadError) return null;
-    if (isSessionExpired(loadError)) return dict.general.sessionExpired;
-    return loadError instanceof Error ? loadError.message : String(loadError);
-  }, [loadError, dict.general.sessionExpired]);
 
   const loading = initializing || isLoading;
 
@@ -120,7 +112,7 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
       keyExtractor={(sub) => sub.id}
       itemName={dict.submission?.submissions || 'submissions'}
       caption={dict.submission?.submissions || 'Submissions'}
-      totalItems={data?.page?.total}
+      totalItems={total}
       pageSize={listQuery.pageSize}
       currentPage={listQuery.page}
       onPageChange={listQuery.setPage}

@@ -45,6 +45,8 @@ const toSubmissionDto = (item: SubmissionRecord | SubmissionDetailRow) => {
     submittedAt: item.submittedAt?.toISOString() ?? null,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
+    createdBy: detail.createdBy ?? null,
+    submittedBy: detail.submittedBy ?? null,
   };
 };
 
@@ -59,6 +61,8 @@ const toSubmissionListItemDto = (item: SubmissionListRow) => ({
   submittedAt: item.submittedAt?.toISOString() ?? null,
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
+  createdBy: item.createdBy,
+  submittedBy: item.submittedBy,
 });
 
 export function createSubmissionsApiService(submissionService: SubmissionService) {

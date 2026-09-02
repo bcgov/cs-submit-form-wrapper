@@ -87,15 +87,18 @@ export async function sobaFetch(path: string, options: SobaFetchOptions = {}): P
 
   const response = await send(url, options, token, body);
 
-  // Refresh and replay once; a second 401 is a real answer and goes back to the caller.
+  // Refresh and replay once. A 401 that survives that is the session being refused, not a verdict
+  // on what this caller may do: the API answers a permission refusal with 403. Reporting it as an
+  // ended session is what lets callers tell "sign in again" from "you do not have access".
   if (response.status === 401 && token) {
     const outcome = await forceRefreshToken();
-    // Same rule as the pre-flight path: an affirmative no-session is reported as one rather than
-    // handed back as a bare 401 the caller would render as "not found" or "failed to load".
     if (outcome.status === 'no-session') throw new SessionExpiredError();
     if (outcome.status === 'token' && outcome.token !== token) {
-      return send(url, options, outcome.token, body);
+      const replayed = await send(url, options, outcome.token, body);
+      if (replayed.status === 401) throw new SessionExpiredError();
+      return replayed;
     }
+    throw new SessionExpiredError();
   }
 
   return response;

@@ -10,7 +10,6 @@ import {
 } from '../shared/offsetPagination';
 import { WORKSPACE_SORT_FIELDS } from '../../db/repos/membershipRepo';
 import { WORKSPACE_NAME_TAKEN } from '../../messages';
-import { WorkspaceScopedQuerySchema } from '../shared/schema';
 
 extendZodWithOpenApi(z);
 
@@ -125,29 +124,6 @@ export const registerWorkspacesOpenApi = (registry: OpenAPIRegistry) => {
 
   registry.registerPath({
     method: 'get',
-    path: `${WORKSPACES_PATH}/current`,
-    tags: [TAG],
-    security: [{ bearerAuth: [] }],
-    request: {
-      query: WorkspaceScopedQuerySchema,
-    },
-    responses: {
-      200: {
-        description: 'Current workspace resolved from the workspaceId query parameter',
-        content: {
-          'application/json': {
-            schema: CurrentWorkspaceResponseSchema,
-          },
-        },
-      },
-      404: {
-        description: 'Current workspace not found',
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: 'get',
     path: WORKSPACE_PATH,
     tags: [TAG],
     security: [{ bearerAuth: [] }],
@@ -156,8 +132,7 @@ export const registerWorkspacesOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: {
-        description:
-          'Select a workspace by id (verifies membership; echoes x-soba-workspace-id response header)',
+        description: 'Select a workspace by id (verifies membership)',
         content: {
           'application/json': {
             schema: CurrentWorkspaceResponseSchema,

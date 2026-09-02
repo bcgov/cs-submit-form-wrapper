@@ -5,7 +5,7 @@ import { Provider } from 'react-redux';
 import { SWRConfig } from 'swr';
 import makeStore from '@/lib/store';
 import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
-import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
+import { useAuthedSWR, useMaybeAuthedSWR } from '@/src/shared/api/useAuthedSWR';
 import { swrConfig } from '@/src/shared/api/swrConfig';
 import { SessionExpiredError } from '@/src/shared/api/sobaFetch';
 
@@ -93,5 +93,54 @@ describe('swrConfig', () => {
     const shouldRetry = swrConfig.shouldRetryOnError as (err: unknown) => boolean;
     expect(shouldRetry(new Error('Request failed (500)'))).toBe(true);
     expect(shouldRetry(new SessionExpiredError())).toBe(false);
+  });
+});
+
+describe('useMaybeAuthedSWR', () => {
+  beforeEach(() => {
+    store = makeStore();
+  });
+
+  // The submit surface serves people who are not signed in, so this one reads without a session.
+  it('reads with no token at all', async () => {
+    const fetcher = vi.fn().mockResolvedValue('public');
+    const { result } = renderHook(() => useMaybeAuthedSWR(['fill', 'abc'], fetcher), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toBe('public'));
+    expect(fetcher).toHaveBeenCalledWith(undefined);
+  });
+
+  it('passes the token once there is one', async () => {
+    signIn('token-1');
+    const fetcher = vi.fn().mockResolvedValue('mine');
+    const { result } = renderHook(() => useMaybeAuthedSWR(['fill', 'abc'], fetcher), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toBe('mine'));
+    expect(fetcher).toHaveBeenCalledWith('token-1');
+  });
+
+  // Without the identity in its key, signing in would be served the anonymous reader's copy of a
+  // submission, which carries less than the owner's.
+  it('keeps the anonymous and signed-in reads apart', async () => {
+    const cache = new Map();
+    const shared = ({ children }: { children: React.ReactNode }) => (
+      <Provider store={store}>
+        <SWRConfig
+          value={{ provider: () => cache, dedupingInterval: 0, shouldRetryOnError: false }}
+        >
+          {children}
+        </SWRConfig>
+      </Provider>
+    );
+    const fetcher = vi.fn((token?: string) => Promise.resolve(token ? 'mine' : 'public'));
+    const key = () => ['fill', 'abc', store.getState().keycloak.token ? 'user' : 'anonymous'];
+
+    const anon = renderHook(() => useMaybeAuthedSWR(key(), fetcher), { wrapper: shared });
+    await waitFor(() => expect(anon.result.current.data).toBe('public'));
+    anon.unmount();
+
+    signIn('token-1');
+    const authed = renderHook(() => useMaybeAuthedSWR(key(), fetcher), { wrapper: shared });
+    await waitFor(() => expect(authed.result.current.data).toBe('mine'));
   });
 });

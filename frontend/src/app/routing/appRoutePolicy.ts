@@ -1,3 +1,4 @@
+import { navLink } from '@/src/shared/list/listQueryMemory';
 import { ROUTE_KIND_BY_SEGMENT } from './routeSegments';
 
 export type RouteKind = 'home' | 'onboarding' | 'workspace-app' | 'workspaces' | 'public';
@@ -52,7 +53,8 @@ export function resolveRedirect(
   const kind = classifyRoute(pathname);
   const home = `/${locale}`;
   const onboarding = `/${locale}/onboarding`;
-  const forms = `/${locale}/forms`;
+  // Marked as an in-app arrival so the list comes back as the user left it.
+  const forms = navLink(`/${locale}/forms`);
   const workspaces = `/${locale}/workspaces`;
 
   if (!session.authenticated) {

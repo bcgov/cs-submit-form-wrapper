@@ -13,12 +13,14 @@ vi.mock('@/app/[lang]/Providers', () => ({
       forms: 'Forms',
       loading: 'Loading...',
       sessionExpired: 'Your session has ended.',
+      noAccess: 'You do not have access to this.',
       create: 'Create',
       search: 'Search',
     },
     form: {
       nameLabel: 'Form Name',
       disclaimerRequired: 'Accept the workspace disclaimer before creating a form.',
+      loadFormsError: 'Failed to load forms.',
     },
     header: {
       selectWorkspace: 'Select Workspace',
@@ -90,8 +92,8 @@ async function renderList() {
     view = render(
       <Provider store={store}>
         <SWRConfig
-        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
-      >
+          value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+        >
           <PageLayout headingId="forms-heading" heading="Forms">
             <FormList />
           </PageLayout>
@@ -372,15 +374,37 @@ describe('FormList', () => {
     );
   });
 
+  // Losing access to the workspace you had filtered to would otherwise raise the same notice on
+  // every arrival from the nav, because the memory keeps handing the id back.
+  it('forgets a filter it cannot resolve', async () => {
+    search.value = 'workspace=ws-gone';
+    sessionStorage.setItem('soba.listQuery.forms', JSON.stringify({ workspace: 'ws-gone' }));
+    seed([{ id: 'ws1', disclaimerAccepted: true }]);
+    await renderList();
+
+    expect(await screen.findByTestId('page-notice-workspace-filter')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(sessionStorage.getItem('soba.listQuery.forms')).toBe(JSON.stringify({})),
+    );
+  });
+
   it('reports an ended session instead of the raw error', async () => {
     const expired = new Error('Session expired');
     expired.name = 'SessionExpiredError';
     getSobaForms.mockRejectedValue(expired);
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     await renderList();
-    await waitFor(() =>
-      expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument());
+  });
+
+  // The backend's string is untranslated and says things like "Request failed (500)".
+  it('reports a failed load without showing the backend message', async () => {
+    getSobaForms.mockRejectedValue(new Error('Request failed (500)'));
+    seed([{ id: 'ws1', disclaimerAccepted: true }]);
+    await renderList();
+
+    await waitFor(() => expect(screen.getByText(/Failed to load forms\./)).toBeInTheDocument());
+    expect(screen.queryByText(/Request failed/)).not.toBeInTheDocument();
   });
 
   // Clicking the nav link while already on this page is a query-only navigation: the App Router

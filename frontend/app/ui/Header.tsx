@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useSWRConfig } from 'swr';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Dropdown } from 'react-bootstrap';
 import { Header as BCHeader } from '@bcgov/design-system-react-components';
 import { FaUser } from 'react-icons/fa6';
@@ -34,6 +34,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   );
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { authenticated, idTokenParsed, token, logout, init, refresh, initStarted, initializing } =
     useKeycloak();
   const currentUser = useCurrentUser();
@@ -65,6 +66,16 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
     return () => observer.disconnect();
   }, []);
 
+  // The cache and this tab's view state outlive the session. The next person signing in here would
+  // otherwise be served the previous user's workspaces and their list filters. Revalidating rather
+  // than only emptying: a key still on screen would otherwise hold `undefined` for the life of the
+  // page, because a mounted hook only refetches when its key changes.
+  const clearSessionState = useCallback(() => {
+    void mutate(() => true, undefined, { revalidate: true });
+    removeSessionValues((key) => key === WORKSPACE_MODAL_DISMISSED_KEY);
+    forgetListQueries();
+  }, [mutate]);
+
   useEffect(() => {
     const currentSubject =
       authenticated && typeof idTokenParsed?.sub === 'string' ? idTokenParsed.sub : undefined;
@@ -78,11 +89,7 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
         initializing,
       })
     ) {
-      // The cache and this tab's view state outlive the session. The next person signing in here
-      // would otherwise be served the previous user's workspaces and their list filters.
-      void mutate(() => true, undefined, { revalidate: false });
-      removeSessionValues((key) => key === WORKSPACE_MODAL_DISMISSED_KEY);
-      forgetListQueries();
+      clearSessionState();
     }
     // Held past a transient: a rotation between renders must not read as a departure.
     if (currentSubject !== undefined || (initStarted && !initializing)) {
@@ -99,20 +106,23 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
         refresh();
       }, 30000);
     }
-  }, [authenticated, token, idTokenParsed, refresh, mutate, initStarted, initializing]);
+  }, [authenticated, token, idTokenParsed, refresh, clearSessionState, initStarted, initializing]);
 
   const hasWorkspaces = useMemo(() => workspaces.length > 0, [workspaces.length]);
   const canCreateWorkspace = currentUser.data?.capabilities?.canCreateWorkspace === true;
 
   const handleLogout = () => {
-    void mutate(() => true, undefined, { revalidate: false });
+    // Cleared here rather than left to the identity effect: `logout()` navigates away, and an
+    // effect that does not run before the page unloads leaves this tab's state for the next user.
+    clearSessionState();
     logout();
   };
 
   const handleLanguageChange = (newLocale: string) => {
     if (pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`) {
       const newPath = pathname.replace(`/${locale}`, `/${newLocale}`);
-      router.push(newPath);
+      const search = searchParams.toString();
+      router.push(search ? `${newPath}?${search}` : newPath);
     } else {
       router.push(`/${newLocale}/`);
     }

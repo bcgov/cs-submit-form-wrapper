@@ -11,7 +11,7 @@ import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useWorkspaceList } from '@/src/shared/api/useWorkspaces';
-import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { WORKSPACES_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
 import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
@@ -76,11 +76,22 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
     q: listQuery.q,
   });
 
-  const error = useMemo(() => {
-    if (!workspacesError) return null;
-    if (isSessionExpired(workspacesError)) return dict.general.sessionExpired;
-    return dictWorkspaces.listLoadError;
-  }, [workspacesError, dict.general.sessionExpired, dictWorkspaces.listLoadError]);
+  const error = useMemo(
+    () =>
+      workspacesError
+        ? loadErrorMessage(workspacesError, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: dictWorkspaces.listLoadError,
+          })
+        : null,
+    [
+      workspacesError,
+      dict.general.sessionExpired,
+      dict.general.noAccess,
+      dictWorkspaces.listLoadError,
+    ],
+  );
   const { data: currentUser } = useCurrentUser();
 
   const handleSelect = useCallback(

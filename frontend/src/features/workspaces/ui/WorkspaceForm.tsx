@@ -17,110 +17,64 @@ import { usePageHeading } from '@/src/components/PageHeader';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
-import { useRefreshWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { codeItems } from '@/src/shared/util/codeList';
+import {
+  useWorkspace,
+  useRefreshWorkspace,
+  useRefreshWorkspaces,
+} from '@/src/shared/api/useWorkspaces';
 import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
-import { createWorkspace, selectWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
+import { createWorkspace, updateWorkspace } from '@/src/shared/api/sobaApi';
 import { isWorkspaceManageRole } from '../workspaceRoles';
+import type { UpdateWorkspaceBody, WorkspaceItem } from '@/src/types/workspaces';
 import styles from './WorkspaceForm.module.css';
 
-type WorkspaceFormProps = {
-  workspaceId?: string;
-  first?: boolean;
+/** Only the fields that differ from what the form was seeded with. */
+function changedFields(
+  seed: WorkspaceItem,
+  fields: { name: string; org: string; useCase: string; disclaimerAccepted: boolean },
+): UpdateWorkspaceBody {
+  const patch: UpdateWorkspaceBody = {};
+  if (fields.name !== seed.name) patch.name = fields.name;
+  if (fields.org !== seed.org) patch.org = fields.org;
+  if (fields.useCase !== seed.useCase) patch.useCase = fields.useCase;
+  if (fields.disclaimerAccepted !== seed.disclaimerAccepted) {
+    patch.disclaimerAccepted = fields.disclaimerAccepted;
+  }
+  return patch;
+}
+
+type WorkspaceSettingsProps = {
+  /** The workspace being edited, or null to create one. Seeds the fields on mount. */
+  workspace: WorkspaceItem | null;
+  first: boolean;
 };
 
-function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormProps>) {
-  const isCreate = !workspaceId;
+function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps>) {
+  const isCreate = workspace === null;
   const dict = useDictionary();
   const dictWorkspaces = dict.workspaces;
   const router = useRouter();
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
-  const { authenticated, token, initializing } = useKeycloak();
+  const { token } = useKeycloak();
   const refreshWorkspaces = useRefreshWorkspaces();
+  const refreshWorkspace = useRefreshWorkspace();
   const { addNotification } = useNotificationStore();
-  const { data: currentUser, loaded: currentUserLoaded } = useCurrentUser();
 
-  const [name, setName] = useState('');
-  const [loadedName, setLoadedName] = useState('');
-  const [org, setOrg] = useState('');
-  const [loadedOrg, setLoadedOrg] = useState('');
-  const [useCase, setUseCase] = useState('');
-  const [loadedUseCase, setLoadedUseCase] = useState('');
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
-  const [loadedDisclaimer, setLoadedDisclaimer] = useState(false);
-  const [loading, setLoading] = useState(!isCreate);
+  // What the fields were seeded from. The `workspace` prop moves with a revalidation while the
+  // fields cannot, so the saved value is diffed against what the user was actually shown.
+  const [seed] = useState(workspace);
+  const [name, setName] = useState(seed?.name ?? '');
+  const [org, setOrg] = useState(seed?.org ?? '');
+  const [useCase, setUseCase] = useState(seed?.useCase ?? '');
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(seed?.disclaimerAccepted ?? false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('settings');
 
   const valid = useMemo(() => {
     return name.trim().length > 0 && useCase !== '' && org !== '';
   }, [name, useCase, org]);
-
-  useEffect(() => {
-    if (!authenticated || initializing || !currentUserLoaded) {
-      return;
-    }
-    if (isCreate && !currentUser?.capabilities?.canCreateWorkspace) {
-      addNotification({
-        text: dictWorkspaces.createForbidden,
-        type: 'error',
-      });
-      router.push(`/${locale}/workspaces`);
-    }
-  }, [
-    isCreate,
-    currentUser,
-    currentUserLoaded,
-    authenticated,
-    initializing,
-    addNotification,
-    dictWorkspaces.createForbidden,
-    router,
-    locale,
-  ]);
-
-  useEffect(() => {
-    if (!token || isCreate) return;
-
-    let cancelled = false;
-    void selectWorkspace(token, workspaceId)
-      .then((workspace) => {
-        if (cancelled) return;
-        if (!isWorkspaceManageRole(workspace.role)) {
-          addNotification({
-            text: dictWorkspaces.manageForbidden,
-            type: 'error',
-          });
-          router.push(`/${locale}/workspaces`);
-          return;
-        }
-        setName(workspace.name);
-        setLoadedName(workspace.name);
-        setUseCase(workspace.useCase);
-        setLoadedUseCase(workspace.useCase);
-        setOrg(workspace.org);
-        setLoadedOrg(workspace.org);
-        setDisclaimerAccepted(workspace.disclaimerAccepted);
-        setLoadedDisclaimer(workspace.disclaimerAccepted);
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        addNotification({
-          text: dictWorkspaces.loadError,
-          type: 'error',
-          consoleError: error,
-        });
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per workspace id
-  }, [token, workspaceId, isCreate]);
 
   const handleUseCaseChange = useCallback((newUseCase: Key | null) => {
     setUseCase(newUseCase?.toString() ?? '');
@@ -135,37 +89,36 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
   }, [router, locale]);
 
   const handleSave = useCallback(async () => {
+    if (!token) return;
     const trimmedName = name.trim();
-    const needsUpdate =
-      trimmedName !== loadedName ||
-      disclaimerAccepted !== loadedDisclaimer ||
-      useCase !== loadedUseCase ||
-      org !== loadedOrg;
-    if (!token || !needsUpdate) return;
 
     setSaving(true);
     try {
-      if (isCreate) {
+      if (!seed) {
         await createWorkspace(token, {
           name: trimmedName,
           disclaimerAccepted,
           useCase,
           org,
         });
-      } else if (needsUpdate) {
-        await updateWorkspace(token, workspaceId, {
-          name: trimmedName,
-          disclaimerAccepted,
-          useCase,
-          org,
-        });
+      } else {
+        // Sending the untouched fields too would carry the values this person was shown over
+        // anything edited elsewhere since, reverting it without either of them seeing.
+        const patch = changedFields(seed, { name: trimmedName, org, useCase, disclaimerAccepted });
+        // Saving an unchanged workspace is a no-op, not a request.
+        if (Object.keys(patch).length === 0) {
+          router.push(`/${locale}/workspaces`);
+          return;
+        }
+        await updateWorkspace(token, seed.id, patch);
+        await refreshWorkspace(seed.id);
       }
 
       await refreshWorkspaces();
       router.push(`/${locale}/workspaces`);
     } catch (error) {
       addNotification({
-        text: isCreate ? dictWorkspaces.createError : dictWorkspaces.saveError,
+        text: seed ? dictWorkspaces.saveError : dictWorkspaces.createError,
         type: 'error',
         consoleError: error,
       });
@@ -177,36 +130,20 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
     org,
     useCase,
     token,
-    isCreate,
-    workspaceId,
-    loadedName,
+    seed,
     disclaimerAccepted,
-    loadedDisclaimer,
+    refreshWorkspace,
     refreshWorkspaces,
     router,
     locale,
     addNotification,
     dictWorkspaces.createError,
     dictWorkspaces.saveError,
-    loadedOrg,
-    loadedUseCase,
   ]);
-
-  const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
-  // The first-workspace flow runs inside a modal over another page, whose heading it must not take.
-  usePageHeading({ heading: first ? undefined : heading });
-
-  if (!authenticated && !initializing) {
-    return <p>{dict.general.notAuthenticated}</p>;
-  }
-
-  if (loading) {
-    return <CenteredProgress label={dict.general.loading} />;
-  }
 
   const saveLabel = isCreate ? dictWorkspaces.create : dictWorkspaces.save;
 
-  const settingsForm = (
+  return (
     <Form
       onSubmit={(event) => {
         event.preventDefault();
@@ -223,22 +160,24 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         data-testid="workspace-name"
       />
       <Select
-        items={Object.entries(dict.ministries).map(([id, label]) => ({ id, label }))}
+        items={codeItems(dict.ministries, seed?.org)}
         label={dictWorkspaces.yourOrgReq}
         selectionMode="single"
         size="medium"
         data-testid="workspace-your-org"
         isRequired={true}
+        isDisabled={saving}
         value={org}
         onChange={handleOrgChange}
       />
       <Select
-        items={Object.entries(dict.useCases).map(([id, label]) => ({ id, label }))}
+        items={codeItems(dict.useCases, seed?.useCase)}
         label={dictWorkspaces.useCase}
         selectionMode="single"
         size="medium"
         data-testid="workspace-use-case"
         isRequired={true}
+        isDisabled={saving}
         value={useCase}
         onChange={handleUseCaseChange}
       />
@@ -278,36 +217,113 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
       </div>
     </Form>
   );
+}
+
+type WorkspaceFormProps = {
+  workspaceId?: string;
+  first?: boolean;
+};
+
+function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormProps>) {
+  const isCreate = !workspaceId;
+  const dict = useDictionary();
+  const dictWorkspaces = dict.workspaces;
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = getLocaleFromPath(pathname);
+  const { authenticated, initializing } = useKeycloak();
+  const { addNotification } = useNotificationStore();
+  const { data: currentUser, loaded: currentUserLoaded } = useCurrentUser();
+  const { workspace, isLoading } = useWorkspace(workspaceId);
+
+  const [activeTab, setActiveTab] = useState('settings');
+
+  useEffect(() => {
+    if (!authenticated || initializing || !currentUserLoaded) {
+      return;
+    }
+    if (isCreate && !currentUser?.capabilities?.canCreateWorkspace) {
+      addNotification({
+        text: dictWorkspaces.createForbidden,
+        type: 'error',
+      });
+      router.push(`/${locale}/workspaces`);
+    }
+  }, [
+    isCreate,
+    currentUser,
+    currentUserLoaded,
+    authenticated,
+    initializing,
+    addNotification,
+    dictWorkspaces.createForbidden,
+    router,
+    locale,
+  ]);
+
+  useEffect(() => {
+    if (!workspace || isWorkspaceManageRole(workspace.role)) {
+      return;
+    }
+    addNotification({
+      text: dictWorkspaces.manageForbidden,
+      type: 'error',
+    });
+    router.push(`/${locale}/workspaces`);
+  }, [workspace, addNotification, dictWorkspaces.manageForbidden, router, locale]);
+
+  const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;
+  // The first-workspace flow runs inside a modal over another page, whose heading it must not take.
+  usePageHeading({ heading: first ? undefined : heading });
+
+  if (!authenticated && !initializing) {
+    return <p>{dict.general.notAuthenticated}</p>;
+  }
+
+  if (isLoading) {
+    return <CenteredProgress label={dict.general.loading} />;
+  }
+
+  if (isCreate) {
+    return (
+      <>
+        {first && <p>{dictWorkspaces.defaultWorkspaceIntro}</p>}
+        <WorkspaceSettings workspace={null} first={first} />
+      </>
+    );
+  }
+
+  // Editing without the record would post the empty form as a new workspace.
+  if (!workspace) {
+    return (
+      <InlineAlert
+        description={dictWorkspaces.loadError}
+        title={dictWorkspaces.manageHeading}
+        variant="warning"
+        data-testid="workspace-load-error"
+      />
+    );
+  }
 
   return (
-    <>
-      {first && <p>{dictWorkspaces.defaultWorkspaceIntro}</p>}
-      {isCreate ? (
-        settingsForm
-      ) : (
-        <Tabs
-          id="workspace-manage-tabs"
-          activeKey={activeTab}
-          onSelect={(k) => setActiveTab(k || 'settings')}
-          className="mb-3"
-          mountOnEnter
-        >
-          <Tab eventKey="settings" title={dictWorkspaces.settingsTab}>
-            <div className={styles.tabContent}>{settingsForm}</div>
-          </Tab>
-          <Tab eventKey="team" title={dictWorkspaces.teamTab}>
-            <div className={styles.tabContent}>
-              <FormSubmitterAudience
-                key={workspaceId ?? 'none'}
-                workspaceId={workspaceId ?? null}
-                token={token ?? undefined}
-                canManage
-              />
-            </div>
-          </Tab>
-        </Tabs>
-      )}
-    </>
+    <Tabs
+      id="workspace-manage-tabs"
+      activeKey={activeTab}
+      onSelect={(k) => setActiveTab(k || 'settings')}
+      className="mb-3"
+      mountOnEnter
+    >
+      <Tab eventKey="settings" title={dictWorkspaces.settingsTab}>
+        <div className={styles.tabContent}>
+          <WorkspaceSettings key={workspace.id} workspace={workspace} first={first} />
+        </div>
+      </Tab>
+      <Tab eventKey="team" title={dictWorkspaces.teamTab}>
+        <div className={styles.tabContent}>
+          <FormSubmitterAudience key={workspace.id} workspaceId={workspace.id} canManage />
+        </div>
+      </Tab>
+    </Tabs>
   );
 }
 

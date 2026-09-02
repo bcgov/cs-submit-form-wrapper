@@ -1,5 +1,6 @@
 import type { AppPlugin } from '@/src/types/plugins';
 import { FEATURE_CODES } from '@/src/shared/featureFlags/flags';
+import { navLink } from '@/src/shared/list/listQueryMemory';
 
 export const submitModePlugin: AppPlugin = {
   id: 'submit-mode',
@@ -8,7 +9,7 @@ export const submitModePlugin: AppPlugin = {
   order: 30,
   getNavItem: ({ locale, dictionary }) => ({
     id: 'submit-mode',
-    href: `/${locale}/forms`,
+    href: navLink(`/${locale}/forms`),
     label: dictionary.header.submit,
   }),
 };

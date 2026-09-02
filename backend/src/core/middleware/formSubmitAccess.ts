@@ -9,7 +9,6 @@ import {
 } from '../db/codes';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../errors';
 import { resolveCaller } from './actor';
-import { WORKSPACE_HEADER } from './workspaceContext';
 import type { Request, Response, NextFunction } from 'express';
 
 /** A denial that distinguishes an authenticated caller (403) from an anonymous one (401). */
@@ -96,7 +95,6 @@ export const authorizeSubmitterForWorkspace = async (
     // Public submitters have no membership; a non-manage role keeps them off workspace-admin routes.
     role: WorkspaceMembershipRole.member,
   };
-  res.set(WORKSPACE_HEADER, workspaceId);
 };
 
 /**

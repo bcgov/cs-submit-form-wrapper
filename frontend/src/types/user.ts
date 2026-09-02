@@ -14,5 +14,6 @@ export type CurrentUserResponse = {
   };
   capabilities: {
     canCreateWorkspace: boolean;
+    isSobaAdmin: boolean;
   };
 };

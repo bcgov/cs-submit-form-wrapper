@@ -43,7 +43,12 @@ describe('sobaFetch', () => {
     const fetchMock = vi.fn().mockResolvedValue(mockResponse());
     vi.stubGlobal('fetch', fetchMock);
 
-    await sobaFetch('/forms', { token: 'tok', method: 'POST', json: { a: 1 }, query: {workspaceId: 'wsX'} });
+    await sobaFetch('/forms', {
+      token: 'tok',
+      method: 'POST',
+      json: { a: 1 },
+      query: { workspaceId: 'wsX' },
+    });
 
     const [, init] = fetchMock.mock.calls[0];
     expect(init.method).toBe('POST');
@@ -68,9 +73,9 @@ describe('sobaFetch', () => {
 
     // Sending the stale token would be accepted as anonymous on the submit surface and file the
     // caller's work as the public user.
-    await expect(sobaFetch('/submit/submissions', { token: 'stale', method: 'POST' })).rejects.toThrow(
-      SessionExpiredError,
-    );
+    await expect(
+      sobaFetch('/submit/submissions', { token: 'stale', method: 'POST' }),
+    ).rejects.toThrow(SessionExpiredError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -130,14 +135,17 @@ describe('sobaFetch', () => {
     expect((fetchMock.mock.calls[1][1] as { body: string }).body).toBe(JSON.stringify({ a: 1 }));
   });
 
-  it('returns the 401 without replaying when the forced refresh yields the same token', async () => {
+  // A permission refusal is a 403. A 401 the refresh cannot get past is the session being refused,
+  // and reporting it as one is what lets a caller tell "sign in again" from "you do not have
+  // access" rather than showing a generic failure.
+  it('reports an ended session when the forced refresh yields the same token', async () => {
     const fetchMock = vi.fn().mockResolvedValue(mockResponse(401));
     vi.stubGlobal('fetch', fetchMock);
     setTokenRefresher(async () => token('same'));
 
-    const response = await sobaFetch('/forms', { token: 'same' });
-
-    expect(response.status).toBe(401);
+    await expect(sobaFetch('/forms', { token: 'same' })).rejects.toBeInstanceOf(
+      SessionExpiredError,
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -153,7 +161,7 @@ describe('sobaFetch', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('replays at most once when the 401 persists', async () => {
+  it('replays at most once, then reports an ended session', async () => {
     const fetchMock = vi.fn().mockResolvedValue(mockResponse(401));
     vi.stubGlobal('fetch', fetchMock);
     const refresher = vi
@@ -163,9 +171,9 @@ describe('sobaFetch', () => {
       .mockResolvedValue(token('third'));
     setTokenRefresher(refresher);
 
-    const response = await sobaFetch('/forms', { token: 'stale' });
-
-    expect(response.status).toBe(401);
+    await expect(sobaFetch('/forms', { token: 'stale' })).rejects.toBeInstanceOf(
+      SessionExpiredError,
+    );
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 

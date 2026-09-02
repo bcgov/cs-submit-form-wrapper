@@ -11,6 +11,8 @@ export interface SubmissionListItem {
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  createdBy?: string | null;
+  submittedBy?: string | null;
 }
 
 export interface ListSubmissionsResponse {
@@ -36,4 +38,6 @@ export interface SubmissionResponse {
   submittedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  createdBy?: string | null;
+  submittedBy?: string | null;
 }
