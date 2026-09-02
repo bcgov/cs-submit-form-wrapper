@@ -44,6 +44,14 @@ export const WORKSPACES_LIST_QUERY: ListQuerySpec = {
   defaultSort: 'name:asc',
 };
 
+/** The submissions tab inside the designer. Same shape, its own remembered query. */
+export const FORM_SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
+  resource: 'formSubmissions',
+  filters: [],
+  sortOptions: sortOptionsFor(['formName', 'submittedAt', 'createdAt', 'updatedAt']),
+  defaultSort: 'updatedAt:desc',
+};
+
 export const SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
   resource: 'submissions',
   filters: [],

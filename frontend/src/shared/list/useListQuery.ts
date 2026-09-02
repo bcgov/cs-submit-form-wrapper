@@ -36,6 +36,8 @@ export interface ListQueryControls {
   /** Search now, without waiting out the debounce. */
   commitSearch: () => void;
   setFilters: (next: ListQueryParams) => void;
+  /** Drop the filters and the search term together, keeping sort and page size. */
+  clear: () => void;
   setSort: (token: string) => void;
   setPage: (page: number) => void;
   setPageSize: (size: number) => void;
@@ -219,6 +221,13 @@ export function useListQuery(
       },
       [spec, apply],
     ),
+    clear: useCallback(() => {
+      const cleared: ListQueryParams = { q: '' };
+      for (const name of spec.filters) cleared[name] = '';
+      committedSearch.current = '';
+      setSearchInput('');
+      apply(cleared);
+    }, [spec, apply]),
     setSort: useCallback((token: string) => apply({ sort: token }), [apply]),
     setPage: useCallback(
       (next: number) => write({ ...resolved, page: next > 1 ? String(next) : '' }),

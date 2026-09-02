@@ -18,6 +18,9 @@ import {
 import { findAppUserById } from '../../../../src/core/db/repos/appUserRepo';
 
 jest.mock('../../../../src/core/db/repos/sobaAdminRepo', () => ({
+  // The route's query schema reads the sort fields from this module at import time, so a mock that
+  // omits them leaves the schema building an enum over undefined.
+  SOBA_ADMIN_SORT_FIELDS: ['displayLabel', 'source', 'syncedAt'],
   listSobaAdmins: jest.fn(),
   addDirectSobaAdmin: jest.fn(),
   removeDirectSobaAdmin: jest.fn(),
