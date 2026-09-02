@@ -89,7 +89,7 @@ export function useFormDraft(formId?: string) {
   const commitSchema = useCallback(
     (versionId: string, next: FormType) =>
       globalMutate(schemaKey(versionId), next, { revalidate: false }),
-    [globalMutate, formId],
+    [globalMutate],
   );
 
   const loadError = formError ?? versionsError ?? selectedVersionError ?? schemaError ?? null;
@@ -116,7 +116,7 @@ export function useFormDraft(formId?: string) {
       globalMutate(
         (key) => Array.isArray(key) && key[0] === 'design-form-versions' && key[1] === formId,
       ),
-    [globalMutate],
+    [globalMutate, formId],
   );
 
   return {

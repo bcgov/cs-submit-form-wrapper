@@ -223,26 +223,24 @@ export function FeatureScopeListPanel({
           data-testid="feature-scope-none"
         />
       ) : (
-        <>
-          <DataTable<FeatureScopeItem>
-            data={featureScopes}
-            columns={columns}
-            loading={loading}
-            error={error}
-            emptyMessage={dictScopes.empty}
-            loadingMessage={dict.general.loading}
-            caption={dictScopes.heading}
-            keyExtractor={(featureScope) => featureScope.id}
-            totalItems={total}
-            pageSize={listQuery.pageSize}
-            currentPage={listQuery.page}
-            onPageChange={listQuery.setPage}
-            onPageSizeChange={listQuery.setPageSize}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            sort={listQuery.sort}
-            onSortChange={listQuery.setSort}
-          />
-        </>
+        <DataTable<FeatureScopeItem>
+          data={featureScopes}
+          columns={columns}
+          loading={loading}
+          error={error}
+          emptyMessage={dictScopes.empty}
+          loadingMessage={dict.general.loading}
+          caption={dictScopes.heading}
+          keyExtractor={(featureScope) => featureScope.id}
+          totalItems={total}
+          pageSize={listQuery.pageSize}
+          currentPage={listQuery.page}
+          onPageChange={listQuery.setPage}
+          onPageSizeChange={listQuery.setPageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          sort={listQuery.sort}
+          onSortChange={listQuery.setSort}
+        />
       )}
       <ConfirmModal
         show={confirmDelete !== null}

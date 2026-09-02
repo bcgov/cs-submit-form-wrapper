@@ -102,7 +102,7 @@ export const listFeatureScopes = async (
   input: ListFeatureScopesInput,
 ): Promise<{ items: FeatureScopeRecord[]; total: number }> => {
   // An empty allow-list means no feature is the admin's to manage, never "every feature".
-  if (input.featureCodes && input.featureCodes.length === 0) {
+  if (input.featureCodes?.length === 0) {
     return { items: [], total: 0 };
   }
   const conditions: SQL<unknown>[] = [];

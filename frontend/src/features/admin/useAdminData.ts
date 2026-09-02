@@ -50,7 +50,10 @@ export function useFeatureScopes(
   query: ListQueryArgs,
   onError: (cause: unknown) => void,
 ) {
-  const codes = useMemo(() => [...allowedFeatureCodes].sort().join(','), [allowedFeatureCodes]);
+  const codes = useMemo(
+    () => [...allowedFeatureCodes].sort((a, b) => a.localeCompare(b)).join(','),
+    [allowedFeatureCodes],
+  );
   const { data, isLoading, error, mutate } = useAuthedSWR(
     allowedFeatureCodes.length > 0
       ? ['feature-scopes', codes, query.offset, query.limit, query.sort, query.q ?? '']
