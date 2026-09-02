@@ -98,7 +98,6 @@
   "admin": {
     "heading": "Administration",
     "forbidden": "You do not have the platform administrator role required for this section.",
-    "truncated": "Showing the first {limit}. Narrow the filters to see the rest.",
     "admins": {
       "heading": "Platform administrators",
       "intro": "Users listed here can administer the whole platform. Administrators granted by the identity provider are re-synced on every request and cannot be removed here.",
@@ -292,7 +291,8 @@
     "copy": "Copy URL",
     "copiedNotification": "Copied to clipboard",
     "newVersionFrom": "New Version From",
-    "emptyHistory": "No Previous Versions"
+    "emptyHistory": "No Previous Versions",
+    "loadVersionsError": "Failed to load version history."
   },
   "submission": {
     "submissions": "Submissions",

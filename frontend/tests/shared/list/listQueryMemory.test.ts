@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   FORMS_LIST_QUERY,
+  FORM_SUBMISSIONS_LIST_QUERY,
+  FORM_VERSIONS_LIST_QUERY,
   forgetListQueries,
   readUrlParams,
   recallListQuery,
@@ -14,15 +16,24 @@ describe('listQueryMemory', () => {
   });
 
   it('reads only the params the list owns', () => {
-    const search = new URLSearchParams('workspace=ws1&unrelated=x');
+    const search = new URLSearchParams('forms.workspace=ws1&unrelated=x');
     expect(readUrlParams(FORMS_LIST_QUERY, search)).toEqual({ workspace: 'ws1' });
     expect(urlHasListParams(FORMS_LIST_QUERY, search)).toBe(true);
     expect(urlHasListParams(FORMS_LIST_QUERY, new URLSearchParams('unrelated=x'))).toBe(false);
   });
 
+  // Two lists share the designer route, so a page number has to say which table it belongs to.
+  it('does not answer for another list on the same route', () => {
+    const search = new URLSearchParams('formSubmissions.page=3&formVersions.sort=state:asc');
+    expect(readUrlParams(FORM_VERSIONS_LIST_QUERY, search)).toEqual({ sort: 'state:asc' });
+    expect(readUrlParams(FORM_SUBMISSIONS_LIST_QUERY, search)).toEqual({ page: '3' });
+  });
+
   // Paging travels with the filters, so a restored view comes back on the page it was left on.
   it('owns the paging params as well as its own filters', () => {
-    const search = new URLSearchParams('workspace=ws1&q=pay&sort=name:asc&page=3&pageSize=25');
+    const search = new URLSearchParams(
+      'forms.workspace=ws1&forms.q=pay&forms.sort=name:asc&forms.page=3&forms.pageSize=25',
+    );
     expect(readUrlParams(FORMS_LIST_QUERY, search)).toEqual({
       workspace: 'ws1',
       q: 'pay',
@@ -30,7 +41,7 @@ describe('listQueryMemory', () => {
       page: '3',
       pageSize: '25',
     });
-    expect(urlHasListParams(FORMS_LIST_QUERY, new URLSearchParams('page=2'))).toBe(true);
+    expect(urlHasListParams(FORMS_LIST_QUERY, new URLSearchParams('forms.page=2'))).toBe(true);
   });
 
   it('declares both directions of every sort field, including its default', () => {

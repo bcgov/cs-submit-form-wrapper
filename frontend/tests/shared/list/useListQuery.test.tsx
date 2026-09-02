@@ -39,7 +39,7 @@ describe('useListQuery', () => {
   });
 
   it('turns the page and page size in the URL into an offset', () => {
-    search.value = 'page=4&pageSize=25';
+    search.value = 'forms.page=4&forms.pageSize=25';
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
     expect(result.current.offset).toBe(75);
     expect(result.current.pageSize).toBe(25);
@@ -47,47 +47,47 @@ describe('useListQuery', () => {
 
   // A size the API would reject leaves the table empty with no way back, so it never leaves here.
   it('refuses a page size that is not one of the offered options', () => {
-    search.value = 'pageSize=999';
+    search.value = 'forms.pageSize=999';
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
     expect(result.current.pageSize).toBe(10);
   });
 
   it('refuses a sort the list does not declare', () => {
-    search.value = 'sort=secrets:asc';
+    search.value = 'forms.sort=secrets:asc';
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
     expect(result.current.sort).toBe(FORMS_LIST_QUERY.defaultSort);
   });
 
   it('refuses a page number that is not a positive integer', () => {
-    search.value = 'page=-2';
+    search.value = 'forms.page=-2';
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
     expect(result.current.page).toBe(1);
   });
 
   // Page 4 of one sort is not page 4 of another, so a changed query starts again from the top.
   it('drops the page when the sort changes', async () => {
-    search.value = 'page=4';
+    search.value = 'forms.page=4';
     const replaceState = vi.spyOn(window.history, 'replaceState');
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
 
     act(() => result.current.setSort('name:asc'));
 
     const written = new URLSearchParams(writtenQuery(replaceState));
-    expect(written.get('sort')).toBe('name:asc');
-    expect(written.has('page')).toBe(false);
+    expect(written.get('forms.sort')).toBe('name:asc');
+    expect(written.has('forms.page')).toBe(false);
   });
 
   it('keeps the rest of the query when only the page changes', () => {
-    search.value = 'workspace=ws1&sort=name:asc';
+    search.value = 'forms.workspace=ws1&forms.sort=name:asc';
     const replaceState = vi.spyOn(window.history, 'replaceState');
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
 
     act(() => result.current.setPage(3));
 
     const written = new URLSearchParams(writtenQuery(replaceState));
-    expect(written.get('page')).toBe('3');
-    expect(written.get('workspace')).toBe('ws1');
-    expect(written.get('sort')).toBe('name:asc');
+    expect(written.get('forms.page')).toBe('3');
+    expect(written.get('forms.workspace')).toBe('ws1');
+    expect(written.get('forms.sort')).toBe('name:asc');
   });
 
   // Typing is not a search. Every term reaches the server only because the user asked for it.
@@ -109,7 +109,7 @@ describe('useListQuery', () => {
     act(() => result.current.setSearchInput('pay'));
     act(() => result.current.commitSearch());
 
-    expect(new URLSearchParams(writtenQuery(replaceState)).get('q')).toBe('pay');
+    expect(new URLSearchParams(writtenQuery(replaceState)).get('forms.q')).toBe('pay');
   });
 
   // The API trims then rejects an empty term, so sending a space would 400 the list.
@@ -120,7 +120,7 @@ describe('useListQuery', () => {
     act(() => result.current.setSearchInput('   '));
     act(() => result.current.commitSearch());
 
-    expect(new URLSearchParams(writtenQuery(replaceState)).has('q')).toBe(false);
+    expect(new URLSearchParams(writtenQuery(replaceState)).has('forms.q')).toBe(false);
   });
 
   it('trims a term that has content', () => {
@@ -130,26 +130,26 @@ describe('useListQuery', () => {
     act(() => result.current.setSearchInput('  pay  '));
     act(() => result.current.commitSearch());
 
-    expect(new URLSearchParams(writtenQuery(replaceState)).get('q')).toBe('pay');
+    expect(new URLSearchParams(writtenQuery(replaceState)).get('forms.q')).toBe('pay');
   });
 
   // The offset the page implies has to stay inside what the API accepts.
   it('holds the page inside the API offset cap', () => {
-    search.value = 'page=100000&pageSize=50';
+    search.value = 'forms.page=100000&forms.pageSize=50';
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
     expect(result.current.offset).toBeLessThanOrEqual(100_000);
   });
 
   // Remembering the raw params would restore the rejected value on every later nav arrival.
   it('remembers the validated query, not what the URL claimed', () => {
-    search.value = 'workspace=ws1&sort=secrets:asc&pageSize=999';
+    search.value = 'forms.workspace=ws1&forms.sort=secrets:asc&forms.pageSize=999';
     renderHook(() => useListQuery(FORMS_LIST_QUERY));
 
     expect(recallListQuery(FORMS_LIST_QUERY)).toEqual({ workspace: 'ws1' });
   });
 
   it('remembers only the values it wrote, not the ones it cleared', () => {
-    search.value = 'workspace=ws1&page=2';
+    search.value = 'forms.workspace=ws1&forms.page=2';
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
 
     act(() => result.current.setFilters({}));

@@ -127,7 +127,7 @@ describe('SobaAdminsPanel', () => {
     store.dispatch(setAuthenticated(true));
     mockFetchSobaAdmins.mockResolvedValue({
       items: [DIRECT_ADMIN, IDP_ADMIN],
-      page: { limit: 100, hasMore: false, nextCursor: null, cursorMode: 'id' },
+      page: { offset: 0, limit: 10, total: 2 },
     });
   });
 

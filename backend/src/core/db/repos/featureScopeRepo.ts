@@ -34,7 +34,7 @@ export type FeatureScopeListSortField = (typeof FEATURE_SCOPE_SORT_FIELDS)[numbe
 export type FeatureScopeListSort = SortToken<FeatureScopeListSortField>;
 
 const FEATURE_SCOPE_SORT_COLUMNS: SortColumns<FeatureScopeListSortField> = {
-  featureCode: { column: featureScopes.featureCode, caseInsensitive: true },
+  featureCode: { column: featureScopes.featureCode },
   scopeType: { column: featureScopes.scopeType },
   status: { column: featureScopes.status },
   createdAt: { column: featureScopes.createdAt },
@@ -98,7 +98,6 @@ export const upsertFeatureScope = async (
   return row;
 };
 
-/** Reads one row past the limit so the caller can report that the list was cut short. */
 export const listFeatureScopes = async (
   input: ListFeatureScopesInput,
 ): Promise<{ items: FeatureScopeRecord[]; total: number }> => {

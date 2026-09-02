@@ -66,13 +66,16 @@ export function useFormDraft(formId?: string) {
 
   const activeVersion = isHistoryView ? (selectedVersion ?? null) : currentVersion;
 
+  // Keyed on the id itself rather than the version row it names, so the schema and the row load
+  // together instead of one after the other.
+  const activeVersionId = isHistoryView ? selectedVersionId : currentVersion?.id;
   const {
     data: loadedSchema,
     isLoading: schemaLoading,
     error: schemaError,
   } = useAuthedSWR(
-    activeVersion?.id ? schemaKey(activeVersion.id) : null,
-    (token) => getFormVersionSchema(token, activeVersion?.id as string),
+    activeVersionId ? schemaKey(activeVersionId) : null,
+    (token) => getFormVersionSchema(token, activeVersionId as string),
     sessionReadConfig,
   );
 
@@ -86,7 +89,7 @@ export function useFormDraft(formId?: string) {
   const commitSchema = useCallback(
     (versionId: string, next: FormType) =>
       globalMutate(schemaKey(versionId), next, { revalidate: false }),
-    [globalMutate],
+    [globalMutate, formId],
   );
 
   const loadError = formError ?? versionsError ?? selectedVersionError ?? schemaError ?? null;
@@ -109,7 +112,10 @@ export function useFormDraft(formId?: string) {
 
   /** Every read of this form's versions: the picker's list and whichever page the table holds. */
   const refreshVersions = useCallback(
-    () => globalMutate((key) => Array.isArray(key) && key[0] === 'design-form-versions'),
+    () =>
+      globalMutate(
+        (key) => Array.isArray(key) && key[0] === 'design-form-versions' && key[1] === formId,
+      ),
     [globalMutate],
   );
 

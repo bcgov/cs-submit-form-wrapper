@@ -186,7 +186,7 @@ describe('FormList', () => {
 
   // The picker scopes the list, not the new form's workspace, so it must not gate Create.
   it('keeps Create enabled when the selected workspace is unaccepted but another is not', async () => {
-    search.value = 'workspace=ws1';
+    search.value = 'forms.workspace=ws1';
     seed([
       { id: 'ws1', disclaimerAccepted: false },
       { id: 'ws2', disclaimerAccepted: true },
@@ -246,7 +246,7 @@ describe('FormList', () => {
   });
 
   it('asks for the page and page size the URL names', async () => {
-    search.value = 'page=3&pageSize=25';
+    search.value = 'forms.page=3&forms.pageSize=25';
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     await renderList();
     await waitFor(() => expect(lastFormsQuery()).toMatchObject({ offset: 50, limit: 25 }));
@@ -254,7 +254,7 @@ describe('FormList', () => {
 
   // A remembered or hand-edited size the API would reject leaves a dead table, so it never ships.
   it('falls back to a valid page size when the URL names one that is not offered', async () => {
-    search.value = 'pageSize=999';
+    search.value = 'forms.pageSize=999';
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     await renderList();
     await waitFor(() => expect(lastFormsQuery()).toMatchObject({ limit: 10 }));
@@ -276,7 +276,7 @@ describe('FormList', () => {
   });
 
   it('scopes the request to the workspace named in the URL', async () => {
-    search.value = 'workspace=ws2';
+    search.value = 'forms.workspace=ws2';
     seed([
       { id: 'ws1', disclaimerAccepted: true },
       { id: 'ws2', disclaimerAccepted: true },
@@ -288,7 +288,7 @@ describe('FormList', () => {
   // A URL can name a workspace this user cannot see. Reading unscoped would leak another
   // workspace's rows under that filter, so the id has to be resolved before it is sent.
   it('ignores a workspace in the URL that the user cannot see, and says so', async () => {
-    search.value = 'workspace=ws-unknown';
+    search.value = 'forms.workspace=ws-unknown';
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     await renderList();
     await waitFor(() => expect(scopedTo(undefined)).toBe(true));
@@ -366,7 +366,7 @@ describe('FormList', () => {
   });
 
   it('remembers the filter the URL arrived with', async () => {
-    search.value = 'workspace=ws2';
+    search.value = 'forms.workspace=ws2';
     seed([
       { id: 'ws1', disclaimerAccepted: true },
       { id: 'ws2', disclaimerAccepted: true },
@@ -382,7 +382,7 @@ describe('FormList', () => {
   // Losing access to the workspace you had filtered to would otherwise raise the same notice on
   // every arrival from the nav, because the memory keeps handing the id back.
   it('forgets a filter it cannot resolve', async () => {
-    search.value = 'workspace=ws-gone';
+    search.value = 'forms.workspace=ws-gone';
     sessionStorage.setItem('soba.listQuery.forms', JSON.stringify({ workspace: 'ws-gone' }));
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     await renderList();
@@ -415,7 +415,7 @@ describe('FormList', () => {
   // Clicking the nav link while already on this page is a query-only navigation: the App Router
   // re-renders rather than remounting, so a mount-only restore never runs.
   it('restores on a nav arrival that does not remount', async () => {
-    search.value = 'workspace=ws2';
+    search.value = 'forms.workspace=ws2';
     seed([
       { id: 'ws1', disclaimerAccepted: true },
       { id: 'ws2', disclaimerAccepted: true },
@@ -432,7 +432,7 @@ describe('FormList', () => {
     await waitFor(() => expect(lastFormsQuery()?.workspaceId).toBe('ws2'));
     // The marker is consumed on arrival; leaving it in the URL would make a copied link restore
     // the reader's own view.
-    expect(replaceState).toHaveBeenCalledWith(null, '', '/en/forms?workspace=ws2');
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/en/forms?forms.workspace=ws2');
     replaceState.mockRestore();
   });
 });

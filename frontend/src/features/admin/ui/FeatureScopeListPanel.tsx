@@ -58,7 +58,6 @@ export function FeatureScopeListPanel({
       offset: listQuery.offset,
       limit: listQuery.pageSize,
       sort: listQuery.sort,
-      q: listQuery.q,
     },
     reportLoadError,
   );

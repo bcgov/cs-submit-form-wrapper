@@ -92,7 +92,7 @@ describe('SubmissionList', () => {
   });
 
   it('asks for the page, size and sort the URL names', async () => {
-    search.value = 'page=3&pageSize=5&sort=formName:asc';
+    search.value = 'submissions.page=3&submissions.pageSize=5&submissions.sort=formName:asc';
     await renderList({ formId: 'f1' });
     await waitFor(() =>
       expect(getSobaSubmissions.mock.calls.at(-1)?.[1]).toMatchObject({

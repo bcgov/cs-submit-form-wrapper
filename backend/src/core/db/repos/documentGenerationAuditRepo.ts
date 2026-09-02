@@ -57,9 +57,8 @@ export const createDocumentGenerationAudit = async (
 };
 
 /**
- * List recent document generation audit rows for a workspace/form scope.
- * Caller should validate at least one scope filter is provided.
- * Reads one row past the limit so the caller can report that the list was cut short.
+ * One page of document generation audit rows for a workspace/form scope. The caller supplies at
+ * least one scope filter.
  */
 export const listDocumentGenerationAudits = async (
   filters: ListDocumentGenerationAuditFilters,

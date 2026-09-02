@@ -84,7 +84,6 @@ export const DocumentGenerationAuditItemSchema = z
   })
   .openapi('Admin_DocumentGenerationAuditItem');
 
-/** Truncation only: these lists are capped, not cursor-paged, so there is no cursor to hand back. */
 export const ListDocumentGenerationAuditsResponseSchema = z
   .object({
     items: z.array(DocumentGenerationAuditItemSchema),
@@ -117,12 +116,20 @@ export const FeatureScopeSortSchema =
 export const ListFeatureScopesQuerySchema = z
   .object({
     featureCode: z.string().min(1).optional(),
-    // Comma-separated, because the caller filters to the features this deployment scopes.
+    // Comma-separated, because the caller filters to the features this deployment scopes. An
+    // absent param is no filter; an empty one is a filter nothing matches.
     featureCodes: z
       .string()
-      .min(1)
+      .max(2048)
       .optional()
-      .transform((value) => value?.split(',').filter(Boolean)),
+      .transform((value) =>
+        value === undefined
+          ? undefined
+          : value
+              .split(',')
+              .map((code) => code.trim())
+              .filter(Boolean),
+      ),
     scopeType: z.enum(['workspace', 'form']).optional(),
     status: z.enum(['active', 'inactive']).optional(),
     ...offsetQueryFields,

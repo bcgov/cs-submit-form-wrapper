@@ -99,7 +99,6 @@
   "admin": {
     "heading": "Administration",
     "forbidden": "Vous n'avez pas le rôle d'administrateur de plateforme requis pour cette section.",
-    "truncated": "Affichage des {limit} premiers résultats. Affinez les filtres pour voir les autres.",
     "admins": {
       "heading": "Administrateurs de la plateforme",
       "intro": "Les utilisateurs répertoriés ici peuvent administrer l'ensemble de la plateforme. Les administrateurs accordés par le fournisseur d'identité sont resynchronisés à chaque requête et ne peuvent pas être retirés ici.",
@@ -293,7 +292,8 @@
     "copy": "Copier Lien",
     "copiedNotification": "Copié dans le presse-papiers",
     "newVersionFrom": "Nouvelle Version De",
-    "emptyHistory": "Aucune version précédente"
+    "emptyHistory": "Aucune version précédente",
+    "loadVersionsError": "Échec du chargement de l'historique des versions."
   },
   "submission": {
     "submissions": "Soumissions",

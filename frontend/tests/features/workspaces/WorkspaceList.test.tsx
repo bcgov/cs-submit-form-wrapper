@@ -200,7 +200,7 @@ describe('WorkspaceList', () => {
   });
 
   it('asks for the page, size and sort the URL names', async () => {
-    search.value = 'page=4&pageSize=25&sort=name:desc';
+    search.value = 'workspaces.page=4&workspaces.pageSize=25&workspaces.sort=name:desc';
     await act(async () => {
       renderList();
     });

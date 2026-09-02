@@ -26,6 +26,14 @@ export const listQueryParams = (spec: ListQuerySpec): string[] => [
   ...SHARED_LIST_PARAMS,
 ];
 
+/**
+ * The URL name for one of a list's params. Namespaced by resource, because two lists can share a
+ * route: the designer holds version history and submissions at once, and a bare `page` would have
+ * each of them answering for the other's table.
+ */
+export const urlParamName = (spec: ListQuerySpec, name: string): string =>
+  `${spec.resource}.${name}`;
+
 /** Both directions of every field the endpoint declares. */
 const sortOptionsFor = (fields: readonly string[]): string[] =>
   fields.flatMap((field) => [`${field}:asc`, `${field}:desc`]);
@@ -52,7 +60,8 @@ export const FORM_SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
   resource: 'formSubmissions',
   filters: [],
   sortOptions: sortOptionsFor(SUBMISSION_SORT_FIELDS),
-  defaultSort: UPDATED_DESC,
+  // A column carries this one, so the header can report the order and reverse it.
+  defaultSort: 'submittedAt:desc',
 };
 
 /** The version history tab inside the designer. */
@@ -108,18 +117,18 @@ export function isNavArrival(search: URLSearchParams): boolean {
   return search.get(NAV_MARKER) === NAV_MARKER_VALUE;
 }
 
-/** This list's params as the URL currently carries them. */
+/** This list's params as the URL currently carries them, under their own names. */
 export function readUrlParams(spec: ListQuerySpec, search: URLSearchParams): ListQueryParams {
   const params: ListQueryParams = {};
   for (const name of listQueryParams(spec)) {
-    const value = search.get(name);
+    const value = search.get(urlParamName(spec, name));
     if (value) params[name] = value;
   }
   return params;
 }
 
 export function urlHasListParams(spec: ListQuerySpec, search: URLSearchParams): boolean {
-  return listQueryParams(spec).some((name) => search.has(name));
+  return listQueryParams(spec).some((name) => search.has(urlParamName(spec, name)));
 }
 
 export function rememberListQuery(spec: ListQuerySpec, params: ListQueryParams): void {

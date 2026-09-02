@@ -10,6 +10,7 @@ import {
   recallListQuery,
   rememberListQuery,
   urlHasListParams,
+  urlParamName,
   type ListQueryParams,
   type ListQuerySpec,
 } from './listQueryMemory';
@@ -124,10 +125,10 @@ export function useListQuery(
       const set: ListQueryParams = {};
       for (const name of listQueryParams(spec)) {
         if (next[name]) {
-          params.set(name, next[name]);
+          params.set(urlParamName(spec, name), next[name]);
           set[name] = next[name];
         } else {
-          params.delete(name);
+          params.delete(urlParamName(spec, name));
         }
       }
       const qs = params.toString();

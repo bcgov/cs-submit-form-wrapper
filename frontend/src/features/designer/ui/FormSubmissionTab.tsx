@@ -168,7 +168,7 @@ export default function FormSubmissionTab({
         emptyMessage={dict.submission.emptyList}
         loadingMessage={dict.general.loading}
         itemName="submissions"
-        caption="Submissions"
+        caption={dict.submission?.submissions || 'Submissions'}
         pageSize={listQuery.pageSize}
         currentPage={listQuery.page}
         totalItems={total}

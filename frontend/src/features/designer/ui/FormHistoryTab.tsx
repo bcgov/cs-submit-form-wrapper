@@ -34,7 +34,7 @@ export default function FormHistoryTab({
   onNavigateToDesigner,
 }: Readonly<FormHistoryTabProps>) {
   const listQuery = useListQuery(FORM_VERSIONS_LIST_QUERY);
-  const { versions, total, isLoading } = useFormVersionPage(formId, {
+  const { versions, total, isLoading, error } = useFormVersionPage(formId, {
     offset: listQuery.offset,
     limit: listQuery.pageSize,
     sort: listQuery.sort,
@@ -123,10 +123,11 @@ export default function FormHistoryTab({
       data={versions}
       columns={columns}
       loading={isLoading}
+      error={error ? dict.form.loadVersionsError : null}
       emptyMessage={dict.form.emptyHistory}
       loadingMessage={dict.general.loading}
       itemName="items"
-      caption={dict.general.forms}
+      caption={dict.form.historyTab}
       pageSize={listQuery.pageSize}
       currentPage={listQuery.page}
       totalItems={total}
