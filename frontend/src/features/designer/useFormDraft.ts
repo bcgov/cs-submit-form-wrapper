@@ -3,10 +3,16 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import type { FormType } from '@formio/react';
-import { getFormVersionSchema, getSobaForm, getSobaFormVersions } from '@/src/shared/api/sobaApi';
+import {
+  getFormVersionSchema,
+  getSobaForm,
+  getSobaFormVersion,
+  getSobaFormVersions,
+} from '@/src/shared/api/sobaApi';
 import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
 import { sessionReadConfig } from '@/src/shared/api/swrConfig';
 import type { SobaFormVersionType } from '@/src/types/forms';
+import { versionsKey } from './useFormVersions';
 
 const schemaKey = (versionId: string) => ['form-version-schema', versionId];
 
@@ -26,12 +32,9 @@ export function useFormDraft(formId?: string) {
     sessionReadConfig,
   );
 
-  const {
-    data: versionsData,
-    mutate: refreshVersions,
-    error: versionsError,
-  } = useAuthedSWR(
-    formId ? ['design-form-versions', formId] : null,
+  // The picker's list. The history table reads its own page under a key sharing this prefix.
+  const { data: versionsData, error: versionsError } = useAuthedSWR(
+    formId ? [...versionsKey(formId), 'picker'] : null,
     (token) => getSobaFormVersions(token, formId as string),
     sessionReadConfig,
   );
@@ -53,9 +56,15 @@ export function useFormDraft(formId?: string) {
 
   const [selectedVersionId, setSelectedVersionId] = useState<string>('current');
   const isHistoryView = selectedVersionId !== 'current';
-  const activeVersion = isHistoryView
-    ? (versions.find((v) => v.id === selectedVersionId) ?? null)
-    : currentVersion;
+
+  // Read by id, so a version the history table pages to but the picker does not carry still opens.
+  const { data: selectedVersion, error: selectedVersionError } = useAuthedSWR(
+    isHistoryView ? ['design-form-version', selectedVersionId] : null,
+    (token) => getSobaFormVersion(token, selectedVersionId),
+    sessionReadConfig,
+  );
+
+  const activeVersion = isHistoryView ? (selectedVersion ?? null) : currentVersion;
 
   const {
     data: loadedSchema,
@@ -80,7 +89,7 @@ export function useFormDraft(formId?: string) {
     [globalMutate],
   );
 
-  const loadError = formError ?? versionsError ?? schemaError ?? null;
+  const loadError = formError ?? versionsError ?? selectedVersionError ?? schemaError ?? null;
 
   const [editedSchema, setEditedSchema] = useState<FormType | null>(null);
   const [editedName, setEditedName] = useState<string | null>(null);
@@ -92,11 +101,16 @@ export function useFormDraft(formId?: string) {
 
   const selectVersion = useCallback(
     (versionId: string) => {
-      if (versionId !== 'current' && !versions.some((v) => v.id === versionId)) return;
       setSelectedVersionId(versionId);
       discardEdits();
     },
-    [versions, discardEdits],
+    [discardEdits],
+  );
+
+  /** Every read of this form's versions: the picker's list and whichever page the table holds. */
+  const refreshVersions = useCallback(
+    () => globalMutate((key) => Array.isArray(key) && key[0] === 'design-form-versions'),
+    [globalMutate],
   );
 
   return {
@@ -116,7 +130,12 @@ export function useFormDraft(formId?: string) {
     // A read that failed has answered: these reads do not revalidate on their own, so reporting
     // loading here would leave the designer on a spinner for the life of the page.
     loading:
-      !!formId && !loadError && (form === undefined || versionsData === undefined || schemaLoading),
+      !!formId &&
+      !loadError &&
+      (form === undefined ||
+        versionsData === undefined ||
+        (isHistoryView && selectedVersion === undefined) ||
+        schemaLoading),
     error: loadError,
     setName: setEditedName,
     setSchema: setEditedSchema,

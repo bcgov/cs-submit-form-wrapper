@@ -142,13 +142,36 @@ export async function getSobaSubmissionData(
  */
 export const FORM_VERSION_PICKER_LIMIT = 100;
 
+const FORM_VERSIONS_PATH = '/design/form-versions';
+
 export async function getSobaFormVersions(
   token: string,
   formId: string,
 ): Promise<{ items: SobaFormVersionType[]; page: ListPage }> {
-  const response = await sobaFetch('/design/form-versions', {
+  const response = await sobaFetch(FORM_VERSIONS_PATH, {
     token,
     query: { formId, limit: FORM_VERSION_PICKER_LIMIT, sort: 'versionNo:desc' },
+  });
+  return parseJson(response);
+}
+
+/** One version, by id. */
+export async function getSobaFormVersion(
+  token: string,
+  id: string,
+): Promise<SobaFormVersionType> {
+  const response = await sobaFetch(`${FORM_VERSIONS_PATH}/${id}`, { token });
+  return parseJson(response);
+}
+
+/** One page of a form's versions, for the history table. */
+export async function getSobaFormVersionPage(
+  token: string,
+  args: ListQueryArgs & { formId: string },
+): Promise<{ items: SobaFormVersionType[]; page: ListPage }> {
+  const response = await sobaFetch(FORM_VERSIONS_PATH, {
+    token,
+    query: { formId: args.formId, ...toListRequestQuery(args) },
   });
   return parseJson(response);
 }
@@ -158,7 +181,7 @@ export async function createFormVersion(
   token: string,
   formId: string,
 ): Promise<SobaFormVersionType> {
-  const response = await sobaFetch('/design/form-versions', {
+  const response = await sobaFetch(FORM_VERSIONS_PATH, {
     token,
     method: 'POST',
     json: { formId },

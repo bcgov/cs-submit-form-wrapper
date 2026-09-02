@@ -26,6 +26,8 @@ export {
   getSobaSubmission,
   getSobaSubmissionData,
   getSobaFormVersions,
+  getSobaFormVersion,
+  getSobaFormVersionPage,
   createFormVersion,
   saveFormVersionSchema,
   getFormVersionSchema,

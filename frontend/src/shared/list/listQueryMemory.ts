@@ -55,6 +55,14 @@ export const FORM_SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
   defaultSort: UPDATED_DESC,
 };
 
+/** The version history tab inside the designer. */
+export const FORM_VERSIONS_LIST_QUERY: ListQuerySpec = {
+  resource: 'formVersions',
+  filters: [],
+  sortOptions: sortOptionsFor(['versionNo', 'state', 'createdAt', 'updatedAt']),
+  defaultSort: 'versionNo:desc',
+};
+
 export const SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
   resource: 'submissions',
   filters: [],

@@ -54,6 +54,9 @@ const { mockWorkspaceState, api, builder } = vi.hoisted(() => ({
 vi.mock('@/src/shared/api/sobaApi', () => ({
   getSobaForm: api.getSobaForm,
   getSobaFormVersions: vi.fn(() => Promise.resolve({ items: mockWorkspaceState.versions })),
+  getSobaFormVersion: vi.fn((_token: string, id: string) =>
+    Promise.resolve(mockWorkspaceState.versions.find((v: { id: string }) => v.id === id)),
+  ),
   getFormVersionSchema: api.getFormVersionSchema,
   saveFormVersionSchema: api.saveFormVersionSchema,
   publishSobaFormVersion: api.publishSobaFormVersion,
