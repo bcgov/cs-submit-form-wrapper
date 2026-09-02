@@ -21,7 +21,9 @@ describe('admin schemas', () => {
       featureCode: 'document-generation-v3',
       scopeType: 'workspace',
       status: 'active',
-      limit: 100,
+      offset: 0,
+      limit: 20,
+      sort: 'updatedAt:desc',
     });
   });
 
@@ -66,10 +68,10 @@ describe('admin schemas', () => {
   it('ListDocumentGenerationAuditsQuerySchema requires a workspace or form filter and bounds limit', () => {
     expect(ListDocumentGenerationAuditsQuerySchema.safeParse({ limit: 10 }).success).toBe(false);
     expect(
-      ListDocumentGenerationAuditsQuerySchema.safeParse({ workspaceId: UUID, limit: 200 }).success,
+      ListDocumentGenerationAuditsQuerySchema.safeParse({ workspaceId: UUID, limit: 100 }).success,
     ).toBe(true);
     expect(
-      ListDocumentGenerationAuditsQuerySchema.safeParse({ workspaceId: UUID, limit: 201 }).success,
+      ListDocumentGenerationAuditsQuerySchema.safeParse({ workspaceId: UUID, limit: 101 }).success,
     ).toBe(false);
   });
 });

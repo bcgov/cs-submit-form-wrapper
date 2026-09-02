@@ -138,10 +138,16 @@ export const upsertFeatureScopeHandler = asyncHandler(
 
 export const listFeatureScopesHandler = asyncHandler(async (req: Request, res: Response) => {
   const query = req.query as unknown as ListFeatureScopesQuery;
-  const { items, hasMore } = await listFeatureScopes(query);
+  const { items, total } = await listFeatureScopes(query);
   res.json({
     items: items.map(toFeatureScopeItem),
-    page: { limit: query.limit, hasMore },
+    page: { offset: query.offset, limit: query.limit, total },
+    filters: {
+      featureCode: query.featureCode,
+      scopeType: query.scopeType,
+      status: query.status,
+    },
+    sort: query.sort,
   });
 });
 
@@ -164,17 +170,21 @@ export const removeFeatureScopeHandler = asyncHandler(
 export const listDocumentGenerationAuditsHandler = asyncHandler(
   async (req: Request, res: Response) => {
     const query = req.query as unknown as ListDocumentGenerationAuditsQuery;
-    const { items, hasMore } = await listDocumentGenerationAudits({
+    const { items, total } = await listDocumentGenerationAudits({
       workspaceId: query.workspaceId,
       formId: query.formId,
+      offset: query.offset,
       limit: query.limit,
+      sort: query.sort,
     });
     res.json({
       items: items.map((row) => ({
         ...row,
         createdAt: row.createdAt.toISOString(),
       })),
-      page: { limit: query.limit, hasMore },
+      page: { offset: query.offset, limit: query.limit, total },
+      filters: { workspaceId: query.workspaceId, formId: query.formId },
+      sort: query.sort,
     });
   },
 );

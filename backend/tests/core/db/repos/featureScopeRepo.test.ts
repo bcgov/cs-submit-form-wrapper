@@ -30,31 +30,11 @@ describe('featureScopeRepo', () => {
     expect(selectMock).not.toHaveBeenCalled();
   });
 
-  const stubList = (rows: { id: string }[]) => {
-    const limitMock = jest.fn().mockResolvedValue(rows);
-    const orderByMock = jest.fn(() => ({ limit: limitMock }));
-    const whereMock = jest.fn(() => ({ orderBy: orderByMock }));
-    selectMock.mockReturnValue({ from: jest.fn(() => ({ where: whereMock })) });
-    return limitMock;
-  };
-
-  it('trims the lookahead row and reports the list as truncated', async () => {
-    const limitMock = stubList([{ id: 'scope-1' }, { id: 'scope-2' }, { id: 'scope-3' }]);
-
-    await expect(listFeatureScopes({ limit: 2 })).resolves.toEqual({
-      items: [{ id: 'scope-1' }, { id: 'scope-2' }],
-      hasMore: true,
-    });
-    expect(limitMock).toHaveBeenCalledWith(3);
-  });
-
-  it('reports a short list as complete', async () => {
-    stubList([{ id: 'scope-1' }]);
-
-    await expect(listFeatureScopes({ limit: 2 })).resolves.toEqual({
-      items: [{ id: 'scope-1' }],
-      hasMore: false,
-    });
+  it('returns nothing without querying when the allowed feature list is empty', async () => {
+    await expect(
+      listFeatureScopes({ featureCodes: [], offset: 0, limit: 10, sort: 'updatedAt:desc' }),
+    ).resolves.toEqual({ items: [], total: 0 });
+    expect(selectMock).not.toHaveBeenCalled();
   });
 
   it('gets a feature scope by id', async () => {

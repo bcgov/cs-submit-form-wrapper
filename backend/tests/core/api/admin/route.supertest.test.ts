@@ -17,9 +17,9 @@ import {
 } from '../../../../src/core/db/repos/sobaAdminRepo';
 import { findAppUserById } from '../../../../src/core/db/repos/appUserRepo';
 
+// Each route's query schema reads its sort fields from the repo module at import time, so a mock
+// that omits them leaves the schema building an enum over undefined.
 jest.mock('../../../../src/core/db/repos/sobaAdminRepo', () => ({
-  // The route's query schema reads the sort fields from this module at import time, so a mock that
-  // omits them leaves the schema building an enum over undefined.
   SOBA_ADMIN_SORT_FIELDS: ['displayLabel', 'source', 'syncedAt'],
   listSobaAdmins: jest.fn(),
   addDirectSobaAdmin: jest.fn(),
@@ -27,6 +27,7 @@ jest.mock('../../../../src/core/db/repos/sobaAdminRepo', () => ({
 }));
 
 jest.mock('../../../../src/core/db/repos/featureScopeRepo', () => ({
+  FEATURE_SCOPE_SORT_FIELDS: ['featureCode', 'scopeType', 'status', 'createdAt', 'updatedAt'],
   getFeatureScopeById: jest.fn(),
   listFeatureScopes: jest.fn(),
   removeFeatureScope: jest.fn(),
@@ -34,6 +35,7 @@ jest.mock('../../../../src/core/db/repos/featureScopeRepo', () => ({
 }));
 
 jest.mock('../../../../src/core/db/repos/documentGenerationAuditRepo', () => ({
+  DOCGEN_AUDIT_SORT_FIELDS: ['createdAt', 'outcome', 'durationMs'],
   listDocumentGenerationAudits: jest.fn(),
 }));
 
@@ -88,7 +90,7 @@ function featureScopeRow(overrides: Record<string, unknown> = {}) {
 describe('adminRouter feature-scope routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    listFeatureScopesMock.mockResolvedValue({ items: [featureScopeRow()], hasMore: false });
+    listFeatureScopesMock.mockResolvedValue({ items: [featureScopeRow()], total: 1 });
     getFeatureScopeByIdMock.mockResolvedValue(featureScopeRow());
     removeFeatureScopeMock.mockResolvedValue(true);
     upsertFeatureScopeMock.mockResolvedValue(featureScopeRow());
@@ -133,18 +135,19 @@ describe('adminRouter feature-scope routes', () => {
           updatedAt: '2026-01-02T00:00:00.000Z',
         }),
       ],
-      page: { limit: 50, hasMore: false },
+      page: { offset: 0, limit: 50, total: 1 },
+      filters: { status: 'active' },
+      sort: 'updatedAt:desc',
     });
   });
 
-  // Silent truncation reads as "that is all of them".
-  it('reports a list that was cut short by the limit', async () => {
-    listFeatureScopesMock.mockResolvedValue({ items: [featureScopeRow()], hasMore: true });
+  it('reports the page it returned and the total behind it', async () => {
+    listFeatureScopesMock.mockResolvedValue({ items: [featureScopeRow()], total: 42 });
 
-    const res = await request(createAdminApp(true)).get('/feature-scopes?limit=1');
+    const res = await request(createAdminApp(true)).get('/feature-scopes?limit=1&offset=10');
 
     expect(res.status).toBe(200);
-    expect(res.body.page).toEqual({ limit: 1, hasMore: true });
+    expect(res.body.page).toEqual({ offset: 10, limit: 1, total: 42 });
   });
 
   it('returns 404 for an unknown feature scope id', async () => {
