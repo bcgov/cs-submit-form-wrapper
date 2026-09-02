@@ -169,7 +169,13 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
 
   return (
     <>
-      <ListPageToolbar align={showCreateAction ? 'between' : 'end'}>
+      <ListPageToolbar>
+        <ListPageSearchField
+          value={listQuery.searchInput}
+          onChange={listQuery.setSearchInput}
+          onSubmit={listQuery.commitSearch}
+          testIdPrefix="workspaces"
+        />
         {showCreateAction ? (
           <DSButton
             variant="primary"
@@ -179,12 +185,6 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
             {dictWorkspaces.createAction}
           </DSButton>
         ) : null}
-        <ListPageSearchField
-          value={listQuery.searchInput}
-          onChange={listQuery.setSearchInput}
-          onSubmit={listQuery.commitSearch}
-          testIdPrefix="workspaces"
-        />
       </ListPageToolbar>
 
       <DataTable<WorkspaceItem>

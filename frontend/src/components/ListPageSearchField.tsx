@@ -8,7 +8,7 @@ import styles from './ListPageSearchField.module.css';
 type ListPageSearchFieldProps = {
   value: string;
   onChange: (value: string) => void;
-  /** Searches immediately, ahead of any debounce the caller applies to `onChange`. */
+  /** Runs the search. Typing alone does not: the term is only sent when the user asks. */
   onSubmit?: () => void;
   testIdPrefix: string;
   showSearchButton?: boolean;
@@ -19,7 +19,7 @@ export function ListPageSearchField({
   onChange,
   onSubmit,
   testIdPrefix,
-  showSearchButton = false,
+  showSearchButton = true,
 }: Readonly<ListPageSearchFieldProps>) {
   const dict = useDictionary();
 

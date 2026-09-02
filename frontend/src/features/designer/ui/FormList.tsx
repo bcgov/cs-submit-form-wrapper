@@ -280,13 +280,12 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
 
   return (
     <>
-      <ListPageToolbar align={designModeEnabled ? 'between' : 'end'}>
+      <ListPageToolbar>
         <ListPageSearchField
           value={listQuery.searchInput}
           onChange={listQuery.setSearchInput}
           onSubmit={listQuery.commitSearch}
           testIdPrefix="forms"
-          showSearchButton={true}
         />
         {designModeEnabled ? (
           <DSButton

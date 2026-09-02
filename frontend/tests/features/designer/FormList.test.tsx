@@ -221,7 +221,7 @@ describe('FormList', () => {
   });
 
   // Searching only the fetched page would hide every match past it, so the term goes to the server.
-  it('sends the search term to the server once typing stops', async () => {
+  it('sends the search term to the server when the search is submitted', async () => {
     seed([{ id: 'ws1', disclaimerAccepted: true }]);
     const view = await renderList();
     await waitFor(() => expect(screen.getByText('Form One')).toBeInTheDocument());
@@ -232,6 +232,11 @@ describe('FormList', () => {
     const replaceState = vi.spyOn(window.history, 'replaceState');
     await act(async () => {
       fireEvent.change(input, { target: { value: 'two' } });
+    });
+    expect(replaceState).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('search-forms-button'));
     });
     await waitFor(() => expect(replaceState).toHaveBeenCalled());
     await syncUrl(view);

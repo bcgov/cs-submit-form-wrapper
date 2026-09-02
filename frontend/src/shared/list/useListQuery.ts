@@ -19,9 +19,6 @@ export const DEFAULT_PAGE_SIZE = 10;
 /** Mirrors the API's offset cap. A page past it is rejected, which would leave the table in error. */
 const MAX_LIST_OFFSET = 100_000;
 
-/** Long enough that typing a word is one request, short enough to feel like the table is keeping up. */
-const SEARCH_DEBOUNCE_MS = 300;
-
 export interface ListQueryControls {
   /** The list's own filters, as the URL carries them. */
   filters: ListQueryParams;
@@ -30,10 +27,10 @@ export interface ListQueryControls {
   page: number;
   pageSize: number;
   offset: number;
-  /** Search box value. Reaches `q` after the user stops typing. */
+  /** Search box value. Typing alone changes nothing; it reaches `q` on submit. */
   searchInput: string;
   setSearchInput: (value: string) => void;
-  /** Search now, without waiting out the debounce. */
+  /** Search for whatever the box currently holds. */
   commitSearch: () => void;
   setFilters: (next: ListQueryParams) => void;
   /** Drop the filters and the search term together, keeping sort and page size. */
@@ -186,16 +183,6 @@ export function useListQuery(
       setSearchInput(q);
     }
   }, [q]);
-
-  // One request per pause in typing, not one per keystroke.
-  useEffect(() => {
-    if (searchInput === committedSearch.current) return;
-    const timer = setTimeout(() => {
-      committedSearch.current = searchInput;
-      apply({ q: searchInput.trim() });
-    }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [searchInput, apply]);
 
   const commitSearch = useCallback(() => {
     if (searchInput === committedSearch.current) return;

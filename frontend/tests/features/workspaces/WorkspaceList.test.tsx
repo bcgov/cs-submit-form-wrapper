@@ -160,7 +160,7 @@ describe('WorkspaceList', () => {
   });
 
   // Searching only the fetched page would hide every match past it, so the term goes to the server.
-  it('sends the search term to the server once typing stops', async () => {
+  it('sends the search term to the server when the search is submitted', async () => {
     let view: ReturnType<typeof renderList> | undefined;
     await act(async () => {
       view = renderList();
@@ -172,6 +172,11 @@ describe('WorkspaceList', () => {
     const replaceState = vi.spyOn(window.history, 'replaceState');
     await act(async () => {
       fireEvent.change(input, { target: { value: 'team' } });
+    });
+    expect(replaceState).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('search-workspaces-button'));
     });
     await waitFor(() => expect(replaceState).toHaveBeenCalled());
 

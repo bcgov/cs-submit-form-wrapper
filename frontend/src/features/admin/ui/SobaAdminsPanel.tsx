@@ -168,7 +168,6 @@ export function SobaAdminsPanel() {
           onChange={listQuery.setSearchInput}
           onSubmit={listQuery.commitSearch}
           testIdPrefix="admins"
-          showSearchButton={true}
         />
         <Form
           className="d-flex align-items-end gap-3"

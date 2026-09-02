@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 const { search } = vi.hoisted(() => ({ search: { value: '' } }));
 vi.mock('next/navigation', async () => {
@@ -90,20 +90,19 @@ describe('useListQuery', () => {
     expect(written.get('sort')).toBe('name:asc');
   });
 
-  // One request per pause in typing. Keying on every keystroke would be a request per character.
-  it('holds the typed term back until typing stops', async () => {
+  // Typing is not a search. Every term reaches the server only because the user asked for it.
+  it('leaves the URL alone while the user types', () => {
     const replaceState = vi.spyOn(window.history, 'replaceState');
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
 
     act(() => result.current.setSearchInput('pay'));
+
+    expect(result.current.searchInput).toBe('pay');
     expect(result.current.q).toBe('');
     expect(replaceState).not.toHaveBeenCalled();
-
-    await waitFor(() => expect(new URLSearchParams(writtenQuery(replaceState)).get('q')).toBe('pay'));
   });
 
-  // The button exists so the user does not have to wait out the debounce.
-  it('commits the typed term immediately when asked', () => {
+  it('searches the typed term when the search is submitted', () => {
     const replaceState = vi.spyOn(window.history, 'replaceState');
     const { result } = renderHook(() => useListQuery(FORMS_LIST_QUERY));
 
