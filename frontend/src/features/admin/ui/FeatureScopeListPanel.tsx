@@ -51,7 +51,6 @@ export function FeatureScopeListPanel({
     isLoading: loading,
     error: loadError,
     refresh: reload,
-    updateItems,
   } = useFeatureScopes(
     scopedFeatureCodes,
     {
@@ -75,11 +74,7 @@ export function FeatureScopeListPanel({
         status: nextStatus,
       })
         .then(() => {
-          void updateItems((items) =>
-            items.map((item) =>
-              item.id === featureScope.id ? { ...item, status: nextStatus } : item,
-            ),
-          );
+          void reload();
           addNotification({ text: dictScopes.saveSuccess, type: 'success' });
         })
         .catch((cause: unknown) => {
@@ -97,7 +92,6 @@ export function FeatureScopeListPanel({
       dictScopes.saveSuccess,
       dictScopes.saveError,
       reload,
-      updateItems,
     ],
   );
 
@@ -107,7 +101,7 @@ export function FeatureScopeListPanel({
     setPendingId(featureScope.id);
     removeFeatureScope(token, featureScope.id)
       .then(() => {
-        void updateItems((items) => items.filter((item) => item.id !== featureScope.id));
+        void reload();
         addNotification({ text: dictScopes.deleteSuccess, type: 'success' });
       })
       .catch((cause: unknown) => {
@@ -126,7 +120,6 @@ export function FeatureScopeListPanel({
     dictScopes.deleteSuccess,
     dictScopes.deleteError,
     reload,
-    updateItems,
   ]);
 
   const columns: Column<FeatureScopeItem>[] = useMemo(

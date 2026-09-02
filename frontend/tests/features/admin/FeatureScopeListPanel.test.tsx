@@ -122,7 +122,13 @@ describe('FeatureScopeListPanel', () => {
       items: [FEATURE_SCOPE],
       page: { offset: 0, limit: 10, total: 1 },
     });
-    mockRemoveFeatureScope.mockResolvedValue(undefined);
+    mockRemoveFeatureScope.mockImplementation(() => {
+      mockFetchFeatureScopes.mockResolvedValue({
+        items: [],
+        page: { offset: 0, limit: 10, total: 0 },
+      });
+      return Promise.resolve(undefined);
+    });
     mockUpsertFeatureScope.mockResolvedValue(undefined);
   });
 
@@ -172,7 +178,17 @@ describe('FeatureScopeListPanel', () => {
 
   // The row is patched into the cached list rather than refetched. A reload would answer with the
   // pre-toggle status from the server fixture and the switch would snap back.
-  it('leaves the toggled row showing its new status', async () => {
+  // The status decides where the row sorts and whether it is on this page at all, so the table
+  // shows what the server returns after the write rather than a locally patched row.
+  it('re-reads the page after a status change', async () => {
+    mockUpsertFeatureScope.mockImplementation(() => {
+      mockFetchFeatureScopes.mockResolvedValue({
+        items: [{ ...FEATURE_SCOPE, status: 'inactive' }],
+        page: { offset: 0, limit: 10, total: 1 },
+      });
+      return Promise.resolve(undefined);
+    });
+
     await act(async () => {
       renderPanel(['document-generation-v3']);
     });
@@ -187,7 +203,7 @@ describe('FeatureScopeListPanel', () => {
 
     await waitFor(() => expect(mockUpsertFeatureScope).toHaveBeenCalled());
     await waitFor(() => expect(checked()).toBe(false));
-    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(1);
+    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a feature scope from the table', async () => {
@@ -205,6 +221,8 @@ describe('FeatureScopeListPanel', () => {
     await waitFor(() => {
       expect(screen.queryByText('document-generation-v3')).not.toBeInTheDocument();
     });
+    // The row a deletion leaves room for comes from the next page, which only a fresh read holds.
+    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(2);
   });
 
   // Irreversible, so the row action only opens the prompt.

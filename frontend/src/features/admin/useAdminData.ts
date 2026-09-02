@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   fetchDocumentGenerationAudits,
   fetchFeatureScope,
@@ -14,7 +14,6 @@ import type { ListQueryArgs } from '@/src/types/list';
 import type {
   DocumentGenerationAuditItem,
   FeatureScopeItem,
-  FeatureScopesResponse,
   SobaAdminItem,
 } from '@/src/types/admin';
 
@@ -64,34 +63,12 @@ export function useFeatureScopes(
 
   const featureScopes: FeatureScopeItem[] = useMemo(() => data?.items ?? [], [data]);
 
-  // A write the server accepted is applied to the cached rows rather than refetching the list. The
-  // total moves with them, because the table pages against it and would otherwise offer a page the
-  // rows no longer fill.
-  const updateItems = useCallback(
-    (update: (items: FeatureScopeItem[]) => FeatureScopeItem[]) =>
-      mutate(
-        (current: FeatureScopesResponse | undefined) => {
-          if (!current) return current;
-          const items = update(current.items);
-          const removed = current.items.length - items.length;
-          return {
-            ...current,
-            items,
-            page: { ...current.page, total: Math.max(0, current.page.total - removed) },
-          };
-        },
-        { revalidate: false },
-      ),
-    [mutate],
-  );
-
   return {
     featureScopes,
     total: data?.page?.total,
     isLoading,
     error,
     refresh: mutate,
-    updateItems,
   };
 }
 
