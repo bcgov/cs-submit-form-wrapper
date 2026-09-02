@@ -62,17 +62,20 @@ vi.mock('@bcgov/design-system-react-components', async (importOriginal) => {
       value,
       onChange,
       items,
+      isDisabled,
     }: {
       'data-testid'?: string;
       value?: string | number | null;
       onChange?: (val: string) => void;
       items?: SelectItem[];
+      isDisabled?: boolean;
     }) => (
       <select
         data-testid={testId}
         value={value ?? ''}
         onChange={(e) => onChange?.(e.target.value)}
         aria-label={testId}
+        disabled={isDisabled}
       >
         <option value="">Select...</option>
         {items?.map((item) => (
@@ -318,6 +321,33 @@ describe('WorkspaceForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(mockSelectWorkspace).toHaveBeenCalledTimes(2));
+  });
+
+  // A field left live during the write implies the change will be included. It will not: the
+  // request body was built when Save was pressed.
+  it('locks the fields while the save is in flight', async () => {
+    let release: (() => void) | undefined;
+    mockUpdateWorkspace.mockImplementation(
+      () => new Promise<void>((resolve) => (release = () => resolve())),
+    );
+
+    await act(async () => {
+      renderForm('ws2');
+    });
+    expect(await screen.findByDisplayValue('Team Workspace')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('workspace-disclaimer-switch'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpdateWorkspace).toHaveBeenCalled());
+    expect(screen.getByTestId('workspace-your-org')).toBeDisabled();
+    expect(screen.getByTestId('workspace-use-case')).toBeDisabled();
+    // The testid lands on the design system's wrapper, so the control itself is the input inside.
+    expect(screen.getByTestId('workspace-name').querySelector('input')).toBeDisabled();
+
+    await act(async () => {
+      release?.();
+    });
   });
 
   it('refreshes the workspace lists after saving', async () => {

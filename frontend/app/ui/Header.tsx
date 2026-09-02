@@ -67,9 +67,11 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
   }, []);
 
   // The cache and this tab's view state outlive the session. The next person signing in here would
-  // otherwise be served the previous user's workspaces and their list filters.
+  // otherwise be served the previous user's workspaces and their list filters. Revalidating rather
+  // than only emptying: a key still on screen would otherwise hold `undefined` for the life of the
+  // page, because a mounted hook only refetches when its key changes.
   const clearSessionState = useCallback(() => {
-    void mutate(() => true, undefined, { revalidate: false });
+    void mutate(() => true, undefined, { revalidate: true });
     removeSessionValues((key) => key === WORKSPACE_MODAL_DISMISSED_KEY);
     forgetListQueries();
   }, [mutate]);

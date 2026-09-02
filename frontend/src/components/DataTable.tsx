@@ -88,8 +88,14 @@ export function DataTable<T>({
     if (data.length === 0) {
       return (
         <tr>
-          <td colSpan={columns.length} className="text-center py-5 text-muted">
-            {error ? `Error: ${error}` : finalEmptyMessage}
+          <td
+            colSpan={columns.length}
+            className="text-center py-5 text-muted"
+            data-testid={error ? 'datatable-error' : 'datatable-empty'}
+          >
+            {/* Callers pass a sentence the reader can act on. Prefixing it turns "Your session has
+                ended. Please sign in again." into something that reads like a stack trace. */}
+            {error ?? finalEmptyMessage}
           </td>
         </tr>
       );

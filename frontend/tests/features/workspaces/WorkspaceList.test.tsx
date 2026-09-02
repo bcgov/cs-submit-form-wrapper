@@ -181,4 +181,17 @@ describe('WorkspaceList', () => {
     });
     await waitFor(() => expect(screen.getByText(/Your session has ended\./)).toBeInTheDocument());
   });
+
+  // The backend's string is untranslated and says things like "Request failed (500)".
+  it('reports a failed load without showing the backend message', async () => {
+    fetchWorkspaces.mockRejectedValue(new Error('Request failed (500)'));
+    await act(async () => {
+      renderList();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText(/Failed to load workspaces\./)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Request failed/)).not.toBeInTheDocument();
+  });
 });

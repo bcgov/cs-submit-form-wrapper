@@ -18,8 +18,9 @@ export function useAppSession(): AppSessionSnapshot {
     error: currentUserError,
   } = useCurrentUser();
 
-  // SWR keeps the last data on error, so this survives a failed reload and resets only when the
-  // session ends.
+  // Derived, not latched: it reads true for as long as all three keys hold data. SWR keeps the last
+  // data on error, so a failed reload does not move it, and it goes false when the keys go empty --
+  // which is what the sign-out cache clear does.
   const loadedOnce = workspacesLoaded && writableLoaded && currentUserLoaded;
 
   return useMemo(() => {

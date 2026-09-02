@@ -166,6 +166,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
         size="medium"
         data-testid="workspace-your-org"
         isRequired={true}
+        isDisabled={saving}
         value={org}
         onChange={handleOrgChange}
       />
@@ -176,6 +177,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
         size="medium"
         data-testid="workspace-use-case"
         isRequired={true}
+        isDisabled={saving}
         value={useCase}
         onChange={handleUseCaseChange}
       />

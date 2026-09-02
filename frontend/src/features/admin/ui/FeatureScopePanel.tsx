@@ -140,6 +140,7 @@ function FeatureScopeForm({ scopedFeatureCodes, featureScope }: Readonly<Feature
         selectionMode="single"
         size="medium"
         isRequired
+        isDisabled={saving}
         value={status}
         onChange={(key: Key | null) =>
           setStatus((key?.toString() as FeatureScopeStatus) ?? 'active')

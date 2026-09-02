@@ -123,7 +123,12 @@ export function FormSubmitterAudience({ workspaceId, canManage }: Props) {
         <Dialog aria-label={t.submitterAudienceLabel} className={styles.dialog}>
           <div className={styles.sections}>
             {saveError && <InlineAlert variant="danger" title={saveError} />}
-            <RadioGroup value={mode} onChange={setMode} label={t.submitterAudienceLabel}>
+            <RadioGroup
+              value={mode}
+              onChange={setMode}
+              isDisabled={saving}
+              label={t.submitterAudienceLabel}
+            >
               <Radio value="public" data-testid="audience-mode-public">
                 {t.submitterAudiencePublic}
               </Radio>
@@ -132,7 +137,12 @@ export function FormSubmitterAudience({ workspaceId, canManage }: Props) {
               </Radio>
             </RadioGroup>
             {mode === 'protected' && (
-              <CheckboxGroup value={idps} onChange={setIdps} label={t.submitterAudienceProviders}>
+              <CheckboxGroup
+                value={idps}
+                onChange={setIdps}
+                isDisabled={saving}
+                label={t.submitterAudienceProviders}
+              >
                 {(audience?.available ?? []).map((p) => (
                   <Checkbox key={p.code} value={p.code} data-testid={`audience-idp-${p.code}`}>
                     {p.name}
@@ -144,6 +154,7 @@ export function FormSubmitterAudience({ workspaceId, canManage }: Props) {
               <Button
                 variant="tertiary"
                 onPress={() => setOpen(false)}
+                isDisabled={saving}
                 data-testid="audience-cancel"
               >
                 {t.submitterAudienceCancel}
