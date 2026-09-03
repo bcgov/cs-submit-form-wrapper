@@ -12,7 +12,7 @@ type PatchMeBody = z.infer<typeof PatchMeBodySchema>;
 export const getCurrentActor = asyncHandler(async (req: Request, res: Response) => {
   const actorId = getActorId(req);
   if (!actorId) {
-    throw new ValidationError('Missing actor identity (actorId or x-soba-user-id)');
+    throw new ValidationError('Missing actor identity');
   }
   const result = await meApiService.get(actorId, getActorIdpCode(req), req.isSobaAdmin === true);
   if (!result) {
@@ -24,7 +24,7 @@ export const getCurrentActor = asyncHandler(async (req: Request, res: Response) 
 export const patchCurrentActor = asyncHandler(async (req: Request, res: Response) => {
   const actorId = getActorId(req);
   if (!actorId) {
-    throw new ValidationError('Missing actor identity (actorId or x-soba-user-id)');
+    throw new ValidationError('Missing actor identity');
   }
   const result = await meApiService.patch(
     actorId,

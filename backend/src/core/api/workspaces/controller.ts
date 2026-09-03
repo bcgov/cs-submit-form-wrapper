@@ -20,7 +20,7 @@ type WorkspaceIdParams = z.infer<typeof WorkspaceIdParamsSchema>;
 export const listWorkspaces = asyncHandler(async (req: Request, res: Response) => {
   const actorId = getActorId(req);
   if (!actorId) {
-    throw new ValidationError('Missing actor identity (actorId or x-soba-user-id)');
+    throw new ValidationError('Missing actor identity');
   }
   const result = await workspacesApiService.list(
     actorId,
@@ -32,7 +32,7 @@ export const listWorkspaces = asyncHandler(async (req: Request, res: Response) =
 export const createWorkspace = asyncHandler(async (req: Request, res: Response) => {
   const actorId = getActorId(req);
   if (!actorId) {
-    throw new ValidationError('Missing actor identity (actorId or x-soba-user-id)');
+    throw new ValidationError('Missing actor identity');
   }
   const result = await workspacesApiService.create(
     actorId,

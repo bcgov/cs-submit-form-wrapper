@@ -1,10 +1,9 @@
 /**
- * Resolves req.actorId from JWT (via IdP plugins) when not already set.
+ * Resolves req.actorId from the JWT (via IdP plugins).
  * Refreshes soba_admin from IdP when the mapper returns sobaAdmin, then sets req.isSobaAdmin.
  * Must run after checkJwt() so that req.idpPluginCode and req.authPayload are set.
  */
 import { Request, Response, NextFunction } from 'express';
-const X_SOBA_USER_ID = 'x-soba-user-id';
 import { getIdpPlugins } from '../auth/idpRegistry';
 import type { CallerIdentity } from '../db/repos/formSubmitAccessRepo';
 import { findOrCreateUserByIdentity } from '../db/repos/membershipRepo';
@@ -15,11 +14,10 @@ import { getPublicUser } from '../services/publicUser';
 import { PUBLIC_PROVIDER_CODE } from '../db/codes';
 
 /**
- * Read the resolved actor id, falling back to the dev/test `x-soba-user-id` bypass header.
+ * Read the actor id resolved by resolveActor.
  * Used by actor-only routes that don't resolve a workspace context.
  */
-export const getActorId = (req: Request): string | null =>
-  req.actorId ?? req.header(X_SOBA_USER_ID) ?? null;
+export const getActorId = (req: Request): string | null => req.actorId ?? null;
 
 /** Identity provider code for the current session (from the verified JWT). */
 export const getActorIdpCode = (req: Request): string | null =>
@@ -32,17 +30,6 @@ export const resolveCaller = (req: Request): CallerIdentity => ({
 });
 
 export function resolveActor(req: Request, res: Response, next: NextFunction): void {
-  const actorId = getActorId(req);
-  if (actorId) {
-    isSobaAdmin(actorId)
-      .then((admin) => {
-        req.isSobaAdmin = admin;
-        next();
-      })
-      .catch(next);
-    return;
-  }
-
   const pluginCode = (req as Request & { idpPluginCode?: string }).idpPluginCode;
   const payload = (req as Request & { authPayload?: Record<string, unknown> }).authPayload;
 
@@ -92,9 +79,7 @@ export function resolveActor(req: Request, res: Response, next: NextFunction): v
  * the public user is a member of no workspace, so staff-only routes still reject it.
  */
 export function resolveActorOrPublic(req: Request, res: Response, next: NextFunction): void {
-  const hasIdentity =
-    req.actorId || req.header(X_SOBA_USER_ID) || (req.idpPluginCode && req.authPayload);
-  if (hasIdentity) {
+  if (req.idpPluginCode && req.authPayload) {
     return resolveActor(req, res, next);
   }
 
