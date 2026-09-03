@@ -140,22 +140,14 @@ Do the write as a plain awaited call, then mutate the affected key:
 ```ts
 await updateWorkspace(token, workspaceId, body);
 await refreshWorkspaces();
-router.push(`/${locale}/workspaces`);
+router.push(navLink(`/${locale}/workspaces`));
 ```
 
-Do not reach for `useSWRMutation`.
+`navLink` is in `listQueryMemory`. Do not reach for `useSWRMutation`.
 
-When the write tells you what the row now holds, apply it to the cache instead of
-refetching the list:
-
-```ts
-await upsertFeatureScope(token, body);
-await mutate((current) => (current ? { ...current, items: patched(current.items) } : current), {
-  revalidate: false,
-});
-```
-
-Guard `current`. A key with nothing in it yet hands the updater `undefined`.
+A paged list should be re-read after a write (`mutate` / `refresh`). Patching `items` in the
+cache leaves `page.total` and the sort order stale. How lists are declared and linked is in
+`docs/server-paged-lists.md`.
 
 To forget a key rather than patch it, go through the cache: `mutate(key, undefined)` reads
 as "revalidate", not "forget", and leaves the old value in place.
@@ -240,67 +232,15 @@ page and drops its query string.
 
 ## List queries in the URL
 
-Search, filters, sort, page and page size are resolved by the server and carried in the
-URL. `useListQuery(spec)` owns that: it reads them, validates them, and returns the
-`offset`, `limit`, `sort` and `q` a list request takes, plus the setters a screen wires to
-the table. A screen holds no list state of its own.
+How a list is declared, paged and linked is in `docs/server-paged-lists.md`. The SWR part
+is the key and `listReadConfig`.
 
-The spec in `src/shared/list/listQueryMemory.ts` declares what a list owns: its filters,
-the sort tokens its endpoint accepts, and the default sort. A list that gains a filter
-declares it there and nothing else changes.
+Paged reads pass `listReadConfig`. SWR drops `data` when the key changes, and the table draws
+its paging controls from the total in that data, so without it the footer unmounts mid-request
+and takes keyboard focus with it. `isLoading` still reports the in-flight page.
 
-Two values are checked before they can reach a request. A sort the endpoint does not
-declare falls back to the list default. A page size outside the offered options falls back
-to the default, because the API rejects one it does not allow and the table would be left
-empty with no way back.
-
-The page resets whenever the rows underneath it change: a new filter, sort or search term.
-Page 4 of one query is not page 4 of another.
-
-Typing does not search. `q` reaches the URL through `commitSearch`, which the Search button and
-Enter both call, so a term is sent when the user asks for it rather than once per pause. The term
-is trimmed on the way out: the API trims and then rejects an empty one, so a whitespace-only term
-is a cleared search, not a search for a space.
-
-Each list's params are named for its resource: `forms.page`, `formVersions.sort`. Two lists can
-share a route, and the designer holds version history and submissions at once, so a bare `page`
-would have each of them answering for the other's table.
-
-Paged reads pass `listReadConfig`. SWR drops `data` when the key changes, and the table draws its
-paging controls from the total in that data, so without it the footer unmounts mid-request and
-takes the keyboard focus with it. `isLoading` still reports the in-flight page, so screens read
-progress from it as usual.
-
-Resolve an id from the URL before it reaches a request. It can name something the user
-cannot see:
-
-```ts
-const selectedWorkspaceId =
-  workspaceParam && workspaces.some((w) => w.id === workspaceParam) ? workspaceParam : undefined;
-```
-
-Hold the key at `null` while the list you resolve against is still loading. Resolving too
-early scopes the request to nothing.
-
-An id that never resolves reads unscoped, and the screen says so: the picker returns to all
-workspaces and a notice explains that the filter was not applied, with a Clear action. Do
-not leave the table asserting a filter it does not have, and do not show an empty table
-instead, which asserts there is nothing to see. Use the same message for unknown and
-forbidden, so the page does not confirm which ids exist.
-
-Forget a rejected id rather than remembering it. It is not a view worth restoring, and the
-memory would otherwise hand it back on every arrival and raise the notice again.
-
-Write filter changes with `history.replaceState`, not `router.replace`. A router
-navigation re-runs the page's server component, which re-reads the features and build
-metadata for what is only a client-side change. Next keeps `useSearchParams` in sync with
-`replaceState`.
-
-`listQueryMemory` also remembers a list's query per tab, so leaving and coming back returns
-it as the user left it. Links from inside the app carry `?from=nav` (use `navLink()`); a
-URL without it is a bookmark or someone else's link and means the unfiltered list. A URL
-that names a query counts as a choice wherever it came from. A bare one does not touch the
-memory.
+Hold the key at `null` until a URL id has been resolved against a list the user can see.
+Resolving too early scopes the request to nothing.
 
 ## Screens with their own loading
 

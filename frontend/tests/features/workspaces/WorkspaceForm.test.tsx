@@ -210,7 +210,7 @@ describe('WorkspaceForm', () => {
         org: 'testOrg',
       });
       expect(mockRefreshWorkspaces).toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
+      expect(mockPush).toHaveBeenCalledWith('/en/workspaces?from=nav');
     });
   });
 
@@ -240,7 +240,7 @@ describe('WorkspaceForm', () => {
     });
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(mockCreateWorkspace).not.toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
+    expect(mockPush).toHaveBeenCalledWith('/en/workspaces?from=nav');
   });
 
   it('save on manage patches workspace when name changes', async () => {
@@ -255,7 +255,7 @@ describe('WorkspaceForm', () => {
 
     await waitFor(() => {
       expect(mockUpdateWorkspace).toHaveBeenCalledWith('token', 'ws2', { name: 'Renamed' });
-      expect(mockPush).toHaveBeenCalledWith('/en/workspaces');
+      expect(mockPush).toHaveBeenCalledWith('/en/workspaces?from=nav');
     });
   });
 
@@ -304,7 +304,7 @@ describe('WorkspaceForm', () => {
       renderForm('ws2');
     });
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/workspaces'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/workspaces?from=nav'));
     expect(mockUpdateWorkspace).not.toHaveBeenCalled();
   });
 

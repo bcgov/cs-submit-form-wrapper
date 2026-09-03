@@ -1,5 +1,6 @@
 import type { AppPlugin } from '@/src/types/plugins';
 import { FEATURE_CODES } from '@/src/shared/featureFlags/flags';
+import { navLink } from '@/src/shared/list/listQueryMemory';
 
 export const workspacesPlugin: AppPlugin = {
   id: 'workspaces',
@@ -8,7 +9,7 @@ export const workspacesPlugin: AppPlugin = {
   order: 10,
   getNavItem: ({ locale, dictionary }) => ({
     id: 'workspaces',
-    href: `/${locale}/workspaces`,
+    href: navLink(`/${locale}/workspaces`),
     label: dictionary.header.workspaces,
   }),
 };

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   FORMS_LIST_QUERY,
+  listLink,
   FORM_SUBMISSIONS_LIST_QUERY,
   FORM_VERSIONS_LIST_QUERY,
   forgetListQueries,
@@ -20,6 +21,19 @@ describe('listQueryMemory', () => {
     expect(readUrlParams(FORMS_LIST_QUERY, search)).toEqual({ workspace: 'ws1' });
     expect(urlHasListParams(FORMS_LIST_QUERY, search)).toBe(true);
     expect(urlHasListParams(FORMS_LIST_QUERY, new URLSearchParams('unrelated=x'))).toBe(false);
+  });
+
+  // A hand-written `?workspace=ws1` is read by no list, so links into a list are built from the spec.
+  it('builds a link a list reads back', () => {
+    const href = listLink('/en/forms', FORMS_LIST_QUERY, { workspace: 'ws1' });
+    expect(href).toBe('/en/forms?forms.workspace=ws1');
+    expect(readUrlParams(FORMS_LIST_QUERY, new URLSearchParams(href.split('?')[1]))).toEqual({
+      workspace: 'ws1',
+    });
+  });
+
+  it('leaves a link with nothing to carry unchanged', () => {
+    expect(listLink('/en/forms', FORMS_LIST_QUERY, {})).toBe('/en/forms');
   });
 
   // Two lists share the designer route, so a page number has to say which table it belongs to.

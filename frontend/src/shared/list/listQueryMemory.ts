@@ -113,6 +113,19 @@ const NAV_MARKER_VALUE = 'nav';
 
 export const navLink = (href: string) => `${href}?${NAV_MARKER}=${NAV_MARKER_VALUE}`;
 
+/**
+ * A link to a list with its query already set. The names come from the spec, so a caller cannot
+ * hand-write one the list will not read back.
+ */
+export function listLink(href: string, spec: ListQuerySpec, params: ListQueryParams): string {
+  const search = new URLSearchParams();
+  for (const name of listQueryParams(spec)) {
+    if (params[name]) search.set(urlParamName(spec, name), params[name]);
+  }
+  const query = search.toString();
+  return query ? `${href}?${query}` : href;
+}
+
 export function isNavArrival(search: URLSearchParams): boolean {
   return search.get(NAV_MARKER) === NAV_MARKER_VALUE;
 }

@@ -13,7 +13,11 @@ import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useWorkspaceList } from '@/src/shared/api/useWorkspaces';
 import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
-import { WORKSPACES_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import {
+  FORMS_LIST_QUERY,
+  listLink,
+  WORKSPACES_LIST_QUERY,
+} from '@/src/shared/list/listQueryMemory';
 import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
@@ -98,7 +102,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
     (workspaceId: string, destination: 'forms' | 'manage') => {
       if (destination === 'forms') {
         // Opening a workspace's forms is an explicit scope choice, so it seeds the list filter.
-        router.push(`/${locale}/forms?workspace=${encodeURIComponent(workspaceId)}`);
+        router.push(listLink(`/${locale}/forms`, FORMS_LIST_QUERY, { workspace: workspaceId }));
       } else {
         router.push(`/${locale}/workspace/${workspaceId}`);
       }

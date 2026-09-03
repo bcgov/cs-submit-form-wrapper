@@ -127,7 +127,7 @@ describe('WorkspaceList', () => {
       renderList();
     });
     await userEvent.click(screen.getByTestId('workspace-link-ws2'));
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?workspace=ws2'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?forms.workspace=ws2'));
   });
 
   it('navigates to manage page on Manage action', async () => {
@@ -156,7 +156,7 @@ describe('WorkspaceList', () => {
     ) as HTMLButtonElement | null;
     expect(btn).toBeTruthy();
     await userEvent.click(btn!);
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?workspace=ws2'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?forms.workspace=ws2'));
   });
 
   // Searching only the fetched page would hide every match past it, so the term goes to the server.

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState, type Key } from 'react';
+import { navLink } from '@/src/shared/list/listQueryMemory';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Button,
@@ -53,7 +54,7 @@ function FeatureScopeForm({ scopedFeatureCodes, featureScope }: Readonly<Feature
   const valid = UUID_PATTERN.test(scopeId.trim()) && featureCode.trim() !== '';
 
   const handleCancel = useCallback(() => {
-    router.push(`/${locale}/admin/feature-scopes`);
+    router.push(navLink(`/${locale}/admin/feature-scopes`));
   }, [router, locale]);
 
   const handleSubmit = useCallback(async () => {
@@ -67,7 +68,7 @@ function FeatureScopeForm({ scopedFeatureCodes, featureScope }: Readonly<Feature
         status,
       });
       addNotification({ text: dictScopes.saveSuccess, type: 'success' });
-      router.push(`/${locale}/admin/feature-scopes`);
+      router.push(navLink(`/${locale}/admin/feature-scopes`));
     } catch (cause) {
       addNotification({ text: dictScopes.saveError, type: 'error', consoleError: cause });
     } finally {
