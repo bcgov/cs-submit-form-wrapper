@@ -182,13 +182,22 @@ function Header({ headerNavItems, showWorkspaces }: Readonly<HeaderProps>) {
     );
   };
 
+  // Both are rendered; CSS picks one by viewport width. BCDS types `title` as a string but renders
+  // it as a child node, so an element works at runtime. Cast until the upstream prop widens.
+  const headerTitle = (
+    <>
+      <span className={styles.titleFull}>{dict.general.title}</span>
+      <span className={styles.titleShort}>{dict.general.acronym}</span>
+    </>
+  );
+
   return (
-    <div ref={headerChromeRef} data-testid="app-header">
+    <div ref={headerChromeRef} className={styles.chrome} data-testid="app-header">
       <BCHeader
         logoLinkElement={
           <Link href="/" data-testid="bcgov-header-logo" title={dict.header.bcgovTitle} />
         }
-        title={dict.general.title}
+        title={headerTitle as unknown as string}
         titleElement="span"
         skipLinks={[
           <a key="skip-to-main" href="#main-content">

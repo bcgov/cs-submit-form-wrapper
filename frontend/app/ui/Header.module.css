@@ -1,3 +1,48 @@
+/*
+ * The design system caps its header content at 1100px and centres it, so the branding drifts with
+ * the viewport and lines up with nothing. Move the gutters onto the container and pin it left.
+ *
+ * The gutters belong on the container, not on the logo link: padding there would enlarge the home
+ * link's hit area, and the skip links are absolutely positioned off the container's content box,
+ * so they would stop lining up with the logo.
+ */
+.chrome :global(.bcds-header) {
+  padding-inline: var(--layout-padding-none);
+}
+
+/* Repeats the design system's own selector, which is otherwise an even specificity match. */
+.chrome :global(.bcds-header > .bcds-header--container) {
+  max-width: none;
+  padding-inline: var(--layout-padding-medium);
+}
+
+/* The acronym stands in for the title, which otherwise wraps to three lines on a phone. */
+.titleFull {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .titleFull {
+    display: inline;
+  }
+
+  .titleShort {
+    display: none;
+  }
+}
+
+/*
+ * The header takes the page content's own edges: the branding clears the nav column and its
+ * divider, the controls stop where the content stops. Narrower than this the indent leaves too
+ * little room for the title, which wraps and pushes the controls off screen.
+ */
+@media (min-width: 1280px) {
+  .chrome :global(.bcds-header > .bcds-header--container) {
+    padding-left: var(--app-content-inset-start);
+    padding-right: var(--app-content-inset-end);
+  }
+}
+
 .userDrop {
   /* Flex layout keeps the person icon, name, and caret aligned regardless of
      Bootstrap `.btn` defaults or Form.io's injected global CSS. */
@@ -32,7 +77,7 @@
 .userDrop:focus-visible {
   /* Keyboard focus needs a clearly visible ring; the surface-pinning rules
      above otherwise leave focus indistinguishable from the resting state. */
-  outline: 2px solid var(--app-focus-ring) !important;
+  outline: var(--layout-border-width-medium) solid var(--app-focus-ring) !important;
   outline-offset: 2px;
 }
 
@@ -41,8 +86,8 @@
   width: 11rem;
   height: 1.25rem;
   background: var(--app-border);
-  border-radius: 4px;
-  opacity: 0.6;
+  border-radius: var(--layout-border-radius-medium);
+  opacity: var(--surface-opacity-60);
 }
 
 @media (min-width: 768px) {

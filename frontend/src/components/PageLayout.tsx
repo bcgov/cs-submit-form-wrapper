@@ -4,9 +4,10 @@ import styles from './PageLayout.module.css';
 
 export type PageWidth = 'narrow' | 'default' | 'wide';
 
+// The default is shared with the header and footer, which stop their content at the same edge.
 const MAX_WIDTH: Record<PageWidth, string> = {
   narrow: '45rem',
-  default: '75rem',
+  default: 'var(--app-page-max-width)',
   wide: '90rem',
 };
 
