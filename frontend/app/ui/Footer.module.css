@@ -1,8 +1,24 @@
+/*
+ * The design system centres the footer content in its own 1100px column, which lands nowhere near
+ * the page content. Give it the same edges the header and the page use. Gated with the header:
+ * narrower than this the logo and link list no longer fit beside the nav column's inset.
+ */
+@media (min-width: 1280px) {
+  .chrome :global(.bcds-footer > .bcds-footer--container) {
+    padding-left: var(--app-content-inset-start);
+    padding-right: var(--app-content-inset-end);
+  }
+
+  .chrome :global(.bcds-footer > .bcds-footer--container > .bcds-footer--container-content) {
+    max-width: none;
+  }
+}
+
 /* Sits inside the design system's .bcds-footer--copyright paragraph. */
 .copyright {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--layout-margin-small);
   width: 100%;
 }

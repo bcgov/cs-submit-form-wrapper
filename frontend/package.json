@@ -25,7 +25,7 @@
   "dependencies": {
     "@bcgov/bc-sans": "^2.1.0",
     "@bcgov/design-system-react-components": "^0.8.1",
-    "@bcgov/design-tokens": "^3.2.0",
+    "@bcgov/design-tokens": "^5.0.0",
     "@bcgov/formio-components": "github:bcgov/formio-components#v0.0.1",
     "@formatjs/intl-localematcher": "^0.8.1",
     "@formio/js": "5.4.0-api98.1",

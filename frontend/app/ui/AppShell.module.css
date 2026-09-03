@@ -50,6 +50,6 @@
 
 @media (min-width: 768px) {
   .main {
-    padding: var(--layout-padding-xlarge) var(--layout-padding-large);
+    padding: var(--app-page-inset-top) var(--app-page-inset) var(--layout-padding-xlarge);
   }
 }

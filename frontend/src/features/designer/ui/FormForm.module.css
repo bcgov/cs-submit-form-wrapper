@@ -5,8 +5,8 @@
 
 .floatingActions {
   position: fixed;
-  bottom: 30px;
-  left: 30px;
+  bottom: var(--layout-margin-xlarge);
+  left: var(--layout-margin-xlarge);
   z-index: 1050;
 }
 

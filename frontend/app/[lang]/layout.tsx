@@ -4,6 +4,7 @@ import { getDictionary, hasLocale } from './dictionaries';
 import { Header } from '../ui/Header';
 import { Footer } from '../ui/Footer';
 import { SideNav } from '../ui/SideNav';
+import { AppAside } from '../ui/AppAside';
 import shellStyles from '../ui/AppShell.module.css';
 import { loadFeaturesMeta } from '@/src/shared/config/featuresMeta';
 import { formatAppVersion, loadBuildMeta } from '@/src/shared/config/runtimeConfig';
@@ -50,13 +51,13 @@ export default async function RootLayout({
           />
         </div>
         <div className={shellStyles.row}>
-          <aside className={`p-2 d-flex flex-column flex-shrink-0 ${shellStyles.aside}`}>
+          <AppAside>
             <SideNav
               showAppLinks={showAppLinks}
               showHome={showHome}
               showWorkspaces={showWorkspaces}
             />
-          </aside>
+          </AppAside>
           <main id="main-content" tabIndex={-1} className={shellStyles.main}>
             <AppAccessGuard locale={locale} workspacesEnabled={showWorkspaces}>
               {children}

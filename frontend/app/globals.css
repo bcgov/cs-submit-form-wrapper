@@ -3,8 +3,10 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
 :root {
-  --app-bg: var(--surface-color-background-light-gray);
+  --app-bg: var(--surface-color-background-white);
   --app-surface: var(--surface-color-background-white);
+  /* Recessed surface against --app-bg: zebra striping, and anything that needs to sit back. */
+  --app-surface-alt: var(--surface-color-background-light-gray);
   --app-text: var(--typography-color-primary);
   --app-text-muted: var(--typography-color-secondary);
   --app-border: var(--surface-color-border-default);
@@ -15,15 +17,37 @@
   --app-danger: var(--typography-color-danger);
   /* Darker grey surface for table headers/footers + the selected nav item. */
   --app-surface-muted: var(--theme-gray-30);
-  /* Subtle grey for hover and zebra striping. */
+  /* Subtle grey for hover. */
   --app-hover: var(--theme-gray-20);
-  --bcgov-light-blue: #f1f8fe;
+  /* No single token is 72px; it is xxlarge margin plus xlarge padding. */
+  --app-page-inset: calc(var(--layout-margin-xxlarge) + var(--layout-padding-xlarge));
+  /* Shorter than the sides: PageLayout's eyebrow row adds 32px above the heading. */
+  --app-page-inset-top: var(--layout-margin-xxxlarge);
+  /* Width of the nav column. AppAside measures the real value and overrides this. The seed is the
+     English expanded width, the state the nav mounts in; other locales settle after measuring. */
+  --app-nav-width: 194px;
+  /* PageLayout's default content width. */
+  --app-page-max-width: 75rem;
+  /* The edges page content sits between. The header and footer take the same pair, so the three
+     line up. The end backs off further once the content stops short of the inset under its cap. */
+  --app-content-inset-start: calc(
+    var(--app-nav-width) + var(--layout-border-width-small) + var(--app-page-inset)
+  );
+  --app-content-inset-end: max(
+    var(--app-page-inset),
+    calc(100% - var(--app-content-inset-start) - var(--app-page-max-width))
+  );
+}
+
+/* The header is sticky, so anchor and focus scrolling has to clear it. */
+html {
+  scroll-padding-top: var(--app-header-height, 0px);
 }
 
 body {
   background: var(--app-bg);
   color: var(--app-text);
-  font-family: 'BC Sans', 'Noto Sans', Arial, Helvetica, sans-serif;
+  font-family: var(--typography-font-families-bc-sans), 'Noto Sans', Arial, Helvetica, sans-serif;
 }
 
 a {
@@ -31,29 +55,6 @@ a {
 }
 
 :focus-visible {
-  outline: 3px solid var(--app-focus-ring);
+  outline: var(--layout-border-width-medium) solid var(--app-focus-ring);
   outline-offset: 2px;
-}
-
-.subHeader {
-  background: var(--surface-color-forms-default);
-  border-bottom-color: var(--surface-color-border-default);
-  border-bottom-style: solid;
-  border-bottom-width: var(--layout-border-width-small);
-  height: 40px;
-}
-
-.subHeader a {
-  display: inline-block;
-  height: 24px;
-  border-color: var(--surface-color-border-default);
-}
-
-.bg-bcgov-light-blue {
-  background-color: var(--bcgov-light-blue) !important;
-  --bs-table-bg: var(--bcgov-light-blue);
-}
-
-.bcgov-light-blue {
-  color: var(--bcgov-light-blue);
 }

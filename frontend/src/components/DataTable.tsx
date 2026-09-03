@@ -198,7 +198,7 @@ export function DataTable<T>({
         <Table className={`mb-0 align-middle ${styles.table}`}>
           {caption ? <caption className="visually-hidden">{caption}</caption> : null}
           <thead className={styles.thead}>
-            <tr className="bg-bcgov-light-blue">
+            <tr className={styles.headerRow}>
               {columns.map((col) => (
                 <th
                   key={col.key}

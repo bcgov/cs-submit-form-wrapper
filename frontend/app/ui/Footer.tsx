@@ -44,7 +44,12 @@ const Footer = ({ version, ...props }: FooterProps) => {
 
   // BCDS types `copyright` as a string but renders it as a child node, so an element works at
   // runtime. Cast until the upstream prop widens to ReactNode.
-  return <BCFooter {...props} copyright={content as unknown as string} />;
+  // The wrapper carries the class: FooterProps has no className.
+  return (
+    <div className={styles.chrome}>
+      <BCFooter {...props} copyright={content as unknown as string} />
+    </div>
+  );
 };
 
 export { Footer };

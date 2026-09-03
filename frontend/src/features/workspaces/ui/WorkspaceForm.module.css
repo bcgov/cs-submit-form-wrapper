@@ -1,13 +1,13 @@
 .actions {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  gap: var(--layout-margin-medium);
+  margin-top: var(--layout-margin-large);
 }
 
 .fieldStack {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--layout-margin-large);
   max-width: 32rem;
 }
 
@@ -17,5 +17,5 @@
 }
 
 .tabContent {
-  padding-top: 1rem;
+  padding-top: var(--layout-padding-medium);
 }
