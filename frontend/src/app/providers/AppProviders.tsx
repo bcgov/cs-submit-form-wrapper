@@ -3,7 +3,9 @@
 import React, { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { I18nProvider } from 'react-aria-components';
+import { SWRConfig } from 'swr';
 import makeStore from '@/lib/store';
+import { swrConfig } from '@/src/shared/api/swrConfig';
 import { refreshAccessToken } from '@/lib/slices/keycloakSlice';
 import { setTokenRefresher } from '@/src/shared/auth/tokenRefresh';
 import { getDictionary } from '@/app/[lang]/dictionaries';
@@ -44,8 +46,10 @@ export default function AppProviders({
     <I18nProvider locale={locale}>
       <DictionaryContext.Provider value={dictionary}>
         <Provider store={store}>
-          {children}
-          <NotificationToast />
+          <SWRConfig value={swrConfig}>
+            {children}
+            <NotificationToast />
+          </SWRConfig>
         </Provider>
       </DictionaryContext.Provider>
     </I18nProvider>

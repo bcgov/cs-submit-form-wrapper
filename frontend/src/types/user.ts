@@ -17,9 +17,3 @@ export type CurrentUserResponse = {
     isSobaAdmin: boolean;
   };
 };
-
-export type PatchCurrentUserBody = {
-  preferences: {
-    [key: string]: unknown;
-  };
-};

@@ -23,6 +23,7 @@ export function useKeycloak() {
     idTokenParsed: state.idTokenParsed,
     authenticated: state.authenticated,
     initializing: state.initializing,
+    initStarted: state.initStarted,
     error: state.error,
     login: doLogin,
     logout: doLogout,

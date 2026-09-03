@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button as DSButton } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { ListPageToolbar, ListPageAuthGate } from '@/src/components/ListPageLayout';
@@ -10,9 +10,9 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
-import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadWorkspaces, setSelectedWorkspaceId } from '@/lib/slices/workspaceSlice';
-import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
+import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
+import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import type { WorkspaceItem } from '@/src/types/workspaces';
 import { WorkspaceRoleBadge } from './WorkspaceRoleBadge';
 import { isWorkspaceManageRole } from '../workspaceRoles';
@@ -54,8 +54,7 @@ const WorkspaceActionButtons = ({
 function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: boolean }>) {
   const dict = useDictionary();
   const dictWorkspaces = dict.workspaces;
-  const { authenticated, token, initializing } = useKeycloak();
-  const dispatch = useAppDispatch();
+  const { authenticated, initializing } = useKeycloak();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -66,26 +65,25 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
 
   const locale = getLocaleFromPath(pathname);
 
-  const {
-    workspaces,
-    status: workspaceStatus,
-    error: workspaceError,
-  } = useAppSelector((state) => state.workspace);
-  const { data: currentUser, status: currentUserStatus } = useAppSelector(
-    (state) => state.currentUser,
+  const { workspaces, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces();
+
+  const error = useMemo(
+    () =>
+      workspacesError
+        ? loadErrorMessage(workspacesError, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: dictWorkspaces.listLoadError,
+          })
+        : null,
+    [
+      workspacesError,
+      dict.general.sessionExpired,
+      dict.general.noAccess,
+      dictWorkspaces.listLoadError,
+    ],
   );
-
-  useEffect(() => {
-    if (authenticated && token && workspaceStatus === 'idle') {
-      dispatch(loadWorkspaces(token));
-    }
-  }, [authenticated, token, workspaceStatus, dispatch]);
-
-  useEffect(() => {
-    if (authenticated && token && currentUserStatus === 'idle') {
-      dispatch(loadCurrentUser(token));
-    }
-  }, [authenticated, token, currentUserStatus, dispatch]);
+  const { data: currentUser } = useCurrentUser();
 
   const filteredWorkspaces = useMemo(() => {
     if (!searchQuery.trim()) return workspaces;
@@ -113,17 +111,14 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
 
   const handleSelect = useCallback(
     (workspaceId: string, destination: 'forms' | 'manage') => {
-      if (!token) return;
-
       if (destination === 'forms') {
         // Opening a workspace's forms is an explicit scope choice, so it seeds the list filter.
-        dispatch(setSelectedWorkspaceId(workspaceId));
-        router.push(`/${locale}/forms`);
+        router.push(`/${locale}/forms?workspace=${encodeURIComponent(workspaceId)}`);
       } else {
         router.push(`/${locale}/workspace/${workspaceId}`);
       }
     },
-    [token, router, locale, dispatch],
+    [router, locale],
   );
 
   const handleAction = useCallback(
@@ -179,7 +174,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
     [handleSelect, handleAction, dictWorkspaces, showFormsAction],
   );
 
-  const loading = workspaceStatus === 'loading' || workspaceStatus === 'idle';
+  const loading = workspacesLoading;
   const showCreateAction = currentUser?.capabilities?.canCreateWorkspace === true;
 
   if (!authenticated && !initializing) {
@@ -209,7 +204,7 @@ function WorkspaceList({ showFormsAction = true }: Readonly<{ showFormsAction?: 
         data={paginatedWorkspaces}
         columns={columns}
         loading={loading || initializing}
-        error={workspaceError}
+        error={error}
         emptyMessage={dictWorkspaces.empty}
         loadingMessage={dict.general.loading}
         itemName="items"

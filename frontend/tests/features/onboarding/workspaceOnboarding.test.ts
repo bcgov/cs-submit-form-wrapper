@@ -4,8 +4,8 @@ import { needsWorkspaceOnboarding } from '@/src/features/onboarding/workspaceOnb
 const readyContext = {
   authenticated: true,
   initializing: false,
-  workspaceStatus: 'succeeded' as const,
-  currentUserStatus: 'succeeded' as const,
+  workspacesLoaded: true,
+  currentUserLoaded: true,
 };
 
 describe('workspaceOnboarding', () => {

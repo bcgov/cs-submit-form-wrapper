@@ -2,20 +2,20 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { Link } from '@bcgov/design-system-react-components';
-import type { FormType } from '@formio/react';
 
 import type { Dictionary } from '@/src/types/plugins';
 import { Tag, TagColor } from '@/src/components/Tag';
 import { DataTable, type Column } from '@/src/components/DataTable';
-import { useAppSelector, useAppDispatch } from '@/lib/store';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
 import type { SobaFormVersionType } from '@/src/types/forms';
-import { loadVersionSchemaThunk, createNewVersionThunk } from '@/lib/slices/formSlice';
 import { capitalizeFirstLetter } from '@/src/shared/util/stringUtils';
-import { useKeycloak } from '@/lib/hooks/useKeycloak';
 
 interface FormHistoryTabProps {
   dict: Dictionary;
+  versions: SobaFormVersionType[];
+  loading: boolean;
+  onSelectVersion: (versionId: string) => void;
+  onRestoreVersion: (version: SobaFormVersionType) => Promise<void>;
   onNavigateToDesigner?: () => void;
 }
 
@@ -26,30 +26,29 @@ function stateToColour(state: string): TagColor {
 
 export default function FormHistoryTab({
   dict,
+  versions,
+  loading,
+  onSelectVersion,
+  onRestoreVersion,
   onNavigateToDesigner,
 }: Readonly<FormHistoryTabProps>) {
-  const { versions, formId, loading } = useAppSelector((state) => state.form);
-  const dispatch = useAppDispatch();
-  const { token } = useKeycloak();
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const formatLongDate = useFormatLongDate();
 
-  const newVersionFromCallback = useCallback(
+  const openInDesigner = useCallback(
     (version: SobaFormVersionType) => {
-      if (!token || !formId) return;
-      dispatch(loadVersionSchemaThunk({ token, version })).then((actionResult) => {
-        const payload = actionResult.payload as { schema: FormType | null };
-        if (payload?.schema) {
-          dispatch(createNewVersionThunk({ token, formId, formSchema: payload.schema })).then(
-            () => {
-              if (onNavigateToDesigner) onNavigateToDesigner();
-            },
-          );
-        }
-      });
+      onSelectVersion(version.id);
+      onNavigateToDesigner?.();
     },
-    [token, formId, dispatch, onNavigateToDesigner],
+    [onSelectVersion, onNavigateToDesigner],
+  );
+
+  const restore = useCallback(
+    (version: SobaFormVersionType) => {
+      void onRestoreVersion(version).then(() => onNavigateToDesigner?.());
+    },
+    [onRestoreVersion, onNavigateToDesigner],
   );
 
   const columns: Column<SobaFormVersionType>[] = useMemo(
@@ -93,21 +92,14 @@ export default function FormHistoryTab({
             <Link
               className="bcds-react-aria-Link medium false me-2"
               data-testid={`${version.id}-design-link`}
-              onPress={() => {
-                if (!token) return;
-                dispatch(loadVersionSchemaThunk({ token, version })).then(() => {
-                  if (onNavigateToDesigner) onNavigateToDesigner();
-                });
-              }}
+              onPress={() => openInDesigner(version)}
             >
               {dict.header.design}
             </Link>
             <Link
               className="bcds-react-aria-Link medium false me-2"
               data-testid={`${version.id}-newVersionFrom-link`}
-              onPress={() => {
-                newVersionFromCallback(version);
-              }}
+              onPress={() => restore(version)}
             >
               {dict.form.newVersionFrom}
             </Link>
@@ -115,7 +107,7 @@ export default function FormHistoryTab({
         ),
       },
     ],
-    [dict, formatLongDate, dispatch, token, onNavigateToDesigner, newVersionFromCallback],
+    [dict, formatLongDate, openInDesigner, restore],
   );
 
   const handlePageSizeChange = useCallback((size: number) => {
@@ -128,14 +120,13 @@ export default function FormHistoryTab({
       data={versions}
       columns={columns}
       loading={loading}
-      error=""
       emptyMessage={dict.form.emptyHistory}
       loadingMessage={dict.general.loading}
       itemName="items"
       caption={dict.general.forms}
       pageSize={pageSize}
       currentPage={currentPage}
-      totalItems={columns.length}
+      totalItems={versions.length}
       onPageChange={setCurrentPage}
       onPageSizeChange={handlePageSizeChange}
       pageSizeOptions={[5, 10, 25, 50]}

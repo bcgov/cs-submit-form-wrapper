@@ -32,12 +32,10 @@ export default async function Page({ params }: PageProps) {
   const dict = await getDictionary((hasLocale(lang) ? lang : 'en') as Locale);
 
   return (
-    <PageLayout
-      headingId="designer-heading"
-      heading={dict.general.formDesigner}
-      width="wide"
-    >
-      <FormDesignerLoader formId={formId} />
+    <PageLayout headingId="designer-heading" heading={dict.general.formDesigner} width="wide">
+      {/* Keyed so navigating between two forms remounts rather than carrying the previous form's
+          selected version and unsaved edits across. */}
+      <FormDesignerLoader key={formId} formId={formId} />
     </PageLayout>
   );
 }

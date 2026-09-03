@@ -1,0 +1,59 @@
+'use client';
+
+import { useSWRConfig } from 'swr';
+import { useCallback } from 'react';
+import { fetchWorkspaces, selectWorkspace } from './sobaApi';
+import { useAuthedSWR } from './useAuthedSWR';
+import { sessionReadConfig } from './swrConfig';
+import type { WorkspaceItem } from '@/src/types/workspaces';
+
+const WORKSPACES_KEY = ['workspaces'] as const;
+const WRITABLE_KEY = ['workspaces', 'design_create'] as const;
+const workspaceKey = (workspaceId: string) => ['workspace', workspaceId] as const;
+
+const EMPTY: WorkspaceItem[] = [];
+
+const toItems = (items: unknown): WorkspaceItem[] => (Array.isArray(items) ? items : EMPTY);
+
+export function useWorkspaces() {
+  const { data, isLoading, error, mutate } = useAuthedSWR<WorkspaceItem[]>(
+    WORKSPACES_KEY,
+    async (token) => toItems((await fetchWorkspaces(token)).items),
+    sessionReadConfig,
+  );
+  return { workspaces: data ?? EMPTY, loaded: data !== undefined, isLoading, error, mutate };
+}
+
+/** Workspaces the user can create forms in. Carries the disclaimer flag that gates creation. */
+export function useWritableWorkspaces() {
+  const { data, isLoading, error, mutate } = useAuthedSWR<WorkspaceItem[]>(
+    WRITABLE_KEY,
+    async (token) => toItems((await fetchWorkspaces(token, 'design_create')).items),
+    sessionReadConfig,
+  );
+  return { workspaces: data ?? EMPTY, loaded: data !== undefined, isLoading, error, mutate };
+}
+
+/** One workspace, carrying the caller's role in it. */
+export function useWorkspace(workspaceId: string | undefined) {
+  const { data, isLoading, error } = useAuthedSWR<WorkspaceItem>(
+    workspaceId ? workspaceKey(workspaceId) : null,
+    (token) => selectWorkspace(token, workspaceId as string),
+  );
+  return { workspace: data ?? null, isLoading, error };
+}
+
+/**
+ * Both lists after a workspace write. The writable list carries the disclaimer flag, so it goes
+ * stale on the same edits as the full list.
+ */
+export function useRefreshWorkspaces() {
+  const { mutate } = useSWRConfig();
+  return useCallback(() => Promise.all([mutate(WORKSPACES_KEY), mutate(WRITABLE_KEY)]), [mutate]);
+}
+
+/** The single record too, or reopening the manage screen seeds its form from the pre-save values. */
+export function useRefreshWorkspace() {
+  const { mutate } = useSWRConfig();
+  return useCallback((workspaceId: string) => mutate(workspaceKey(workspaceId)), [mutate]);
+}

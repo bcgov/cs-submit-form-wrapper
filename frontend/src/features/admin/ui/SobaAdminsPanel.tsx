@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Button, Form, InlineAlert, TextField } from '@bcgov/design-system-react-components';
 import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { DataTable, type Column } from '@/src/components/DataTable';
@@ -10,7 +10,9 @@ import { SecondaryText } from '@/src/components/SecondaryText';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
-import { addSobaAdmin, fetchSobaAdmins, removeSobaAdmin } from '@/src/shared/api/sobaApiAdmin';
+import { addSobaAdmin, removeSobaAdmin } from '@/src/shared/api/sobaApiAdmin';
+import { useCurrentUser, useRefreshCurrentUser } from '@/src/shared/api/useCurrentUser';
+import { useSobaAdmins } from '../useAdminData';
 import type { SobaAdminItem } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
 
@@ -22,50 +24,27 @@ export function SobaAdminsPanel() {
   const dictAdmin = dict.admin;
   const { token } = useKeycloak();
   const { addNotification } = useNotificationStore();
+  const { data: currentUser } = useCurrentUser();
+  const refreshCurrentUser = useRefreshCurrentUser();
 
-  const [admins, setAdmins] = useState<SobaAdminItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState('');
   const [saving, setSaving] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [truncatedAt, setTruncatedAt] = useState<number | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<SobaAdminItem | null>(null);
 
-  // Reloads the list; callers set `loading` themselves so the effect never sets state synchronously.
-  const reload = useCallback(() => {
-    setLoading(true);
-    setReloadKey((key) => key + 1);
-  }, []);
-
-  useEffect(() => {
-    if (!token) return;
-
-    let cancelled = false;
-    fetchSobaAdmins(token, { limit: 100 })
-      .then((response) => {
-        if (cancelled) return;
-        setAdmins(response.items);
-        setTruncatedAt(response.page?.hasMore ? response.page.limit : null);
-        setError(null);
-      })
-      .catch((cause: unknown) => {
-        if (cancelled) return;
-        setError(dictAdmin.admins.loadError);
-        addNotification({
-          text: dictAdmin.admins.loadError,
-          type: 'error',
-          consoleError: cause,
-        });
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [token, reloadKey, addNotification, dictAdmin.admins.loadError]);
+  const reportLoadError = useCallback(
+    (cause: unknown) => {
+      addNotification({ text: dictAdmin.admins.loadError, type: 'error', consoleError: cause });
+    },
+    [addNotification, dictAdmin.admins.loadError],
+  );
+  const {
+    admins,
+    truncatedAt,
+    isLoading: loading,
+    error: loadError,
+    refresh: reload,
+  } = useSobaAdmins(reportLoadError);
+  const error = loadError ? dictAdmin.admins.loadError : null;
 
   const handleAdd = useCallback(async () => {
     const trimmed = userId.trim();
@@ -74,7 +53,7 @@ export function SobaAdminsPanel() {
     try {
       await addSobaAdmin(token, trimmed);
       setUserId('');
-      reload();
+      void reload();
       addNotification({ text: dictAdmin.admins.addSuccess, type: 'success' });
     } catch (cause) {
       addNotification({ text: dictAdmin.admins.addError, type: 'error', consoleError: cause });
@@ -96,7 +75,10 @@ export function SobaAdminsPanel() {
     setSaving(true);
     removeSobaAdmin(token, admin.userId)
       .then(() => {
-        reload();
+        void reload();
+        // Removing your own grant ends your access to this console. `/me` is read once per page
+        // load, so without this the console stays on screen while every control in it is refused.
+        if (admin.userId === currentUser?.actor?.id) void refreshCurrentUser();
         addNotification({ text: dictAdmin.admins.removeSuccess, type: 'success' });
       })
       .catch((cause: unknown) => {
@@ -114,6 +96,8 @@ export function SobaAdminsPanel() {
     token,
     confirmRemove,
     reload,
+    currentUser,
+    refreshCurrentUser,
     addNotification,
     dictAdmin.admins.removeSuccess,
     dictAdmin.admins.removeError,

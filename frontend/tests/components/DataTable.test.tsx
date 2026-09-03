@@ -30,6 +30,24 @@ describe('DataTable', () => {
     expect(screen.getByText('No items found.')).toBeInTheDocument();
   });
 
+  // Callers pass a sentence written for the reader. A prefix turned "Your session has ended. Please
+  // sign in again." into something that reads like a stack trace.
+  it('shows the error a caller passed, and nothing else', () => {
+    render(
+      <DataTable<Item>
+        data={[]}
+        columns={columns}
+        keyExtractor={(i) => i.id}
+        error="Your session has ended. Please sign in again."
+      />,
+    );
+
+    const cell = screen.getByTestId('datatable-error');
+    expect(cell).toHaveTextContent('Your session has ended. Please sign in again.');
+    expect(cell.textContent).not.toMatch(/Error:/);
+    expect(screen.queryByText('No items found.')).not.toBeInTheDocument();
+  });
+
   it('shows loading state', () => {
     render(
       <DataTable<Item>

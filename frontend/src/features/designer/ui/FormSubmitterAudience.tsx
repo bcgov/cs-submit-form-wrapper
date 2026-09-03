@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Popover, Dialog } from 'react-aria-components';
 import {
   Button,
@@ -11,44 +11,57 @@ import {
 } from '@bcgov/design-system-react-components';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getSubmitterAudience, setSubmitterAudience } from '@/src/shared/api/sobaApiGroups';
+import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
+import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import type { SubmitterAudience } from '@/src/types/groups';
 import styles from './FormSubmitterAudience.module.css';
 
 type Props = Readonly<{
   workspaceId: string | null;
-  token?: string;
   canManage: boolean;
 }>;
 
-export function FormSubmitterAudience({ workspaceId, token, canManage }: Props) {
-  const t = useDictionary().form;
-  const [audience, setAudience] = useState<SubmitterAudience | null>(null);
+export function FormSubmitterAudience({ workspaceId, canManage }: Props) {
+  const dict = useDictionary();
+  const t = dict.form;
+  const { token } = useKeycloak();
   const [mode, setMode] = useState('');
   const [idps, setIdps] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const triggerRef = useRef<HTMLSpanElement>(null);
-  // Dedupe StrictMode's dev double-invoke; re-fetch only when the active workspace changes.
-  const fetchedWorkspaceRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!workspaceId || !token) return;
-    const ws = workspaceId;
-    if (fetchedWorkspaceRef.current === ws) return;
-    fetchedWorkspaceRef.current = ws;
-    getSubmitterAudience(token, ws)
-      // Ignore a superseded response if the active workspace changed while this was in flight.
-      .then((a) => fetchedWorkspaceRef.current === ws && setAudience(a))
-      .catch(() => fetchedWorkspaceRef.current === ws && setError(t.submitterAudienceLoadError));
-  }, [workspaceId, token, t.submitterAudienceLoadError]);
+  const {
+    data: audience,
+    error: loadError,
+    mutate,
+  } = useAuthedSWR<SubmitterAudience>(
+    workspaceId ? ['submitter-audience', workspaceId] : null,
+    (authToken) => getSubmitterAudience(authToken, workspaceId as string),
+  );
+
+  // Reading the audience needs a workspace permission the form's designer need not hold, so the
+  // no-access branch is a normal outcome here rather than a misconfiguration.
+  const readError = useMemo(
+    () =>
+      loadError
+        ? loadErrorMessage(loadError, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: t.submitterAudienceLoadError,
+          })
+        : null,
+    [loadError, dict.general.sessionExpired, dict.general.noAccess, t.submitterAudienceLoadError],
+  );
 
   // Seed the editable state from the saved audience whenever the panel opens.
   const openPanel = () => {
     if (!audience) return;
     setMode(audience.mode === 'none' ? '' : audience.mode);
     setIdps(audience.mode === 'protected' ? audience.idps : []);
-    setError(null);
+    setSaveError(null);
     setOpen(true);
   };
 
@@ -69,14 +82,14 @@ export function FormSubmitterAudience({ workspaceId, token, canManage }: Props) 
   const onSave = async () => {
     if (!workspaceId || !token) return;
     setSaving(true);
-    setError(null);
+    setSaveError(null);
     try {
       const body =
         mode === 'public' ? ({ mode: 'public' } as const) : ({ mode: 'protected', idps } as const);
-      setAudience(await setSubmitterAudience(token, workspaceId, body));
+      await mutate(setSubmitterAudience(token, workspaceId, body), { revalidate: false });
       setOpen(false);
     } catch {
-      setError(t.submitterAudienceSaveError);
+      setSaveError(t.submitterAudienceSaveError);
     } finally {
       setSaving(false);
     }
@@ -85,16 +98,22 @@ export function FormSubmitterAudience({ workspaceId, token, canManage }: Props) 
   return (
     <div className={styles.field}>
       <span className={styles.label}>{t.submitterAudienceLabel}</span>
-      <span ref={triggerRef} className={styles.triggerWrap}>
-        <Button
-          variant="secondary"
-          isDisabled={!canManage || !audience}
-          onPress={openPanel}
-          data-testid="submitter-audience-trigger"
-        >
-          {summary}
-        </Button>
-      </span>
+      {readError ? (
+        // The control cannot open without an audience, so a refusal would otherwise show as a
+        // disabled button with no reason given.
+        <InlineAlert variant="warning" data-testid="submitter-audience-error" title={readError} />
+      ) : (
+        <span ref={triggerRef} className={styles.triggerWrap}>
+          <Button
+            variant="secondary"
+            isDisabled={!canManage || !audience}
+            onPress={openPanel}
+            data-testid="submitter-audience-trigger"
+          >
+            {summary}
+          </Button>
+        </span>
+      )}
       <Popover
         triggerRef={triggerRef}
         isOpen={open}
@@ -103,8 +122,13 @@ export function FormSubmitterAudience({ workspaceId, token, canManage }: Props) 
       >
         <Dialog aria-label={t.submitterAudienceLabel} className={styles.dialog}>
           <div className={styles.sections}>
-            {error && <InlineAlert variant="danger" title={error} />}
-            <RadioGroup value={mode} onChange={setMode} label={t.submitterAudienceLabel}>
+            {saveError && <InlineAlert variant="danger" title={saveError} />}
+            <RadioGroup
+              value={mode}
+              onChange={setMode}
+              isDisabled={saving}
+              label={t.submitterAudienceLabel}
+            >
               <Radio value="public" data-testid="audience-mode-public">
                 {t.submitterAudiencePublic}
               </Radio>
@@ -113,7 +137,12 @@ export function FormSubmitterAudience({ workspaceId, token, canManage }: Props) 
               </Radio>
             </RadioGroup>
             {mode === 'protected' && (
-              <CheckboxGroup value={idps} onChange={setIdps} label={t.submitterAudienceProviders}>
+              <CheckboxGroup
+                value={idps}
+                onChange={setIdps}
+                isDisabled={saving}
+                label={t.submitterAudienceProviders}
+              >
                 {(audience?.available ?? []).map((p) => (
                   <Checkbox key={p.code} value={p.code} data-testid={`audience-idp-${p.code}`}>
                     {p.name}
@@ -125,6 +154,7 @@ export function FormSubmitterAudience({ workspaceId, token, canManage }: Props) 
               <Button
                 variant="tertiary"
                 onPress={() => setOpen(false)}
+                isDisabled={saving}
                 data-testid="audience-cancel"
               >
                 {t.submitterAudienceCancel}

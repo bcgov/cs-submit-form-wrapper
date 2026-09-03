@@ -2,7 +2,6 @@ import Keycloak from 'keycloak-js';
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { AppDispatch } from '../store';
-import { clearWorkspaceState } from './workspaceSlice';
 import { loadFrontendRuntimeConfig } from '@/src/shared/config/runtimeConfig';
 import { disableFormioBrowserAuth } from '@/src/features/formio-v5/disableFormioBrowserAuth';
 import type { RefreshOutcome } from '@/src/shared/auth/tokenRefresh';
@@ -19,6 +18,11 @@ export type KeycloakState = {
   idTokenParsed?: Keycloak.KeycloakTokenParsed;
   authenticated: boolean;
   initializing: boolean;
+  /**
+   * Init has been dispatched. Before that, `authenticated: false` only means Keycloak has not run
+   * yet, which is not the same answer as "anonymous" and must not be routed on.
+   */
+  initStarted: boolean;
   error?: string;
 };
 
@@ -27,6 +31,7 @@ const initialState: KeycloakState = {
   idTokenParsed: undefined,
   authenticated: false,
   initializing: false,
+  initStarted: false,
   error: undefined,
 };
 
@@ -116,6 +121,7 @@ const slice = createSlice({
     builder
       .addCase(initKeycloak.pending, (state) => {
         state.initializing = true;
+        state.initStarted = true;
         state.error = undefined;
       })
       .addCase(initKeycloak.fulfilled, (state, action) => {
@@ -174,7 +180,6 @@ export const logout = () => (dispatch: AppDispatch) => {
   }
   kcInstance = null;
   disableFormioBrowserAuth();
-  dispatch(clearWorkspaceState());
   dispatch(clear());
 };
 

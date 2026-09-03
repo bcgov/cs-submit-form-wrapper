@@ -4,6 +4,7 @@ import { classifyRoute, resolveRedirect } from '@/src/app/routing/appRoutePolicy
 const readySession = {
   authenticated: true,
   initializing: false,
+  initStarted: true,
   sessionReady: true,
   sessionLoadedOnce: true,
   sessionFailed: false,
@@ -44,6 +45,15 @@ describe('resolveRedirect — workspaces enabled', () => {
     ).toBe('/en');
   });
 
+  // Before Keycloak has run, `authenticated: false` is the default rather than an answer. Acting on
+  // it bounces a deep link through home to the landing route, losing the path and its query string.
+  it('does not redirect before Keycloak init has started', () => {
+    const unstarted = { ...readySession, authenticated: false, initStarted: false };
+    expect(resolveRedirect('/en/forms', 'en', unstarted, true)).toBeNull();
+    expect(resolveRedirect('/en/workspaces', 'en', unstarted, true)).toBeNull();
+    expect(resolveRedirect('/en/designer/abc', 'en', unstarted, true)).toBeNull();
+  });
+
   it('allows unauthenticated users on home and public routes', () => {
     const guest = { ...readySession, authenticated: false, sessionReady: true };
     expect(resolveRedirect('/en', 'en', guest, true)).toBeNull();
@@ -56,7 +66,7 @@ describe('resolveRedirect — workspaces enabled', () => {
     expect(resolveRedirect('/en', 'en', { ...readySession, needsOnboarding: true }, true)).toBe(
       '/en/onboarding',
     );
-    expect(resolveRedirect('/en', 'en', readySession, true)).toBe('/en/forms');
+    expect(resolveRedirect('/en', 'en', readySession, true)).toBe('/en/forms?from=nav');
   });
 
   it('sends a brand-new creator from home to workspaces, matching onboarding', () => {
@@ -79,7 +89,7 @@ describe('resolveRedirect — workspaces enabled', () => {
   });
 
   it('redirects off onboarding when access is available', () => {
-    expect(resolveRedirect('/en/onboarding', 'en', readySession, true)).toBe('/en/forms');
+    expect(resolveRedirect('/en/onboarding', 'en', readySession, true)).toBe('/en/forms?from=nav');
     expect(
       resolveRedirect(
         '/en/onboarding',
@@ -99,17 +109,17 @@ describe('resolveRedirect — workspaces enabled', () => {
 describe('resolveRedirect — workspaces disabled', () => {
   it('lands authenticated users on forms regardless of workspace state', () => {
     expect(resolveRedirect('/en', 'en', { ...readySession, needsOnboarding: true }, false)).toBe(
-      '/en/forms',
+      '/en/forms?from=nav',
     );
     const newCreator = { ...readySession, hasWorkspaces: false, canCreateWorkspace: true };
-    expect(resolveRedirect('/en', 'en', newCreator, false)).toBe('/en/forms');
-    expect(resolveRedirect('/en', 'en', readySession, false)).toBe('/en/forms');
+    expect(resolveRedirect('/en', 'en', newCreator, false)).toBe('/en/forms?from=nav');
+    expect(resolveRedirect('/en', 'en', readySession, false)).toBe('/en/forms?from=nav');
   });
 
   it('does not funnel users into the workspace onboarding dead-end', () => {
     const onboarding = { ...readySession, needsOnboarding: true };
     expect(resolveRedirect('/en/forms', 'en', onboarding, false)).toBeNull();
-    expect(resolveRedirect('/en/onboarding', 'en', onboarding, false)).toBe('/en/forms');
+    expect(resolveRedirect('/en/onboarding', 'en', onboarding, false)).toBe('/en/forms?from=nav');
   });
 
   it('does not redirect on workspace routes — the layout 404s instead', () => {

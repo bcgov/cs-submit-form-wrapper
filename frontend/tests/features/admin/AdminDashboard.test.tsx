@@ -11,7 +11,7 @@ vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => mockUseKeycloak(),
 }));
 
-vi.mock('@/lib/useCurrentUser', () => ({
+vi.mock('@/src/shared/api/useCurrentUser', () => ({
   useCurrentUser: () => mockUseCurrentUser(),
 }));
 
@@ -52,13 +52,13 @@ const signedIn = () => {
 };
 
 const currentUser = (isSobaAdmin: boolean) => {
-  mockUseCurrentUser.mockReturnValue({ data: { capabilities: { isSobaAdmin } }, isLoaded: true });
+  mockUseCurrentUser.mockReturnValue({ data: { capabilities: { isSobaAdmin } }, loaded: true });
 };
 
 describe('AdminDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseCurrentUser.mockReturnValue({ data: null, isLoaded: true });
+    mockUseCurrentUser.mockReturnValue({ data: null, loaded: true });
   });
 
   it('prompts to sign in when unauthenticated', async () => {
@@ -86,7 +86,7 @@ describe('AdminDashboard', () => {
   // The answer lives in /me, so until it lands "not an admin" is unknown, not false.
   it('waits for the current user rather than refusing access', async () => {
     signedIn();
-    mockUseCurrentUser.mockReturnValue({ data: null, isLoaded: false });
+    mockUseCurrentUser.mockReturnValue({ data: null, loaded: false });
 
     await renderDashboard();
 

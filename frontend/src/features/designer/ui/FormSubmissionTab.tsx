@@ -7,13 +7,14 @@ import { useRouter, usePathname } from 'next/navigation';
 import type { Dictionary } from '@/src/types/plugins';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { Modal } from '@/src/components/Modal';
-import { useAppSelector, useAppDispatch } from '@/lib/store';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { Tag } from '@/src/components/Tag';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
-import { deleteFormSubmissionThunk } from '@/lib/slices/formSlice';
+import { deleteSobaSubmission } from '@/src/shared/api/sobaApi';
+import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
+import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import {
   capitalizeFirstLetter,
@@ -22,11 +23,17 @@ import {
 
 interface FormSubmissionTabProps {
   dict: Dictionary;
+  formId?: string;
+  /** True once the tab has been opened; the read waits for that. See useFormSubmissions. */
+  opened: boolean;
 }
 
-export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabProps>) {
-  const { submissions, loading } = useAppSelector((state) => state.form);
-  const dispatch = useAppDispatch();
+export default function FormSubmissionTab({
+  dict,
+  formId,
+  opened,
+}: Readonly<FormSubmissionTabProps>) {
+  const { submissions, isLoading, error, refresh } = useFormSubmissions(formId, opened);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const formatLongDate = useFormatLongDate();
@@ -46,18 +53,20 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
   const confirmDelete = useCallback(async () => {
     setShowDeleteConfirm(false);
     try {
-      await dispatch(deleteFormSubmissionThunk({ token, submissionId: deleteId })).unwrap();
+      await deleteSobaSubmission(token as string, deleteId);
+      await refresh();
       addNotification({
         text: dict.submission.deleteSuccess || 'Submission deleted successfully',
         type: 'success',
       });
     } catch (e: unknown) {
-      // unwrap() throws the rejectWithValue payload, not an Error, so read the message off either.
-      const detail = (e as { message?: unknown })?.message;
-      const msg = typeof detail === 'string' && detail ? detail : dict.submission.deleteFailure;
-      addNotification({ text: msg, type: 'error' });
+      addNotification({
+        text: e instanceof Error && e.message ? e.message : dict.submission.deleteFailure,
+        type: 'error',
+        consoleError: e,
+      });
     }
-  }, [token, deleteId, dispatch, addNotification, dict]);
+  }, [token, deleteId, refresh, addNotification, dict]);
 
   const columns: Column<SubmissionListItem>[] = useMemo(
     () => [
@@ -130,6 +139,18 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
     [dict, formatLongDate, deletePress, locale, router],
   );
 
+  const loadError = useMemo(
+    () =>
+      error
+        ? loadErrorMessage(error, {
+            sessionExpired: dict.general.sessionExpired,
+            noAccess: dict.general.noAccess,
+            failed: dict.submission.error,
+          })
+        : null,
+    [error, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error],
+  );
+
   const handlePageSizeChange = useCallback((size: number) => {
     setPageSize(size);
     setCurrentPage(1);
@@ -140,8 +161,8 @@ export default function FormSubmissionTab({ dict }: Readonly<FormSubmissionTabPr
       <DataTable<SubmissionListItem>
         data={submissions}
         columns={columns}
-        loading={loading}
-        error=""
+        loading={isLoading}
+        error={loadError}
         emptyMessage={dict.submission.emptyList}
         loadingMessage={dict.general.loading}
         itemName="submissions"

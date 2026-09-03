@@ -1,7 +1,7 @@
 'use client';
 
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { useCurrentUser } from '@/lib/useCurrentUser';
+import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 
 /**
  * Whether the signed-in user is a SOBA platform admin, as reported by `GET /me`. The token's
@@ -13,10 +13,10 @@ import { useCurrentUser } from '@/lib/useCurrentUser';
  */
 export function useIsSobaAdmin(): { isSobaAdmin: boolean; initializing: boolean } {
   const { authenticated, initializing } = useKeycloak();
-  const { data, isLoaded } = useCurrentUser();
+  const { data, loaded } = useCurrentUser();
 
   return {
     isSobaAdmin: authenticated && data?.capabilities?.isSobaAdmin === true,
-    initializing: initializing || (authenticated && !isLoaded),
+    initializing: initializing || (authenticated && !loaded),
   };
 }

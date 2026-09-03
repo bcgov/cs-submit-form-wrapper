@@ -1,19 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { createWrapper } from 'next-redux-wrapper';
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
-import keycloakReducer, { KeycloakState } from './slices/keycloakSlice';
-import currentUserReducer, { CurrentUserState } from './slices/currentUserSlice';
-import notificationReducer, { NotificationState } from './slices/notificationSlice';
-import formReducer, { FormState } from './slices/formSlice';
-
-import workspaceReducer, { WorkspaceState } from './slices/workspaceSlice';
+import keycloakReducer from './slices/keycloakSlice';
+import notificationReducer from './slices/notificationSlice';
 
 const reducer = {
   keycloak: keycloakReducer,
-  currentUser: currentUserReducer,
   notification: notificationReducer,
-  workspace: workspaceReducer,
-  form: formReducer,
 };
 
 const makeStore = () =>
@@ -22,23 +14,11 @@ const makeStore = () =>
     devTools: process.env.NODE_ENV !== 'production',
   });
 
-export type AppStore = ReturnType<typeof makeStore>;
-export type AppState = ReturnType<AppStore['getState']>;
-export type AppDispatch = AppStore['dispatch'];
+// Derived from the store rather than hand-listed, so adding a slice cannot leave the type behind.
+export type RootState = ReturnType<ReturnType<typeof makeStore>['getState']>;
+export type AppDispatch = ReturnType<typeof makeStore>['dispatch'];
 
-export const wrapper = createWrapper<AppStore>(makeStore, { debug: false });
-
-// Strongly-typed hooks for use across the app
-export type RootState = {
-  keycloak: KeycloakState;
-  currentUser: CurrentUserState;
-  notification: NotificationState;
-  workspace: WorkspaceState;
-  form: FormState;
-};
-export type RootDispatch = AppDispatch;
-
-export const useAppDispatch = () => useDispatch<RootDispatch>();
+export const useAppDispatch = () => useDispatch<AppDispatch>();
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
 export default makeStore;

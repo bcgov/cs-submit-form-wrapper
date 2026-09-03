@@ -36,7 +36,6 @@
     "keycloak-js": "^26.2.3",
     "negotiator": "^1.0.0",
     "next": "16.1.6",
-    "next-redux-wrapper": "^8.1.0",
     "qrcode.react": "^4.2.0",
     "react": "19.2.3",
     "react-aria-components": "1.17.0",
@@ -44,6 +43,7 @@
     "react-dom": "19.2.3",
     "react-icons": "^5.5.0",
     "react-redux": "^9.2.0",
+    "swr": "^2.5.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

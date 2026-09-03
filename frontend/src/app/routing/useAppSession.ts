@@ -1,62 +1,48 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { useAppDispatch, useAppSelector } from '@/lib/store';
-import { loadCurrentUser } from '@/lib/slices/currentUserSlice';
-import { loadWorkspaces, loadWritableWorkspaces } from '@/lib/slices/workspaceSlice';
+import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { useCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { needsWorkspaceOnboarding } from '@/src/features/onboarding/workspaceOnboarding';
 import type { AppSessionSnapshot } from './appRoutePolicy';
 
 export function useAppSession(): AppSessionSnapshot {
-  const { authenticated, token, initializing } = useKeycloak();
-  const dispatch = useAppDispatch();
+  const { authenticated, initializing, initStarted } = useKeycloak();
 
-  const {
-    workspaces,
-    status: workspaceStatus,
-    writableStatus,
-    loadedOnce: workspacesLoadedOnce,
-    writableLoadedOnce,
-  } = useAppSelector((state) => state.workspace);
+  const { workspaces, loaded: workspacesLoaded, error: workspacesError } = useWorkspaces();
+  const { loaded: writableLoaded, error: writableError } = useWritableWorkspaces();
   const {
     data: currentUser,
-    status: currentUserStatus,
-    loadedOnce: currentUserLoadedOnce,
-  } = useAppSelector((state) => state.currentUser);
+    loaded: currentUserLoaded,
+    error: currentUserError,
+  } = useCurrentUser();
 
-  useEffect(() => {
-    if (authenticated && token && workspaceStatus === 'idle') {
-      dispatch(loadWorkspaces(token));
-    }
-    if (authenticated && token && writableStatus === 'idle') {
-      dispatch(loadWritableWorkspaces(token));
-    }
-  }, [authenticated, token, workspaceStatus, writableStatus, dispatch]);
-
-  useEffect(() => {
-    if (authenticated && token && currentUserStatus === 'idle') {
-      dispatch(loadCurrentUser(token));
-    }
-  }, [authenticated, token, currentUserStatus, dispatch]);
+  // Derived, not latched: it reads true for as long as all three keys hold data. SWR keeps the last
+  // data on error, so a failed reload does not move it, and it goes false when the keys go empty --
+  // which is what the sign-out cache clear does.
+  const loadedOnce = workspacesLoaded && writableLoaded && currentUserLoaded;
 
   return useMemo(() => {
     // The same three loads throughout: one that can fail the session has to be waited for too.
     const sessionReady = authenticated
       ? !initializing &&
-        workspaceStatus === 'succeeded' &&
-        writableStatus === 'succeeded' &&
-        currentUserStatus === 'succeeded'
+        workspacesLoaded &&
+        !workspacesError &&
+        writableLoaded &&
+        !writableError &&
+        currentUserLoaded &&
+        !currentUserError
       : !initializing;
 
     const sessionFailed =
-      authenticated && (workspaceStatus === 'failed' || writableStatus === 'failed' || currentUserStatus === 'failed');
+      authenticated && (!!workspacesError || !!writableError || !!currentUserError);
 
     const needsOnboarding = needsWorkspaceOnboarding({
       authenticated,
       initializing,
-      workspaceStatus,
-      currentUserStatus,
+      workspacesLoaded,
+      currentUserLoaded,
       workspaces,
       currentUser,
     });
@@ -64,10 +50,9 @@ export function useAppSession(): AppSessionSnapshot {
     return {
       authenticated,
       initializing,
+      initStarted,
       sessionReady,
-      // Data survives a refetch, so this stays true through a background reload; the guard uses it
-      // to avoid unmounting the route. Miss a load here and its failure never reaches the user.
-      sessionLoadedOnce: workspacesLoadedOnce && writableLoadedOnce && currentUserLoadedOnce,
+      sessionLoadedOnce: loadedOnce,
       sessionFailed,
       needsOnboarding,
       canCreateWorkspace: currentUser?.capabilities?.canCreateWorkspace === true,
@@ -76,12 +61,14 @@ export function useAppSession(): AppSessionSnapshot {
   }, [
     authenticated,
     initializing,
-    workspaceStatus,
-    workspacesLoadedOnce,
-    writableLoadedOnce,
-    writableStatus,
-    currentUserStatus,
-    currentUserLoadedOnce,
+    initStarted,
+    workspacesLoaded,
+    workspacesError,
+    writableLoaded,
+    writableError,
+    currentUserLoaded,
+    currentUserError,
+    loadedOnce,
     workspaces,
     currentUser,
   ]);

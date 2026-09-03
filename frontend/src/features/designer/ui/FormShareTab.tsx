@@ -4,26 +4,36 @@ import { Heading, Button, Link } from '@bcgov/design-system-react-components';
 import { useRouter, usePathname } from 'next/navigation';
 
 import type { Dictionary } from '@/src/types/plugins';
-import { useAppSelector } from '@/lib/store';
+import { useWorkspaces } from '@/src/shared/api/useWorkspaces';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { getFormsAppBaseUrl } from '@/src/shared/config/runtimeConfig';
+import { codeLabel } from '@/src/shared/util/codeList';
 
 interface FormShareTabProps {
   dict: Dictionary;
+  formId?: string;
+  formName: string;
+  formDesc: string;
+  workspaceId: string | null;
 }
 
-export default function FormShareTab({ dict }: Readonly<FormShareTabProps>) {
-  const { formId, formName, formDesc, formWorkspaceId } = useAppSelector((state) => state.form);
-  const { workspaces } = useAppSelector((state) => state.workspace);
+export default function FormShareTab({
+  dict,
+  formId,
+  formName,
+  formDesc,
+  workspaceId,
+}: Readonly<FormShareTabProps>) {
+  const { workspaces } = useWorkspaces();
   const pathname = usePathname();
   const router = useRouter();
   const locale = getLocaleFromPath(pathname);
   const { addNotification } = useNotificationStore();
 
   const formWorkspace = useMemo(() => {
-    return workspaces.find((w) => w.id === formWorkspaceId);
-  }, [workspaces, formWorkspaceId]);
+    return workspaces.find((w) => w.id === workspaceId);
+  }, [workspaces, workspaceId]);
 
   const link = useMemo(() => {
     return `${getFormsAppBaseUrl()}/${locale}/form/${formId}`;
@@ -42,7 +52,7 @@ export default function FormShareTab({ dict }: Readonly<FormShareTabProps>) {
       <p data-testid="share-tab-formDesc">{formDesc}</p>
       <p data-testid="share-tab-ministryOrOrg">
         {dict.form.ministryOrOrg}:{' '}
-        {dict.ministries[formWorkspace?.org as keyof typeof dict.ministries] || 'Unknown'}
+        {codeLabel(dict.ministries, formWorkspace?.org) ?? dict.general.unknown}
       </p>
       <p>
         <Button variant="secondary" data-testid="share-tab-copyToClip" onPress={copyToClipboard}>

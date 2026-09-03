@@ -2,6 +2,8 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
 
 const { mockFetchFeatureScope, mockUpsertFeatureScope, mockAddNotification, mockPush } = vi.hoisted(
   () => ({
@@ -20,8 +22,8 @@ vi.mock('@/lib/hooks/useKeycloak', () => ({
   }),
 }));
 
-vi.mock('@/lib/useCurrentUser', () => ({
-  useCurrentUser: () => ({ data: { capabilities: { isSobaAdmin: true } }, isLoaded: true }),
+vi.mock('@/src/shared/api/useCurrentUser', () => ({
+  useCurrentUser: () => ({ data: { capabilities: { isSobaAdmin: true } }, loaded: true }),
 }));
 
 vi.mock('@/lib/hooks/useNotificationStore', () => ({
@@ -76,20 +78,35 @@ vi.mock('@/app/[lang]/Providers', () => ({
   }),
 }));
 
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import { FeatureScopePanel } from '@/src/features/admin/ui/FeatureScopePanel';
+
+let store: ReturnType<typeof makeStore>;
 
 const FEATURE_SCOPE_ID = '11111111-1111-4111-8111-111111111111';
 const SCOPE_ID = '22222222-2222-4222-8222-222222222222';
 
 const renderPanel = async (props: React.ComponentProps<typeof FeatureScopePanel>) => {
   await act(async () => {
-    render(<FeatureScopePanel {...props} />);
+    render(
+      <Provider store={store}>
+        <SWRConfig
+          value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+        >
+          <FeatureScopePanel {...props} />
+        </SWRConfig>
+      </Provider>,
+    );
   });
 };
 
 describe('FeatureScopePanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
     mockFetchFeatureScope.mockResolvedValue({
       id: FEATURE_SCOPE_ID,
       featureCode: 'document-generation-v3',
@@ -147,6 +164,67 @@ describe('FeatureScopePanel', () => {
         scopeId: SCOPE_ID,
         status: 'inactive',
       });
+    });
+  });
+
+  // Without the record the form would post its defaults, scoping a feature nobody asked for.
+  it('withholds the form when the record cannot be loaded', async () => {
+    mockFetchFeatureScope.mockRejectedValue(new Error('boom'));
+
+    await renderPanel({
+      scopedFeatureCodes: ['document-generation-v3'],
+      featureScopeId: FEATURE_SCOPE_ID,
+    });
+
+    expect(await screen.findByTestId('feature-scope-load-error')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  });
+
+  // The form seeds from the record once and cannot re-seed itself, so a record left in the cache
+  // makes the next visit show the status as it was before the last write, and saving there writes
+  // that stale status straight back.
+  it('does not save a status carried over from a previous visit', async () => {
+    const cache = new Map();
+    const tree = (
+      <Provider store={store}>
+        <SWRConfig
+          value={{ provider: () => cache, dedupingInterval: 0, shouldRetryOnError: false }}
+        >
+          <FeatureScopePanel
+            scopedFeatureCodes={['document-generation-v3']}
+            featureScopeId={FEATURE_SCOPE_ID}
+          />
+        </SWRConfig>
+      </Provider>
+    );
+
+    const first = render(tree);
+    expect(await screen.findByDisplayValue(SCOPE_ID)).toBeInTheDocument();
+    first.unmount();
+
+    // The scope was enabled since that visit, by this admin or another one.
+    mockFetchFeatureScope.mockResolvedValue({
+      id: FEATURE_SCOPE_ID,
+      featureCode: 'document-generation-v3',
+      scopeType: 'workspace',
+      scopeId: SCOPE_ID,
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-03T00:00:00.000Z',
+      createdBy: null,
+      updatedBy: null,
+    });
+
+    render(tree);
+    await screen.findByDisplayValue(SCOPE_ID);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockUpsertFeatureScope).toHaveBeenCalled());
+    expect(mockUpsertFeatureScope).toHaveBeenCalledWith('token', {
+      featureCode: 'document-generation-v3',
+      scopeType: 'workspace',
+      scopeId: SCOPE_ID,
+      status: 'active',
     });
   });
 

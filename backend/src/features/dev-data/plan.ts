@@ -133,19 +133,11 @@ export interface DevDataPlan {
   workspaces: PlannedWorkspace[];
 }
 
-const ORGS = [
-  'Ministry of Citizens Services',
-  'Ministry of Environment and Parks',
-  'Ministry of Forests',
-  'Ministry of Health',
-] as const;
+// Codes, not display names: the frontend keys its ministry and use case dictionaries by these and
+// shows the raw stored value for anything it cannot resolve.
+const ORGS = ['CITZ', 'ENV', 'FOR', 'HLTH'] as const;
 
-const USE_CASES = [
-  'Intake and triage',
-  'Grant applications',
-  'Field inspections',
-  'Internal requests',
-] as const;
+const USE_CASES = ['application', 'collection', 'feedback', 'report'] as const;
 
 const GROUP_ROLE_SETS: RoleCode[][] = [
   [Roles.form_designer],

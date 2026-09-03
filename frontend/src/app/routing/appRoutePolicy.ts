@@ -1,3 +1,4 @@
+import { navLink } from '@/src/shared/list/listQueryMemory';
 import { ROUTE_KIND_BY_SEGMENT } from './routeSegments';
 
 export type RouteKind = 'home' | 'onboarding' | 'workspace-app' | 'workspaces' | 'public';
@@ -5,8 +6,10 @@ export type RouteKind = 'home' | 'onboarding' | 'workspace-app' | 'workspaces' |
 export type AppSessionSnapshot = {
   authenticated: boolean;
   initializing: boolean;
+  /** Keycloak init has been dispatched, so `authenticated` is an answer rather than a default. */
+  initStarted: boolean;
   sessionReady: boolean;
-  /** Both bootstrap loads have produced data at least once. */
+  /** Every bootstrap read has produced data at least once. */
   sessionLoadedOnce: boolean;
   /** A required bootstrap fetch (current user or workspaces) rejected. */
   sessionFailed: boolean;
@@ -41,14 +44,17 @@ export function resolveRedirect(
   session: AppSessionSnapshot,
   workspacesEnabled: boolean,
 ): string | null {
-  if (session.initializing) {
+  // Routing an unauthenticated user off a guarded route before Keycloak has run sends a deep link
+  // to the landing page and drops its query string.
+  if (session.initializing || !session.initStarted) {
     return null;
   }
 
   const kind = classifyRoute(pathname);
   const home = `/${locale}`;
   const onboarding = `/${locale}/onboarding`;
-  const forms = `/${locale}/forms`;
+  // Marked as an in-app arrival so the list comes back as the user left it.
+  const forms = navLink(`/${locale}/forms`);
   const workspaces = `/${locale}/workspaces`;
 
   if (!session.authenticated) {

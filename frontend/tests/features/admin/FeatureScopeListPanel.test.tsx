@@ -2,6 +2,8 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
 
 const {
   mockFetchFeatureScopes,
@@ -80,7 +82,23 @@ vi.mock('@/app/[lang]/Providers', () => ({
   }),
 }));
 
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import { FeatureScopeListPanel } from '@/src/features/admin/ui/FeatureScopeListPanel';
+
+let store: ReturnType<typeof makeStore>;
+
+function renderPanel(scopedFeatureCodes: string[]) {
+  return render(
+    <Provider store={store}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
+        <FeatureScopeListPanel scopedFeatureCodes={scopedFeatureCodes} />
+      </SWRConfig>
+    </Provider>,
+  );
+}
 
 const FEATURE_SCOPE = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -103,6 +121,9 @@ const HIDDEN_FEATURE_SCOPE = {
 describe('FeatureScopeListPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
     mockFetchFeatureScopes.mockResolvedValue({
       items: [FEATURE_SCOPE, HIDDEN_FEATURE_SCOPE],
       page: { limit: 200, hasMore: false },
@@ -113,7 +134,7 @@ describe('FeatureScopeListPanel', () => {
 
   it('lists administrable feature scopes and filters out unavailable feature codes', async () => {
     await act(async () => {
-      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+      renderPanel(['document-generation-v3']);
     });
 
     expect(await screen.findByText('document-generation-v3')).toBeInTheDocument();
@@ -123,7 +144,7 @@ describe('FeatureScopeListPanel', () => {
 
   it('routes to create and manage pages', async () => {
     await act(async () => {
-      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+      renderPanel(['document-generation-v3']);
     });
     await screen.findByText('document-generation-v3');
 
@@ -136,7 +157,7 @@ describe('FeatureScopeListPanel', () => {
 
   it('toggles feature-scope status in place', async () => {
     await act(async () => {
-      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+      renderPanel(['document-generation-v3']);
     });
     await screen.findByText('document-generation-v3');
 
@@ -152,9 +173,29 @@ describe('FeatureScopeListPanel', () => {
     });
   });
 
+  // The row is patched into the cached list rather than refetched. A reload would answer with the
+  // pre-toggle status from the server fixture and the switch would snap back.
+  it('leaves the toggled row showing its new status', async () => {
+    await act(async () => {
+      renderPanel(['document-generation-v3']);
+    });
+    await screen.findByText('document-generation-v3');
+    const toggleId = `feature-scope-status-${FEATURE_SCOPE.id}`;
+    const checked = () =>
+      screen.getByTestId(toggleId).querySelector('input')?.checked ??
+      screen.getByTestId(toggleId).getAttribute('data-selected') !== null;
+    expect(checked()).toBe(true);
+
+    await userEvent.click(screen.getByTestId(toggleId));
+
+    await waitFor(() => expect(mockUpsertFeatureScope).toHaveBeenCalled());
+    await waitFor(() => expect(checked()).toBe(false));
+    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(1);
+  });
+
   it('deletes a feature scope from the table', async () => {
     await act(async () => {
-      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+      renderPanel(['document-generation-v3']);
     });
     await screen.findByText('document-generation-v3');
 
@@ -172,7 +213,7 @@ describe('FeatureScopeListPanel', () => {
   // Irreversible, so the row action only opens the prompt.
   it('does not delete until the prompt is confirmed', async () => {
     await act(async () => {
-      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+      renderPanel(['document-generation-v3']);
     });
     await screen.findByText('document-generation-v3');
 
@@ -192,7 +233,7 @@ describe('FeatureScopeListPanel', () => {
     });
 
     await act(async () => {
-      render(<FeatureScopeListPanel scopedFeatureCodes={['document-generation-v3']} />);
+      renderPanel(['document-generation-v3']);
     });
 
     expect(await screen.findByTestId('feature-scope-truncated')).toBeInTheDocument();
@@ -200,7 +241,7 @@ describe('FeatureScopeListPanel', () => {
 
   it('does not render the table when no scoped features are available', async () => {
     await act(async () => {
-      render(<FeatureScopeListPanel scopedFeatureCodes={[]} />);
+      renderPanel([]);
     });
 
     expect(screen.getByTestId('feature-scope-none')).toBeInTheDocument();

@@ -1,7 +1,6 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
 import type { FormType, Submission } from '@formio/react';
 import { InlineAlert } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
@@ -15,8 +14,8 @@ import {
   getSubmitSubmissionSchema,
   getSubmitSubmissionData,
 } from '@/src/shared/api/sobaApi';
-import type { SubmissionListItem } from '@/src/types/submissions';
 import { isSessionExpired } from '@/src/shared/api/sobaFetch';
+import { useMaybeAuthedSWR } from '@/src/shared/api/useAuthedSWR';
 import { convertSubmissionIdToConfirmationId } from '@/src/shared/util/stringUtils';
 
 export function SubmissionView() {
@@ -24,7 +23,7 @@ export function SubmissionView() {
   const dict = useDictionary();
   const dictSub = dict.submission;
   // Token optional: a public submitter can view a submission on a public-audience form.
-  const { token, initializing } = useKeycloak();
+  const { token, initializing, initStarted } = useKeycloak();
   const formatLongDate = useFormatLongDate();
 
   const submissionIdRaw = params?.submissionId;
@@ -33,49 +32,41 @@ export function SubmissionView() {
 
   const confirmationId = convertSubmissionIdToConfirmationId(submissionId);
 
-  const [submission, setSubmission] = useState<SubmissionListItem | null>(null);
-  const [schema, setSchema] = useState<FormType | null>(null);
+  const { data, isLoading, error } = useMaybeAuthedSWR(
+    // Wait for Keycloak to answer before reading. Before init, "no token" is the default rather
+    // than an answer, and a read started there is anonymous even for a signed-in caller.
+    // The identity is part of the key so signing in does not read the anonymous reader's copy.
+    !initStarted || initializing || !submissionId
+      ? null
+      : ['submit-submission', submissionId, token ? 'user' : 'anonymous'],
+    async (authToken) => {
+      // The confirmation view is submit-mode: read through the submit APIs regardless of sign-in so
+      // audience members who aren't workspace members can still view.
+      const submission = await getSubmitSubmission(authToken, submissionId);
+      const [schema, content] = await Promise.all([
+        getSubmitSubmissionSchema(authToken, submissionId),
+        getSubmitSubmissionData(authToken, submissionId),
+      ]);
+      return { submission, schema: (schema as FormType) ?? null, content };
+    },
+  );
+
+  const submission = data?.submission ?? null;
+  const schema = data?.schema ?? null;
   // null = no engine document (submission has no saved answers); {} = empty answers on a real doc.
-  const [content, setContent] = useState<{ data?: Record<string, unknown> } | null>(null);
-  const [notFound, setNotFound] = useState(false);
-  const [sessionEnded, setSessionEnded] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  // Guard the load with a ref (not the `loaded` state) so StrictMode's dev double-invoke fetches once.
-  const loadStartedRef = useRef(false);
+  const content = data?.content ?? null;
+  // An ended session is not a missing submission; saying "not found" hides why.
+  const sessionEnded = !!error && isSessionExpired(error);
+  const notFound = !!error && !sessionEnded;
 
-  useEffect(() => {
-    // Wait for auth to settle so a signed-in caller sends their token; anonymous proceeds with none.
-    if (initializing || loadStartedRef.current) return;
-    loadStartedRef.current = true;
-    void (async () => {
-      try {
-        // The confirmation view is submit-mode: read through the submit APIs regardless of sign-in so
-        // audience members who aren't workspace members can still view. Token passed when present.
-        const authToken = token ?? undefined;
-        const sub = await getSubmitSubmission(authToken, submissionId);
-        setSubmission(sub);
-        const [loadedSchema, fetchedContent] = await Promise.all([
-          getSubmitSubmissionSchema(authToken, submissionId),
-          getSubmitSubmissionData(authToken, submissionId),
-        ]);
-        if (loadedSchema) setSchema(loadedSchema);
-        setContent(fetchedContent);
-      } catch (err) {
-        // An ended session is not a missing submission; saying "not found" hides why.
-        if (isSessionExpired(err)) setSessionEnded(true);
-        else setNotFound(true);
-      } finally {
-        setLoaded(true);
-      }
-    })();
-  }, [initializing, token, submissionId]);
-
-  if (initializing) {
+  // Nothing is read until Keycloak answers, and with no read there is no data and no loading, which
+  // would otherwise render as "not found".
+  if (!initStarted || initializing) {
     return <CenteredProgress label={dict.general.loading} />;
   }
 
   const renderContent = () => {
-    if (!loaded) {
+    if (isLoading) {
       return <CenteredProgress label={dictSub?.loading || dict.general.loading} />;
     }
     if (sessionEnded) {

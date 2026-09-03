@@ -1,6 +1,7 @@
 /**
- * Keeps sobaFetch out of the slice graph: importing keycloakSlice would close a cycle
- * (sobaFetch → keycloakSlice → workspaceSlice → sobaApi). The app registers a refresher instead.
+ * Keeps sobaFetch out of the slice graph. It needs a token refresh but must not reach for the store
+ * or Keycloak to get one, so `AppProviders` registers a refresher at startup and the tests register
+ * their own.
  */
 
 /**

@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 vi.mock('@/lib/hooks/useKeycloak', () => ({
   useKeycloak: () => ({ authenticated: true, token: 'token', initializing: false }),
@@ -16,6 +17,8 @@ vi.mock('@/app/[lang]/Providers', () => ({
       noActiveWorkspace: 'Select a workspace before creating a form.',
       noActiveWorkspaceError: 'Select a workspace before saving this form.',
       disclaimerRequired: 'Accept the workspace disclaimer before creating a form.',
+      schemaNotAvailable: 'Form schema not available.',
+      loadFormError: 'Failed to load form.',
     },
     general: { notAuthenticated: 'Not authed' },
     workspaces: { workspace: 'Workspace' },
@@ -23,160 +26,149 @@ vi.mock('@/app/[lang]/Providers', () => ({
     modal: {
       dialogActions: 'Dialog actions',
     },
-    dataTable: {
-      loadingMessage: 'Loading...',
-      emptyMessage: 'none',
-      pageOf: 'of {totalPages} page(s)',
-    },
-    submission: {
-      deleteConfirm: 'Confirm Delete',
-    },
-    ministries: {
-      CITZ: 'CITZ',
-    },
   }),
 }));
 
 type Workspace = { id: string; name?: string; kind?: string; disclaimerAccepted: boolean };
 
-const { mockDispatch, mockWorkspaceState, mockFormState } = vi.hoisted(() => {
-  const workspaceState = {
-    selectedWorkspaceId: 'ws1' as string | null,
-    status: 'succeeded' as string,
+const { mockWorkspaceState, api, builder } = vi.hoisted(() => ({
+  mockWorkspaceState: {
     workspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
     writableWorkspaces: [{ id: 'ws1', disclaimerAccepted: true }] as Workspace[],
-  };
-
-  const formState = {
-    formName: '',
-    formWorkspaceId: '' as string | null,
-    formDesc: 'desc',
-    formSchema: '',
-    currentVersion: 1,
-    versions: [],
-    selectedVersionId: 1,
-    isHistoryView: false,
-    historicalVersionNo: null,
-    loading: false,
-    isSaving: false,
-    isDirty: false,
-    error: null,
-    isSessionExpiredError: false,
-    submissions: [],
-  };
-
-  const dispatchMock = vi.fn((action) => {
-    if (typeof action === 'function') {
-      return action(
-        dispatchMock,
-        () => ({ workspace: workspaceState, notification: { notifications: [] }, form: formState }),
-        undefined,
-      );
-    }
-    return action;
-  });
-
-  return {
-    mockDispatch: dispatchMock,
-    mockWorkspaceState: workspaceState,
-    mockFormState: formState,
-  };
-});
-vi.mock('@/lib/store', () => ({
-  useAppSelector: (fn: (s: unknown) => unknown) =>
-    fn({ workspace: mockWorkspaceState, notification: { notifications: [] }, form: mockFormState }),
-  useAppDispatch: () => mockDispatch,
+    versions: [] as Array<{ id: string; versionNo: number; state: string }>,
+    schemas: {} as Record<string, unknown>,
+  },
+  // Captured so a test can simulate the user editing in the builder.
+  builder: { onUpdateModel: null as ((model: unknown) => void) | null },
+  api: {
+    saveFormVersionSchema: vi.fn().mockResolvedValue({}),
+    publishSobaFormVersion: vi.fn().mockResolvedValue({}),
+    createFormVersion: vi.fn(),
+    createSobaFormioForm: vi.fn(),
+    updateSobaForm: vi.fn().mockResolvedValue({}),
+    getFormVersionSchema: vi.fn(),
+    getSobaForm: vi.fn(),
+  },
 }));
 
-// Mock the soba API functions used by FormForm
 vi.mock('@/src/shared/api/sobaApi', () => ({
-  getSobaForm: vi.fn().mockImplementation(async () => {
-    const fetchedForm = { id: 'f1', name: 'Test', description: 'desc' };
-
-    // Update the hoisted mockFormState directly when called
-    mockFormState.formName = fetchedForm.name;
-    mockFormState.formDesc = fetchedForm.description;
-
-    return fetchedForm;
-  }),
-  getSobaFormVersions: vi.fn().mockResolvedValue({ items: [] }),
-  getFormVersionSchema: vi.fn().mockResolvedValue(null),
-  getSobaSubmissions: vi.fn().mockResolvedValue({ items: [] }),
+  getSobaForm: api.getSobaForm,
+  getSobaFormVersions: vi.fn(() => Promise.resolve({ items: mockWorkspaceState.versions })),
+  getFormVersionSchema: api.getFormVersionSchema,
+  saveFormVersionSchema: api.saveFormVersionSchema,
+  publishSobaFormVersion: api.publishSobaFormVersion,
+  createFormVersion: api.createFormVersion,
+  createSobaFormioForm: api.createSobaFormioForm,
+  updateSobaForm: api.updateSobaForm,
+  fetchWorkspaces: vi.fn((_token: string, requiredPermission?: string) =>
+    Promise.resolve({
+      items: requiredPermission
+        ? mockWorkspaceState.writableWorkspaces
+        : mockWorkspaceState.workspaces,
+    }),
+  ),
 }));
 
 // Mock DynamicForm and FormDesigner components used in FormForm
 vi.mock('@/src/features/formio-v5/ui/DynamicForm', () => ({
   DynamicForm: () => <div data-testid="dynamic-form">preview</div>,
 }));
-vi.mock('@/src/features/designer/ui/FormDesigner', () => ({
-  __esModule: true,
-  default: () => <div data-testid="form-designer">designer</div>,
-}));
+// The real FormDesigner takes its model once at mount and ignores later changes. The stub does the
+// same, so a version switch that fails to remount it is visible here.
+vi.mock('@/src/features/designer/ui/FormDesigner', () => {
+  function FormDesignerStub({
+    initialModel,
+    onUpdateModel,
+  }: {
+    initialModel: unknown;
+    onUpdateModel: (model: unknown) => void;
+  }) {
+    const [snapshot] = React.useState(() => JSON.stringify(initialModel));
+    builder.onUpdateModel = onUpdateModel;
+    return <div data-testid="form-designer">{snapshot}</div>;
+  }
+  return { __esModule: true, default: FormDesignerStub };
+});
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: () => {} }),
   useParams: () => ({ lang: 'en' }),
-  useSearchParams: () => ({ get: () => {} }),
-  usePathname: () => ({}),
+  useSearchParams: () => new URLSearchParams(''),
 }));
 
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import FormForm from '@/src/features/designer/ui/FormForm';
+import { PageLayout } from '@/src/components/PageLayout';
+
+let store: ReturnType<typeof makeStore>;
+
+function renderForm(props: { formId?: string } = {}) {
+  return render(
+    <Provider store={store}>
+      <SWRConfig
+        value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+      >
+        <PageLayout headingId="designer-heading" heading="Form Designer">
+          <FormForm {...props} />
+        </PageLayout>
+      </SWRConfig>
+    </Provider>,
+  );
+}
 
 describe('FormForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockWorkspaceState.selectedWorkspaceId = 'ws1';
-    mockWorkspaceState.status = 'succeeded';
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
     mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: true }];
     mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: true }];
-    mockFormState.formName = ''; // reset formName before each test
+    mockWorkspaceState.versions = [];
+    mockWorkspaceState.schemas = {};
+    api.getFormVersionSchema.mockImplementation((_token: string, versionId: string) =>
+      Promise.resolve(mockWorkspaceState.schemas[versionId] ?? { components: [] }),
+    );
+    api.getSobaForm.mockResolvedValue({ id: 'f1', name: 'Test', description: '' });
+    api.createFormVersion.mockResolvedValue({ id: 'v-new', versionNo: 3, state: 'draft' });
+    builder.onUpdateModel = null;
   });
 
   it('renders designer tab content when authenticated and not initializing', async () => {
-    const { rerender } = render(<FormForm formId="f1" />);
-
-    // Wait for the mock state to be updated by the thunk
-    await waitFor(() => {
-      expect(mockFormState.formName).toBe('Test');
-    });
-
-    // Force a re-render so the mockAppSelector picks up the mutated state
-    rerender(<FormForm formId="f1" />);
-
+    renderForm({ formId: 'f1' });
     // The designer area includes a form name input; assert it renders with loaded value
-    expect(screen.getByDisplayValue('Test')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByDisplayValue('Test')).toBeInTheDocument());
   });
 
   it('blocks new-form designer access when the user has no workspaces', async () => {
-    mockWorkspaceState.selectedWorkspaceId = null;
     mockWorkspaceState.workspaces = [];
     mockWorkspaceState.writableWorkspaces = [];
-    render(<FormForm />);
-    expect(screen.getByTestId('designer-select-workspace')).toBeInTheDocument();
+    renderForm();
+    expect(await screen.findByTestId('designer-select-workspace')).toBeInTheDocument();
     expect(screen.queryByTestId('form-designer')).not.toBeInTheDocument();
   });
 
   // A picker that disappears reads as a missing feature, so it shows even for a single choice,
   // and the workspace a form lands in is always an explicit choice — never preselected.
   it('shows the workspace picker unselected even with one creatable workspace', async () => {
-    mockWorkspaceState.selectedWorkspaceId = null;
     mockWorkspaceState.workspaces = [
       { id: 'ws1', name: 'Alpha', kind: 'team', disclaimerAccepted: true },
     ];
     mockWorkspaceState.writableWorkspaces = [
       { id: 'ws1', name: 'Alpha', kind: 'team', disclaimerAccepted: true },
     ];
-    render(<FormForm />);
+    renderForm();
 
-    const picker = screen.getByTestId('workspace-select');
-    expect(picker).toBeInTheDocument();
+    const picker = await screen.findByTestId('workspace-select');
     expect(picker.querySelector('select')).toHaveValue('');
     expect(screen.getAllByText('Alpha (team)').length).toBeGreaterThan(0);
   });
 
   // The forms-list filter scopes what you are viewing, not where a new form belongs.
   it('does not preselect the workspace chosen in the forms-list filter', async () => {
-    mockWorkspaceState.selectedWorkspaceId = 'ws1';
     mockWorkspaceState.workspaces = [
       { id: 'ws1', name: 'Alpha', kind: 'team', disclaimerAccepted: true },
       { id: 'ws2', name: 'Beta', kind: 'team', disclaimerAccepted: true },
@@ -185,19 +177,159 @@ describe('FormForm', () => {
       { id: 'ws1', name: 'Alpha', kind: 'team', disclaimerAccepted: true },
       { id: 'ws2', name: 'Beta', kind: 'team', disclaimerAccepted: true },
     ];
-    render(<FormForm />);
+    renderForm();
 
-    const picker = screen.getByTestId('workspace-select');
+    const picker = await screen.findByTestId('workspace-select');
     expect(picker.querySelector('select')).toHaveValue('');
   });
 
   // Create permission without an accepted disclaimer is actionable, so it gets its own message.
   it('blocks new-form designer access when no workspace has an accepted disclaimer', async () => {
-    mockWorkspaceState.selectedWorkspaceId = null;
     mockWorkspaceState.workspaces = [{ id: 'ws1', disclaimerAccepted: false }];
     mockWorkspaceState.writableWorkspaces = [{ id: 'ws1', disclaimerAccepted: false }];
-    render(<FormForm />);
-    expect(screen.getByTestId('disclaimer-required-alert')).toBeInTheDocument();
+    renderForm();
+    expect(await screen.findByTestId('disclaimer-required-alert')).toBeInTheDocument();
     expect(screen.queryByTestId('form-designer')).not.toBeInTheDocument();
+  });
+
+  // The highest versionNo is the current one, and its schema is what the builder is fed.
+  it('reads the schema of the current version', async () => {
+    mockWorkspaceState.versions = [
+      { id: 'v1', versionNo: 1, state: 'published' },
+      { id: 'v2', versionNo: 2, state: 'draft' },
+    ];
+    renderForm({ formId: 'f1' });
+
+    const { getFormVersionSchema } = await import('@/src/shared/api/sobaApi');
+    await waitFor(() => expect(getFormVersionSchema).toHaveBeenCalledWith('token', 'v2'));
+    expect(getFormVersionSchema).not.toHaveBeenCalledWith('token', 'v1');
+  });
+
+  // The loaded name is server truth and the typed one is the user's unsaved edit. A re-read must
+  // never win over what has been typed.
+  it('keeps a typed name over the loaded one', async () => {
+    renderForm({ formId: 'f1' });
+    const input = (await screen.findByDisplayValue('Test')) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Renamed' } });
+    expect(await screen.findByDisplayValue('Renamed')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Test')).not.toBeInTheDocument();
+  });
+
+  // Switching versions changes which schema is read, and the read-only notice explains why save is
+  // off. Selecting the current draft again returns to it.
+  it('reads the selected version schema when switching to history', async () => {
+    mockWorkspaceState.versions = [
+      { id: 'v1', versionNo: 1, state: 'published' },
+      { id: 'v2', versionNo: 2, state: 'draft' },
+    ];
+    renderForm({ formId: 'f1' });
+
+    const { getFormVersionSchema } = await import('@/src/shared/api/sobaApi');
+    await waitFor(() => expect(getFormVersionSchema).toHaveBeenCalledWith('token', 'v2'));
+
+    const picker = (await screen.findByTestId('form-version-select')).querySelector(
+      'select',
+    ) as HTMLSelectElement;
+    fireEvent.change(picker, { target: { value: 'v1' } });
+
+    await waitFor(() => expect(getFormVersionSchema).toHaveBeenCalledWith('token', 'v1'));
+    expect(await screen.findByTestId('page-notice-history-view')).toBeInTheDocument();
+  });
+
+  // The builder is fed its model once at mount. Returning to a version already in the cache
+  // produces no loading frame, so the previous version stays on screen unless it is remounted.
+  it('shows the right schema when switching back to a cached version', async () => {
+    mockWorkspaceState.versions = [
+      { id: 'v1', versionNo: 1, state: 'published' },
+      { id: 'v2', versionNo: 2, state: 'draft' },
+    ];
+    mockWorkspaceState.schemas = {
+      v1: { components: [{ key: 'from-v1' }] },
+      v2: { components: [{ key: 'from-v2' }] },
+    };
+    renderForm({ formId: 'f1' });
+
+    const picker = (await screen.findByTestId('form-version-select')).querySelector(
+      'select',
+    ) as HTMLSelectElement;
+    await waitFor(() => expect(screen.getByTestId('form-designer')).toHaveTextContent('from-v2'));
+
+    fireEvent.change(picker, { target: { value: 'v1' } });
+    await waitFor(() => expect(screen.getByTestId('form-designer')).toHaveTextContent('from-v1'));
+
+    fireEvent.change(picker, { target: { value: 'current' } });
+    await waitFor(() => expect(screen.getByTestId('form-designer')).toHaveTextContent('from-v2'));
+  });
+
+  // Saving drops the edit overlay. Without writing the saved body into the cache, the next write
+  // posts the schema as it was before the edits.
+  it('posts the saved schema, not the pre-save one, on a second save', async () => {
+    mockWorkspaceState.versions = [{ id: 'v1', versionNo: 1, state: 'draft' }];
+    mockWorkspaceState.schemas = { v1: { components: [{ key: 'original' }] } };
+    renderForm({ formId: 'f1' });
+    await waitFor(() => expect(screen.getByTestId('form-designer')).toHaveTextContent('original'));
+
+    await act(async () => {
+      builder.onUpdateModel?.({ components: [{ key: 'edited' }] } as never);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.saveFormVersionSchema).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.saveFormVersionSchema).toHaveBeenCalledTimes(2));
+    expect(api.saveFormVersionSchema.mock.calls[1][2]).toEqual({
+      components: [{ key: 'edited' }],
+    });
+  });
+
+  it('creates a new version from the saved schema', async () => {
+    mockWorkspaceState.versions = [{ id: 'v1', versionNo: 1, state: 'draft' }];
+    mockWorkspaceState.schemas = { v1: { components: [{ key: 'original' }] } };
+    renderForm({ formId: 'f1' });
+    await waitFor(() => expect(screen.getByTestId('form-designer')).toHaveTextContent('original'));
+
+    await act(async () => {
+      builder.onUpdateModel?.({ components: [{ key: 'edited' }] } as never);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(api.saveFormVersionSchema).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(screen.getByRole('button', { name: 'New Version' }));
+    await waitFor(() => expect(api.createFormVersion).toHaveBeenCalled());
+    const newVersionCall = api.saveFormVersionSchema.mock.calls.find((c) => c[1] === 'v-new');
+    expect(newVersionCall?.[2]).toEqual({ components: [{ key: 'edited' }] });
+  });
+
+  // An existing form whose versions have not arrived has no current version. Falling through to
+  // the create branch there files the edits under a second form.
+  it('never creates a second form for an existing formId', async () => {
+    mockWorkspaceState.versions = [];
+    renderForm({ formId: 'f1' });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(api.createSobaFormioForm).not.toHaveBeenCalled();
+  });
+
+  // The schema key is null until the versions arrive, so a loading flag covering only the schema
+  // read reports ready and the designer claims the schema is missing.
+  it('shows a spinner, not "schema not available", while the draft assembles', async () => {
+    mockWorkspaceState.versions = [{ id: 'v1', versionNo: 1, state: 'draft' }];
+    renderForm({ formId: 'f1' });
+
+    expect(screen.queryByText('Form schema not available.')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('form-designer')).toBeInTheDocument());
+  });
+
+  // These reads do not revalidate on their own, so a failed load that still reports loading leaves
+  // the designer on a spinner with every tab and action disabled, for the life of the page.
+  it('reports a failed load instead of spinning', async () => {
+    api.getSobaForm.mockRejectedValue(new Error('boom'));
+    renderForm({ formId: 'f1' });
+
+    expect(await screen.findByTestId('designer-load-error')).toHaveTextContent(
+      'Failed to load form.',
+    );
+    expect(screen.queryByText('Loading')).not.toBeInTheDocument();
   });
 });

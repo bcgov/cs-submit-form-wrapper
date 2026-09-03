@@ -5,10 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Button, InlineAlert } from '@bcgov/design-system-react-components';
 import { CenteredProgress } from '@/app/ui/base/CenteredProgress';
 import { useDictionary } from '@/app/[lang]/Providers';
-import { useAppDispatch } from '@/lib/store';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
-import { clearCurrentUser } from '@/lib/slices/currentUserSlice';
-import { clearWorkspaceState } from '@/lib/slices/workspaceSlice';
+import { useRefreshWorkspaces } from '@/src/shared/api/useWorkspaces';
+import { useRefreshCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { resolveRedirect } from './appRoutePolicy';
 import { useAppSession } from './useAppSession';
 
@@ -27,8 +26,9 @@ export function AppAccessGuard({
   const dict = useDictionary();
   const router = useRouter();
   const pathname = usePathname();
-  const dispatch = useAppDispatch();
   const { refresh } = useKeycloak();
+  const refreshWorkspaces = useRefreshWorkspaces();
+  const refreshCurrentUser = useRefreshCurrentUser();
   const session = useAppSession();
 
   const redirectTarget = useMemo(() => {
@@ -42,20 +42,15 @@ export function AppAccessGuard({
   }, [redirectTarget, router]);
 
   const handleRetry = useCallback(async () => {
-    // Hopefully this never happens, but better safe than sorry.
-    // Too many things loading at once so a failure is possible.
-    // A failed bootstrap load is often an expired access token, which a plain refresh would just hit again.
-    // Refresh first (best-effort): on success the
-    // store holds a fresh token; if the refresh token is also expired, refreshToken
-    // clears auth, which redirects the user to sign in again. Resetting the slices
-    // to 'idle' lets useAppSession re-dispatch the loads with the current token.
+    // A failed bootstrap read is usually an expired token, so refresh before re-reading. If the
+    // refresh token has also expired, refreshing clears auth and the user is sent to sign in.
+    // All three reads are retried: a partial retry leaves the others failed and the alert up.
     await refresh();
-    dispatch(clearCurrentUser());
-    dispatch(clearWorkspaceState());
-  }, [refresh, dispatch]);
+    await Promise.all([refreshWorkspaces(), refreshCurrentUser()]);
+  }, [refresh, refreshWorkspaces, refreshCurrentUser]);
 
   // Same rule as the spinner below: once bootstrapped, a failed background reload must not replace
-  // the route either — the retry lives on the next full load.
+  // the route either. The retry lives on the next full load.
   if (session.sessionFailed && !session.sessionLoadedOnce && !redirectTarget) {
     return (
       <div className="mt-4" role="alert">
