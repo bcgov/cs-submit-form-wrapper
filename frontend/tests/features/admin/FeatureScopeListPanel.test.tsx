@@ -33,6 +33,7 @@ vi.mock('next/navigation', async () => {
     ...(actual as Record<string, unknown>),
     useRouter: () => ({ push: mockPush }),
     usePathname: () => '/en/admin/feature-scopes',
+    useSearchParams: () => new URLSearchParams(''),
   };
 });
 
@@ -49,7 +50,6 @@ vi.mock('@/app/[lang]/Providers', () => ({
     dataTable: { itemName: 'items', pageOf: 'of {totalPages} page(s)' },
     modal: { dialogActions: 'Dialog actions' },
     admin: {
-      truncated: 'Showing the first {limit}. Narrow the filters to see the rest.',
       featureScopes: {
         deleteConfirmTitle: 'Delete feature access',
         deleteConfirmMessage:
@@ -112,12 +112,6 @@ const FEATURE_SCOPE = {
   updatedBy: null,
 };
 
-const HIDDEN_FEATURE_SCOPE = {
-  ...FEATURE_SCOPE,
-  id: '33333333-3333-4333-8333-333333333333',
-  featureCode: 'disabled-feature',
-};
-
 describe('FeatureScopeListPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -125,21 +119,30 @@ describe('FeatureScopeListPanel', () => {
     store.dispatch(setToken('token'));
     store.dispatch(setAuthenticated(true));
     mockFetchFeatureScopes.mockResolvedValue({
-      items: [FEATURE_SCOPE, HIDDEN_FEATURE_SCOPE],
-      page: { limit: 200, hasMore: false },
+      items: [FEATURE_SCOPE],
+      page: { offset: 0, limit: 10, total: 1 },
     });
-    mockRemoveFeatureScope.mockResolvedValue(undefined);
+    mockRemoveFeatureScope.mockImplementation(() => {
+      mockFetchFeatureScopes.mockResolvedValue({
+        items: [],
+        page: { offset: 0, limit: 10, total: 0 },
+      });
+      return Promise.resolve(undefined);
+    });
     mockUpsertFeatureScope.mockResolvedValue(undefined);
   });
 
-  it('lists administrable feature scopes and filters out unavailable feature codes', async () => {
+  it('lists administrable feature scopes and asks the server for only those codes', async () => {
     await act(async () => {
       renderPanel(['document-generation-v3']);
     });
 
     expect(await screen.findByText('document-generation-v3')).toBeInTheDocument();
     expect(screen.getByText(FEATURE_SCOPE.scopeId)).toBeInTheDocument();
-    expect(screen.queryByText('disabled-feature')).not.toBeInTheDocument();
+    expect(mockFetchFeatureScopes).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ featureCodes: ['document-generation-v3'] }),
+    );
   });
 
   it('routes to create and manage pages', async () => {
@@ -175,7 +178,17 @@ describe('FeatureScopeListPanel', () => {
 
   // The row is patched into the cached list rather than refetched. A reload would answer with the
   // pre-toggle status from the server fixture and the switch would snap back.
-  it('leaves the toggled row showing its new status', async () => {
+  // The status decides where the row sorts and whether it is on this page at all, so the table
+  // shows what the server returns after the write rather than a locally patched row.
+  it('re-reads the page after a status change', async () => {
+    mockUpsertFeatureScope.mockImplementation(() => {
+      mockFetchFeatureScopes.mockResolvedValue({
+        items: [{ ...FEATURE_SCOPE, status: 'inactive' }],
+        page: { offset: 0, limit: 10, total: 1 },
+      });
+      return Promise.resolve(undefined);
+    });
+
     await act(async () => {
       renderPanel(['document-generation-v3']);
     });
@@ -190,7 +203,7 @@ describe('FeatureScopeListPanel', () => {
 
     await waitFor(() => expect(mockUpsertFeatureScope).toHaveBeenCalled());
     await waitFor(() => expect(checked()).toBe(false));
-    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(1);
+    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a feature scope from the table', async () => {
@@ -208,6 +221,8 @@ describe('FeatureScopeListPanel', () => {
     await waitFor(() => {
       expect(screen.queryByText('document-generation-v3')).not.toBeInTheDocument();
     });
+    // The row a deletion leaves room for comes from the next page, which only a fresh read holds.
+    expect(mockFetchFeatureScopes).toHaveBeenCalledTimes(2);
   });
 
   // Irreversible, so the row action only opens the prompt.
@@ -226,17 +241,17 @@ describe('FeatureScopeListPanel', () => {
     expect(screen.getByText('document-generation-v3')).toBeInTheDocument();
   });
 
-  it('reports a list the server cut short', async () => {
+  it('pages against the total the server reports', async () => {
     mockFetchFeatureScopes.mockResolvedValue({
       items: [FEATURE_SCOPE],
-      page: { limit: 200, hasMore: true },
+      page: { offset: 0, limit: 10, total: 42 },
     });
 
     await act(async () => {
       renderPanel(['document-generation-v3']);
     });
 
-    expect(await screen.findByTestId('feature-scope-truncated')).toBeInTheDocument();
+    expect(await screen.findByText(/of 5 page\(s\)/)).toBeInTheDocument();
   });
 
   it('does not render the table when no scoped features are available', async () => {

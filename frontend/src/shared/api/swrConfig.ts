@@ -25,3 +25,12 @@ export const sessionReadConfig: SWRConfiguration = {
   revalidateOnReconnect: false,
   revalidateIfStale: false,
 };
+
+/**
+ * Paged list reads. SWR drops `data` on a key change, and the table draws its paging controls from
+ * the total in that data, so without this the footer unmounts mid-request and takes keyboard focus
+ * with it.
+ */
+export const listReadConfig: SWRConfiguration = {
+  keepPreviousData: true,
+};

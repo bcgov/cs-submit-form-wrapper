@@ -1,6 +1,8 @@
-import { and, desc, eq, type SQL } from 'drizzle-orm';
+import { and, count, eq, type SQL } from 'drizzle-orm';
 import { db } from '../client';
 import { documentGenerationAudits } from '../schema';
+import { orderByForSort, type SortColumns, type SortToken } from '../listSort';
+import { readListPage } from '../listRead';
 
 export type DocumentGenerationAuditRecord = typeof documentGenerationAudits.$inferSelect;
 
@@ -18,10 +20,22 @@ export interface NewDocumentGenerationAudit {
   createdBy: string;
 }
 
+export const DOCGEN_AUDIT_SORT_FIELDS = ['createdAt', 'outcome', 'durationMs'] as const;
+export type DocgenAuditListSortField = (typeof DOCGEN_AUDIT_SORT_FIELDS)[number];
+export type DocgenAuditListSort = SortToken<DocgenAuditListSortField>;
+
+const DOCGEN_AUDIT_SORT_COLUMNS: SortColumns<DocgenAuditListSortField> = {
+  createdAt: { column: documentGenerationAudits.createdAt },
+  outcome: { column: documentGenerationAudits.outcome },
+  durationMs: { column: documentGenerationAudits.durationMs },
+};
+
 export interface ListDocumentGenerationAuditFilters {
   workspaceId?: string;
   formId?: string;
-  limit?: number;
+  offset: number;
+  limit: number;
+  sort: DocgenAuditListSort;
 }
 
 export const createDocumentGenerationAudit = async (
@@ -43,25 +57,29 @@ export const createDocumentGenerationAudit = async (
 };
 
 /**
- * List recent document generation audit rows for a workspace/form scope.
- * Caller should validate at least one scope filter is provided.
- * Reads one row past the limit so the caller can report that the list was cut short.
+ * One page of document generation audit rows for a workspace/form scope. The caller supplies at
+ * least one scope filter.
  */
 export const listDocumentGenerationAudits = async (
   filters: ListDocumentGenerationAuditFilters,
-): Promise<{ items: DocumentGenerationAuditRecord[]; hasMore: boolean }> => {
+): Promise<{ items: DocumentGenerationAuditRecord[]; total: number }> => {
   const conditions: SQL<unknown>[] = [];
   if (filters.workspaceId)
     conditions.push(eq(documentGenerationAudits.workspaceId, filters.workspaceId));
   if (filters.formId) conditions.push(eq(documentGenerationAudits.formId, filters.formId));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const limit = filters.limit ?? 100;
-  const rows = await db
-    .select()
-    .from(documentGenerationAudits)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(documentGenerationAudits.createdAt))
-    .limit(limit + 1);
-
-  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
+  return readListPage(async (tx) => {
+    const items = await tx
+      .select()
+      .from(documentGenerationAudits)
+      .where(where)
+      .orderBy(
+        ...orderByForSort(DOCGEN_AUDIT_SORT_COLUMNS, filters.sort, documentGenerationAudits.id),
+      )
+      .limit(filters.limit)
+      .offset(filters.offset);
+    const totals = await tx.select({ total: count() }).from(documentGenerationAudits).where(where);
+    return { items, total: totals[0]?.total ?? 0 };
+  });
 };

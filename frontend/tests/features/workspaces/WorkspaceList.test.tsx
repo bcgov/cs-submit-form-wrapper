@@ -36,12 +36,14 @@ vi.mock('@/app/[lang]/Providers', () => ({
 }));
 
 const mockPush = vi.fn();
+const { search } = vi.hoisted(() => ({ search: { value: '' } }));
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<unknown>('next/navigation');
   return {
     ...(actual as Record<string, unknown>),
     useRouter: () => ({ push: mockPush }),
     usePathname: () => '/en/workspaces',
+    useSearchParams: () => new URLSearchParams(search.value),
   };
 });
 
@@ -84,10 +86,15 @@ function renderList(props: { showFormsAction?: boolean } = {}) {
 describe('WorkspaceList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
+    search.value = '';
     store = makeStore();
     store.dispatch(setToken('token'));
     store.dispatch(setAuthenticated(true));
-    fetchWorkspaces.mockResolvedValue({ items: WORKSPACES });
+    fetchWorkspaces.mockResolvedValue({
+      items: WORKSPACES,
+      page: { offset: 0, limit: 10, total: 2 },
+    });
     fetchCurrentUser.mockResolvedValue({
       actor: { id: 'user-1', displayLabel: 'User', status: 'active' },
       profile: { displayName: 'User', email: null, preferredUsername: null },
@@ -120,7 +127,7 @@ describe('WorkspaceList', () => {
       renderList();
     });
     await userEvent.click(screen.getByTestId('workspace-link-ws2'));
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?workspace=ws2'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?forms.workspace=ws2'));
   });
 
   it('navigates to manage page on Manage action', async () => {
@@ -149,19 +156,61 @@ describe('WorkspaceList', () => {
     ) as HTMLButtonElement | null;
     expect(btn).toBeTruthy();
     await userEvent.click(btn!);
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?workspace=ws2'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/en/forms?forms.workspace=ws2'));
   });
 
-  it('search filters workspaces', async () => {
+  // Searching only the fetched page would hide every match past it, so the term goes to the server.
+  it('sends the search term to the server when the search is submitted', async () => {
+    let view: ReturnType<typeof renderList> | undefined;
     await act(async () => {
-      renderList();
+      view = renderList();
     });
     const input = screen
       .getByTestId('search-workspaces-text')
       .querySelector('input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'team' } });
-    expect(screen.queryByText('Personal Workspace')).not.toBeInTheDocument();
-    expect(screen.getByText('Team Workspace')).toBeInTheDocument();
+
+    const replaceState = vi.spyOn(window.history, 'replaceState');
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'team' } });
+    });
+    expect(replaceState).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('search-workspaces-button'));
+    });
+    await waitFor(() => expect(replaceState).toHaveBeenCalled());
+
+    // Next keeps useSearchParams in sync with replaceState; the mock does not, so the test does it.
+    const url = replaceState.mock.calls.at(-1)?.[2];
+    search.value = typeof url === 'string' ? (url.split('?')[1] ?? '') : '';
+    await act(async () => {
+      view!.rerender(
+        <Provider store={store}>
+          <SWRConfig
+            value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+          >
+            <WorkspaceList />
+          </SWRConfig>
+        </Provider>,
+      );
+    });
+
+    await waitFor(() => expect(fetchWorkspaces.mock.calls.at(-1)?.[1]).toMatchObject({ q: 'team' }));
+    replaceState.mockRestore();
+  });
+
+  it('asks for the page, size and sort the URL names', async () => {
+    search.value = 'workspaces.page=4&workspaces.pageSize=25&workspaces.sort=name:desc';
+    await act(async () => {
+      renderList();
+    });
+    await waitFor(() =>
+      expect(fetchWorkspaces.mock.calls.at(-1)?.[1]).toMatchObject({
+        offset: 75,
+        limit: 25,
+        sort: 'name:desc',
+      }),
+    );
   });
 
   it('navigates to create page on Create action', async () => {

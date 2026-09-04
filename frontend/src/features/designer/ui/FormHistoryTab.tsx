@@ -1,19 +1,21 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Link } from '@bcgov/design-system-react-components';
 
 import type { Dictionary } from '@/src/types/plugins';
 import { Tag, TagColor } from '@/src/components/Tag';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
+import { FORM_VERSIONS_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
+import { useFormVersionPage } from '../useFormVersions';
 import type { SobaFormVersionType } from '@/src/types/forms';
 import { capitalizeFirstLetter } from '@/src/shared/util/stringUtils';
 
 interface FormHistoryTabProps {
   dict: Dictionary;
-  versions: SobaFormVersionType[];
-  loading: boolean;
+  formId?: string;
   onSelectVersion: (versionId: string) => void;
   onRestoreVersion: (version: SobaFormVersionType) => Promise<void>;
   onNavigateToDesigner?: () => void;
@@ -26,14 +28,17 @@ function stateToColour(state: string): TagColor {
 
 export default function FormHistoryTab({
   dict,
-  versions,
-  loading,
+  formId,
   onSelectVersion,
   onRestoreVersion,
   onNavigateToDesigner,
 }: Readonly<FormHistoryTabProps>) {
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const listQuery = useListQuery(FORM_VERSIONS_LIST_QUERY);
+  const { versions, total, isLoading, error } = useFormVersionPage(formId, {
+    offset: listQuery.offset,
+    limit: listQuery.pageSize,
+    sort: listQuery.sort,
+  });
   const formatLongDate = useFormatLongDate();
 
   const openInDesigner = useCallback(
@@ -56,11 +61,13 @@ export default function FormHistoryTab({
       {
         key: 'versionNo',
         label: dict?.general?.version || 'Version',
+        sortField: 'versionNo',
         width: '10%',
       },
       {
         key: 'state',
         label: dict.form?.status || 'Status',
+        sortField: 'state',
         render: (version: SobaFormVersionType) => (
           <Tag
             data-testid={`${version.id}-status-tag`}
@@ -76,6 +83,7 @@ export default function FormHistoryTab({
       {
         key: 'created',
         label: dict.submission?.formList?.columns?.createdAt || 'Created Date',
+        sortField: 'createdAt',
         render: (version: SobaFormVersionType) => (
           <span className="small" data-testid={`${version.id}-created-date`}>
             {formatLongDate(version.createdAt)}
@@ -110,26 +118,24 @@ export default function FormHistoryTab({
     [dict, formatLongDate, openInDesigner, restore],
   );
 
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  }, []);
-
   return (
     <DataTable<SobaFormVersionType>
       data={versions}
       columns={columns}
-      loading={loading}
+      loading={isLoading}
+      error={error ? dict.form.loadVersionsError : null}
       emptyMessage={dict.form.emptyHistory}
       loadingMessage={dict.general.loading}
       itemName="items"
-      caption={dict.general.forms}
-      pageSize={pageSize}
-      currentPage={currentPage}
-      totalItems={versions.length}
-      onPageChange={setCurrentPage}
-      onPageSizeChange={handlePageSizeChange}
-      pageSizeOptions={[5, 10, 25, 50]}
+      caption={dict.form.historyTab}
+      pageSize={listQuery.pageSize}
+      currentPage={listQuery.page}
+      totalItems={total}
+      onPageChange={listQuery.setPage}
+      onPageSizeChange={listQuery.setPageSize}
+      pageSizeOptions={PAGE_SIZE_OPTIONS}
+      sort={listQuery.sort}
+      onSortChange={listQuery.setSort}
       keyExtractor={(version) => version.id}
     />
   );

@@ -41,6 +41,16 @@ vi.mock('@/src/features/admin/ui/DocumentGenerationAuditsPanel', () => ({
 
 import { AdminDashboard } from '@/src/features/admin/ui/AdminDashboard';
 
+vi.mock('next/navigation', async () => {
+  const actual = await vi.importActual<unknown>('next/navigation');
+  return {
+    ...(actual as Record<string, unknown>),
+    useRouter: () => ({ push: vi.fn() }),
+    usePathname: () => '/en/admin',
+    useSearchParams: () => new URLSearchParams(''),
+  };
+});
+
 const renderDashboard = async (props?: React.ComponentProps<typeof AdminDashboard>) => {
   await act(async () => {
     render(<AdminDashboard {...props} />);

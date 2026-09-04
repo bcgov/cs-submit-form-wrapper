@@ -1,72 +1,82 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Button, Form, InlineAlert, TextField } from '@bcgov/design-system-react-components';
+import { Button, Form, TextField } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { SecondaryText } from '@/src/components/SecondaryText';
 import { StatusTag } from '@/src/components/StatusTag';
-import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
-import { fetchDocumentGenerationAudits } from '@/src/shared/api/sobaApiAdmin';
+import { useDocumentGenerationAudits } from '../useAdminData';
+import { DOCGEN_AUDITS_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import type { DocumentGenerationAuditItem } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
 
-const AUDIT_LIMIT = 100;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function DocumentGenerationAuditsPanel() {
   const dict = useDictionary();
   const dictAudits = dict.admin.audits;
-  const { token } = useKeycloak();
   const { addNotification } = useNotificationStore();
 
   const [workspaceId, setWorkspaceId] = useState('');
   const [formId, setFormId] = useState('');
-  const [items, setItems] = useState<DocumentGenerationAuditItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [truncatedAt, setTruncatedAt] = useState<number | null>(null);
+  // The filter the admin searched with, which is what the read is keyed on. Editing the fields
+  // does not re-read until they search again.
+  const [filter, setFilter] = useState<{ workspaceId?: string; formId?: string } | null>(null);
+
+  const listQuery = useListQuery(DOCGEN_AUDITS_LIST_QUERY);
+  const reportLoadError = useCallback(
+    (cause: unknown) => {
+      addNotification({ text: dictAudits.loadError, type: 'error', consoleError: cause });
+    },
+    [addNotification, dictAudits.loadError],
+  );
+  const {
+    audits,
+    total,
+    isLoading: loading,
+    error: loadError,
+  } = useDocumentGenerationAudits(
+    filter,
+    {
+      offset: listQuery.offset,
+      limit: listQuery.pageSize,
+      sort: listQuery.sort,
+    },
+    reportLoadError,
+  );
+  const error = loadError ? dictAudits.loadError : null;
 
   // Both ids are sent when filled, so every filled one has to be a uuid or the backend rejects the
   // whole request. At least one is required.
   const filledIds = [workspaceId.trim(), formId.trim()].filter((value) => value !== '');
   const valid = filledIds.length > 0 && filledIds.every((value) => UUID_PATTERN.test(value));
 
-  const handleSearch = useCallback(async () => {
-    if (!token || !valid) return;
-    setLoading(true);
-    try {
-      const response = await fetchDocumentGenerationAudits(token, {
-        workspaceId: workspaceId.trim() || undefined,
-        formId: formId.trim() || undefined,
-        limit: AUDIT_LIMIT,
-      });
-      setItems(response.items);
-      setTruncatedAt(response.page?.hasMore ? response.page.limit : null);
-      setError(null);
-    } catch (cause) {
-      setItems([]);
-      setTruncatedAt(null);
-      setError(dictAudits.loadError);
-      addNotification({ text: dictAudits.loadError, type: 'error', consoleError: cause });
-    } finally {
-      setSearched(true);
-      setLoading(false);
-    }
-  }, [token, valid, workspaceId, formId, addNotification, dictAudits.loadError]);
+  const { setPage } = listQuery;
+  const handleSearch = useCallback(() => {
+    if (!valid) return;
+    // A new filter is a different set of rows, so the page number no longer refers to anything.
+    setPage(1);
+    setFilter({
+      workspaceId: workspaceId.trim() || undefined,
+      formId: formId.trim() || undefined,
+    });
+  }, [valid, workspaceId, formId, setPage]);
 
   const columns: Column<DocumentGenerationAuditItem>[] = useMemo(
     () => [
       {
         key: 'createdAt',
         label: dictAudits.columns.createdAt,
+        sortField: 'createdAt',
         render: (audit) => new Date(audit.createdAt).toLocaleString(dict.locale),
       },
       {
         key: 'outcome',
         label: dictAudits.columns.outcome,
+        sortField: 'outcome',
         render: (audit) => (
           <StatusTag
             label={audit.outcome}
@@ -80,6 +90,7 @@ export function DocumentGenerationAuditsPanel() {
       {
         key: 'durationMs',
         label: dictAudits.columns.duration,
+        sortField: 'durationMs',
         align: 'end',
         render: (audit) => `${audit.durationMs} ms`,
       },
@@ -111,7 +122,7 @@ export function DocumentGenerationAuditsPanel() {
         className="d-flex align-items-end gap-3 flex-wrap mb-3"
         onSubmit={(event) => {
           event.preventDefault();
-          handleSearch().catch(() => undefined);
+          handleSearch();
         }}
       >
         <TextField
@@ -138,24 +149,23 @@ export function DocumentGenerationAuditsPanel() {
         </Button>
       </Form>
 
-      {searched && truncatedAt !== null ? (
-        <InlineAlert
-          description={dict.admin.truncated.replace('{limit}', String(truncatedAt))}
-          title={dictAudits.heading}
-          variant="info"
-          data-testid="audits-truncated"
-        />
-      ) : null}
-
-      {searched ? (
+      {filter ? (
         <DataTable<DocumentGenerationAuditItem>
-          data={items}
+          data={audits}
           columns={columns}
           loading={loading}
           error={error}
           emptyMessage={dictAudits.empty}
           loadingMessage={dict.general.loading}
           caption={dictAudits.heading}
+          totalItems={total}
+          pageSize={listQuery.pageSize}
+          currentPage={listQuery.page}
+          onPageChange={listQuery.setPage}
+          onPageSizeChange={listQuery.setPageSize}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          sort={listQuery.sort}
+          onSortChange={listQuery.setSort}
           keyExtractor={(audit) => audit.id}
         />
       ) : (

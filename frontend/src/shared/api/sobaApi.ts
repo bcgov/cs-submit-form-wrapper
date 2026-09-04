@@ -12,6 +12,7 @@ import type {
   UpdateWorkspaceBody,
 } from '../../types/workspaces';
 import type { CurrentUserResponse } from '../../types/user';
+import type { ListQueryArgs } from '../../types/list';
 
 export type { SobaFormType, WorkspaceItem, WorkspacesResponse, CurrentUserResponse };
 // Design-mode (staff, /design/*)
@@ -25,6 +26,8 @@ export {
   getSobaSubmission,
   getSobaSubmissionData,
   getSobaFormVersions,
+  getSobaFormVersion,
+  getSobaFormVersionPage,
   createFormVersion,
   saveFormVersionSchema,
   getFormVersionSchema,
@@ -153,10 +156,18 @@ export async function fetchRolesMeta(onlyEnabledFeatures = true): Promise<unknow
 
 export async function fetchWorkspaces(
   token: string,
-  requiredPermission?: string,
+  options: Partial<ListQueryArgs> & { requiredPermission?: string } = {},
 ): Promise<WorkspacesResponse> {
-  const query = requiredPermission ? { requiredPermission } : undefined;
-  const response = await sobaFetch('/workspaces', { token, query });
+  const response = await sobaFetch('/workspaces', {
+    token,
+    query: {
+      offset: options.offset,
+      limit: options.limit,
+      sort: options.sort,
+      q: options.q || undefined,
+      requiredPermission: options.requiredPermission,
+    },
+  });
   return parseJson(response);
 }
 

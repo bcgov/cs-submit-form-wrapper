@@ -36,6 +36,7 @@ vi.mock('next/navigation', async () => {
     ...(actual as Record<string, unknown>),
     useRouter: () => ({ push: mockPush }),
     usePathname: () => '/en/admin/feature-scopes/create',
+    useSearchParams: () => new URLSearchParams(''),
   };
 });
 
@@ -135,7 +136,7 @@ describe('FeatureScopePanel', () => {
         status: 'active',
       });
     });
-    expect(mockPush).toHaveBeenCalledWith('/en/admin/feature-scopes');
+    expect(mockPush).toHaveBeenCalledWith('/en/admin/feature-scopes?from=nav');
   });
 
   it('loads an existing feature scope for manage mode', async () => {
@@ -233,7 +234,7 @@ describe('FeatureScopePanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
-    expect(mockPush).toHaveBeenCalledWith('/en/admin/feature-scopes');
+    expect(mockPush).toHaveBeenCalledWith('/en/admin/feature-scopes?from=nav');
   });
 
   it('does not call the API when no scoped features are available', async () => {

@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
 import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
+import { SUBMISSIONS_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import type { SubmissionListItem } from '@/src/types/submissions';
 import { DataTable, Column } from '@/src/components/DataTable';
 import { RowActionButton } from '@/src/components/RowActionButton';
@@ -22,12 +24,21 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const locale = getLocaleFromPath(pathname);
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const listQuery = useListQuery(SUBMISSIONS_LIST_QUERY);
 
   // The endpoint requires a scope anchor and rejects an unscoped list, so without a form there is
   // no request to make. `formId` is the SOBA formId, routed from FormList.
-  const { submissions, isLoading, error: loadError } = useFormSubmissions(formId, true);
+  const {
+    submissions,
+    total,
+    isLoading,
+    error: loadError,
+  } = useFormSubmissions(formId, true, {
+    offset: listQuery.offset,
+    limit: listQuery.pageSize,
+    sort: listQuery.sort,
+    q: listQuery.q,
+  });
 
   const error = useMemo(
     () =>
@@ -39,11 +50,6 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
           })
         : null,
     [loadError, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error],
-  );
-
-  const paginatedSubmissions = useMemo(
-    () => submissions.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [submissions, currentPage, pageSize],
   );
 
   const loading = initializing || isLoading;
@@ -97,7 +103,7 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
 
   return (
     <DataTable<SubmissionListItem>
-      data={paginatedSubmissions}
+      data={submissions}
       columns={columns}
       loading={loading}
       error={error}
@@ -106,14 +112,12 @@ export function SubmissionList({ formId }: SubmissionListProps = {}) {
       keyExtractor={(sub) => sub.id}
       itemName={dict.submission?.submissions || 'submissions'}
       caption={dict.submission?.submissions || 'Submissions'}
-      totalItems={submissions.length}
-      pageSize={pageSize}
-      currentPage={currentPage}
-      onPageChange={setCurrentPage}
-      onPageSizeChange={(size) => {
-        setPageSize(size);
-        setCurrentPage(1);
-      }}
+      totalItems={total}
+      pageSize={listQuery.pageSize}
+      currentPage={listQuery.page}
+      onPageChange={listQuery.setPage}
+      onPageSizeChange={listQuery.setPageSize}
+      pageSizeOptions={PAGE_SIZE_OPTIONS}
     />
   );
 }

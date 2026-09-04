@@ -2,6 +2,8 @@ import React, { act } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
+import { SWRConfig } from 'swr';
 
 const { mockFetchAudits, mockAddNotification } = vi.hoisted(() => ({
   mockFetchAudits: vi.fn(),
@@ -59,13 +61,35 @@ vi.mock('@/app/[lang]/Providers', () => ({
   }),
 }));
 
+import makeStore from '@/lib/store';
+import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import { DocumentGenerationAuditsPanel } from '@/src/features/admin/ui/DocumentGenerationAuditsPanel';
+
+let store: ReturnType<typeof makeStore>;
+
+vi.mock('next/navigation', async () => {
+  const actual = await vi.importActual<unknown>('next/navigation');
+  return {
+    ...(actual as Record<string, unknown>),
+    useRouter: () => ({ push: vi.fn() }),
+    usePathname: () => '/en/admin',
+    useSearchParams: () => new URLSearchParams(''),
+  };
+});
 
 const WORKSPACE_ID = '01a059a2-5782-75ee-b107-1d1eeceb4871';
 
 const renderPanel = async () => {
   await act(async () => {
-    render(<DocumentGenerationAuditsPanel />);
+    render(
+      <Provider store={store}>
+        <SWRConfig
+          value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}
+        >
+          <DocumentGenerationAuditsPanel />
+        </SWRConfig>
+      </Provider>,
+    );
   });
 };
 
@@ -74,7 +98,10 @@ const searchButton = () => screen.getByRole('button', { name: 'Search' });
 describe('DocumentGenerationAuditsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetchAudits.mockResolvedValue({ items: [] });
+    store = makeStore();
+    store.dispatch(setToken('token'));
+    store.dispatch(setAuthenticated(true));
+    mockFetchAudits.mockResolvedValue({ items: [], page: { offset: 0, limit: 10, total: 0 } });
   });
 
   it('cannot search with both fields empty', async () => {

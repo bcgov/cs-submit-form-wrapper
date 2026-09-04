@@ -1,5 +1,16 @@
 import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
+import {
+  makeSortEnum,
+  offsetQueryFields,
+  rejectedCursorField,
+  searchQueryField,
+  OffsetPageSchema,
+  OFFSET_DRIFT_NOTE,
+} from '../shared/offsetPagination';
+import { SOBA_ADMIN_SORT_FIELDS } from '../../db/repos/sobaAdminRepo';
+import { FEATURE_SCOPE_SORT_FIELDS } from '../../db/repos/featureScopeRepo';
+import { DOCGEN_AUDIT_SORT_FIELDS } from '../../db/repos/documentGenerationAuditRepo';
 
 extendZodWithOpenApi(z);
 
@@ -13,18 +24,29 @@ export const SobaAdminItemSchema = z
   })
   .openapi('Admin_SobaAdminItem');
 
+export const SobaAdminSortSchema =
+  makeSortEnum(SOBA_ADMIN_SORT_FIELDS).openapi('Admin_SobaAdminSort');
+
 export const ListSobaAdminsQuerySchema = z
   .object({
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    cursor: z.string().min(1).optional(),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
+    source: z.string().trim().min(1).optional(),
+    q: searchQueryField.openapi({ description: 'Matches anywhere in the admin display label.' }),
+    sort: SobaAdminSortSchema.default('displayLabel:asc'),
   })
   .openapi('Admin_ListSobaAdminsQuery');
+
+export const DocgenAuditSortSchema =
+  makeSortEnum(DOCGEN_AUDIT_SORT_FIELDS).openapi('Admin_DocgenAuditSort');
 
 export const ListDocumentGenerationAuditsQuerySchema = z
   .object({
     workspaceId: z.uuid().optional(),
     formId: z.uuid().optional(),
-    limit: z.coerce.number().int().min(1).max(200).default(100),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
+    sort: DocgenAuditSortSchema.default('createdAt:desc'),
   })
   .refine((value) => !!value.workspaceId || !!value.formId, {
     message: 'At least one of workspaceId or formId is required',
@@ -35,12 +57,12 @@ export const ListDocumentGenerationAuditsQuerySchema = z
 export const ListSobaAdminsResponseSchema = z
   .object({
     items: z.array(SobaAdminItemSchema),
-    page: z.object({
-      limit: z.number().int().min(1),
-      hasMore: z.boolean(),
-      nextCursor: z.string().nullable(),
-      cursorMode: z.enum(['id']),
+    page: OffsetPageSchema,
+    filters: z.object({
+      source: z.string().optional(),
+      q: z.string().optional(),
     }),
+    sort: SobaAdminSortSchema,
   })
   .openapi('Admin_ListSobaAdminsResponse');
 
@@ -62,16 +84,15 @@ export const DocumentGenerationAuditItemSchema = z
   })
   .openapi('Admin_DocumentGenerationAuditItem');
 
-/** Truncation only: these lists are capped, not cursor-paged, so there is no cursor to hand back. */
-const AdminPageSchema = z.object({
-  limit: z.number().int().min(1),
-  hasMore: z.boolean(),
-});
-
 export const ListDocumentGenerationAuditsResponseSchema = z
   .object({
     items: z.array(DocumentGenerationAuditItemSchema),
-    page: AdminPageSchema,
+    page: OffsetPageSchema,
+    filters: z.object({
+      workspaceId: z.string().optional(),
+      formId: z.string().optional(),
+    }),
+    sort: DocgenAuditSortSchema,
   })
   .openapi('Admin_ListDocumentGenerationAuditsResponse');
 
@@ -89,19 +110,44 @@ export const FeatureScopeItemSchema = z
   })
   .openapi('Admin_FeatureScopeItem');
 
+export const FeatureScopeSortSchema =
+  makeSortEnum(FEATURE_SCOPE_SORT_FIELDS).openapi('Admin_FeatureScopeSort');
+
 export const ListFeatureScopesQuerySchema = z
   .object({
     featureCode: z.string().min(1).optional(),
+    // Comma-separated, because the caller filters to the features this deployment scopes. An
+    // absent param is no filter; an empty one is a filter nothing matches.
+    featureCodes: z
+      .string()
+      .max(2048)
+      .optional()
+      .transform((value) =>
+        value === undefined
+          ? undefined
+          : value
+              .split(',')
+              .map((code) => code.trim())
+              .filter(Boolean),
+      ),
     scopeType: z.enum(['workspace', 'form']).optional(),
     status: z.enum(['active', 'inactive']).optional(),
-    limit: z.coerce.number().int().min(1).max(200).default(100),
+    ...offsetQueryFields,
+    cursor: rejectedCursorField,
+    sort: FeatureScopeSortSchema.default('updatedAt:desc'),
   })
   .openapi('Admin_ListFeatureScopesQuery');
 
 export const ListFeatureScopesResponseSchema = z
   .object({
     items: z.array(FeatureScopeItemSchema),
-    page: AdminPageSchema,
+    page: OffsetPageSchema,
+    filters: z.object({
+      featureCode: z.string().optional(),
+      scopeType: z.string().optional(),
+      status: z.string().optional(),
+    }),
+    sort: FeatureScopeSortSchema,
   })
   .openapi('Admin_ListFeatureScopesResponse');
 
@@ -146,14 +192,14 @@ export const registerAdminOpenApi = (registry: OpenAPIRegistry) => {
     },
     responses: {
       200: {
-        description: 'List SOBA platform admins with cursor pagination',
+        description: `List SOBA platform admins with search and offset pagination. ${OFFSET_DRIFT_NOTE}`,
         content: {
           'application/json': {
             schema: ListSobaAdminsResponseSchema,
           },
         },
       },
-      400: { description: 'Invalid query or cursor' },
+      400: { description: 'Invalid query' },
     },
   });
 

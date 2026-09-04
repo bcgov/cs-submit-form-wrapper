@@ -1,5 +1,4 @@
 import {
-  FormVersionCursorMode,
   FormVersionListSort,
   appendFormVersionRevision,
   createEmptyFormVersionDraft,
@@ -44,14 +43,12 @@ interface VersionActionInput {
 interface ListInput {
   workspaceIds: string[];
   actorId: string;
+  offset: number;
   limit: number;
   formId?: string;
   formVersionId?: string;
   state?: string;
   sort: FormVersionListSort;
-  cursorMode: FormVersionCursorMode;
-  afterId?: string;
-  afterUpdatedAt?: Date;
 }
 
 type LifecycleState = 'draft' | 'published' | 'archived' | 'deleted';

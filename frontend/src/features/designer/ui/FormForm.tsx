@@ -515,8 +515,7 @@ function FormForm({ formId }: { formId?: string }) {
           >
             <FormHistoryTab
               dict={dict}
-              versions={versions}
-              loading={loading}
+              formId={formId}
               onSelectVersion={selectVersion}
               onRestoreVersion={restoreVersionAsNew}
               onNavigateToDesigner={() => openTab('designer')}

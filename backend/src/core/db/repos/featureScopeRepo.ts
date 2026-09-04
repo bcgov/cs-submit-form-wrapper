@@ -1,6 +1,8 @@
-import { and, desc, eq, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../client';
 import { featureScopes } from '../schema';
+import { orderByForSort, type SortColumns, type SortToken } from '../listSort';
+import { readListPage } from '../listRead';
 import { FeatureScopeStatus, FeatureScopeType } from '../codes';
 
 export type FeatureScopeRecord = typeof featureScopes.$inferSelect;
@@ -21,11 +23,33 @@ export interface UpsertFeatureScopeInput {
   updatedBy?: string | null;
 }
 
+export const FEATURE_SCOPE_SORT_FIELDS = [
+  'featureCode',
+  'scopeType',
+  'status',
+  'createdAt',
+  'updatedAt',
+] as const;
+export type FeatureScopeListSortField = (typeof FEATURE_SCOPE_SORT_FIELDS)[number];
+export type FeatureScopeListSort = SortToken<FeatureScopeListSortField>;
+
+const FEATURE_SCOPE_SORT_COLUMNS: SortColumns<FeatureScopeListSortField> = {
+  featureCode: { column: featureScopes.featureCode },
+  scopeType: { column: featureScopes.scopeType },
+  status: { column: featureScopes.status },
+  createdAt: { column: featureScopes.createdAt },
+  updatedAt: { column: featureScopes.updatedAt },
+};
+
 export interface ListFeatureScopesInput {
   featureCode?: string;
+  /** The features this deployment scopes. The rest are not the admin's to manage. */
+  featureCodes?: string[];
   scopeType?: string;
   status?: string;
-  limit?: number;
+  offset: number;
+  limit: number;
+  sort: FeatureScopeListSort;
 }
 
 export const createFeatureScope = async (input: NewFeatureScope): Promise<FeatureScopeRecord> => {
@@ -74,24 +98,31 @@ export const upsertFeatureScope = async (
   return row;
 };
 
-/** Reads one row past the limit so the caller can report that the list was cut short. */
 export const listFeatureScopes = async (
-  input: ListFeatureScopesInput = {},
-): Promise<{ items: FeatureScopeRecord[]; hasMore: boolean }> => {
+  input: ListFeatureScopesInput,
+): Promise<{ items: FeatureScopeRecord[]; total: number }> => {
+  // An empty allow-list means no feature is the admin's to manage, never "every feature".
+  if (input.featureCodes?.length === 0) {
+    return { items: [], total: 0 };
+  }
   const conditions: SQL<unknown>[] = [];
   if (input.featureCode) conditions.push(eq(featureScopes.featureCode, input.featureCode));
+  if (input.featureCodes) conditions.push(inArray(featureScopes.featureCode, input.featureCodes));
   if (input.scopeType) conditions.push(eq(featureScopes.scopeType, input.scopeType));
   if (input.status) conditions.push(eq(featureScopes.status, input.status));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const limit = input.limit ?? 100;
-  const rows = await db
-    .select()
-    .from(featureScopes)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(featureScopes.updatedAt), desc(featureScopes.createdAt))
-    .limit(limit + 1);
-
-  return { items: rows.slice(0, limit), hasMore: rows.length > limit };
+  return readListPage(async (tx) => {
+    const items = await tx
+      .select()
+      .from(featureScopes)
+      .where(where)
+      .orderBy(...orderByForSort(FEATURE_SCOPE_SORT_COLUMNS, input.sort, featureScopes.id))
+      .limit(input.limit)
+      .offset(input.offset);
+    const totals = await tx.select({ total: count() }).from(featureScopes).where(where);
+    return { items, total: totals[0]?.total ?? 0 };
+  });
 };
 
 export const getFeatureScopeById = async (id: string): Promise<FeatureScopeRecord | null> => {

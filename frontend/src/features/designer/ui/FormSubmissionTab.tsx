@@ -14,6 +14,8 @@ import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { deleteSobaSubmission } from '@/src/shared/api/sobaApi';
 import { useFormSubmissions } from '@/src/features/designer/useFormSubmissions';
+import { FORM_SUBMISSIONS_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import { loadErrorMessage } from '@/src/shared/api/loadErrorMessage';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import {
@@ -33,9 +35,13 @@ export default function FormSubmissionTab({
   formId,
   opened,
 }: Readonly<FormSubmissionTabProps>) {
-  const { submissions, isLoading, error, refresh } = useFormSubmissions(formId, opened);
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const listQuery = useListQuery(FORM_SUBMISSIONS_LIST_QUERY);
+  const { submissions, total, isLoading, error, refresh } = useFormSubmissions(formId, opened, {
+    offset: listQuery.offset,
+    limit: listQuery.pageSize,
+    sort: listQuery.sort,
+    q: listQuery.q,
+  });
   const formatLongDate = useFormatLongDate();
   const { token } = useKeycloak();
   const pathname = usePathname();
@@ -103,6 +109,7 @@ export default function FormSubmissionTab({
       {
         key: 'submittedAt',
         label: dict.submission?.submittedAt || 'Submission Date',
+        sortField: 'submittedAt',
         render: (sub) => (
           <span className="small" data-testid={`${sub.id}-submitted-date`}>
             {sub.submittedAt ? formatLongDate(sub.submittedAt) : 'N/A'}
@@ -151,11 +158,6 @@ export default function FormSubmissionTab({
     [error, dict.general.sessionExpired, dict.general.noAccess, dict.submission.error],
   );
 
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  }, []);
-
   return (
     <>
       <DataTable<SubmissionListItem>
@@ -166,13 +168,15 @@ export default function FormSubmissionTab({
         emptyMessage={dict.submission.emptyList}
         loadingMessage={dict.general.loading}
         itemName="submissions"
-        caption="Submissions"
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalItems={submissions.length}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={handlePageSizeChange}
-        pageSizeOptions={[5, 10, 25, 50]}
+        caption={dict.submission?.submissions || 'Submissions'}
+        pageSize={listQuery.pageSize}
+        currentPage={listQuery.page}
+        totalItems={total}
+        onPageChange={listQuery.setPage}
+        onPageSizeChange={listQuery.setPageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        sort={listQuery.sort}
+        onSortChange={listQuery.setSort}
         keyExtractor={(sub) => sub.id}
       />
       <Modal

@@ -1,7 +1,8 @@
 import { FormService } from '../../services/formService';
 import { FormVersionService } from '../../services/formVersionService';
 import { resolveFormPermissions } from '../../db/repos/formAccessRepo';
-import { decodeCursorAndMode, buildNextCursor, type CursorSort } from '../shared/pagination';
+import type { FormListSort } from '../../db/repos/formRepo';
+import type { FormVersionListSort } from '../../db/repos/formVersionRepo';
 
 export interface FormsContextInput {
   workspaceId: string;
@@ -18,21 +19,21 @@ export interface FormsListScopeInput {
 interface ListFormsQueryInput {
   workspaceId?: string;
   formId?: string;
+  offset: number;
   limit: number;
-  cursor?: string;
   q?: string;
   status?: string;
-  sort?: CursorSort;
+  sort: FormListSort;
 }
 
 interface ListFormVersionsQueryInput {
   workspaceId?: string;
   formId?: string;
   formVersionId?: string;
+  offset: number;
   limit: number;
-  cursor?: string;
   state?: string;
-  sort?: CursorSort;
+  sort: FormVersionListSort;
 }
 
 interface CreateFormInput {
@@ -186,33 +187,23 @@ export function createFormsApiService(
     },
 
     list: async (scope: FormsListScopeInput, query: ListFormsQueryInput) => {
-      const { cursorMode, sort, afterId, afterUpdatedAt } = decodeCursorAndMode({
-        cursor: query.cursor,
-        sort: query.sort,
-      });
       const result = await formService.list({
         workspaceIds: scope.workspaceIds,
         actorId: scope.actorId,
+        offset: query.offset,
         limit: query.limit,
         formId: query.formId,
         q: query.q,
         status: query.status,
-        sort,
-        cursorMode,
-        afterId,
-        afterUpdatedAt,
+        sort: query.sort,
       });
-
-      const lastItem = result.items[result.items.length - 1];
-      const nextCursor = buildNextCursor(lastItem, result.hasMore, cursorMode);
 
       return {
         items: result.items.map((item) => toFormListItemDto(item)),
         page: {
+          offset: query.offset,
           limit: query.limit,
-          hasMore: result.hasMore,
-          nextCursor,
-          cursorMode,
+          total: result.total,
         },
         filters: {
           workspaceId: query.workspaceId,
@@ -220,7 +211,7 @@ export function createFormsApiService(
           q: query.q,
           status: query.status,
         },
-        sort,
+        sort: query.sort,
       };
     },
 
@@ -230,33 +221,23 @@ export function createFormsApiService(
     },
 
     listFormVersions: async (scope: FormsListScopeInput, query: ListFormVersionsQueryInput) => {
-      const { cursorMode, sort, afterId, afterUpdatedAt } = decodeCursorAndMode({
-        cursor: query.cursor,
-        sort: query.sort,
-      });
       const result = await formVersionService.list({
         workspaceIds: scope.workspaceIds,
         actorId: scope.actorId,
+        offset: query.offset,
         limit: query.limit,
         formId: query.formId,
         formVersionId: query.formVersionId,
         state: query.state,
-        sort,
-        cursorMode,
-        afterId,
-        afterUpdatedAt,
+        sort: query.sort,
       });
-
-      const lastItem = result.items[result.items.length - 1];
-      const nextCursor = buildNextCursor(lastItem, result.hasMore, cursorMode);
 
       return {
         items: result.items.map((item) => toFormVersionListItemDto(item)),
         page: {
+          offset: query.offset,
           limit: query.limit,
-          hasMore: result.hasMore,
-          nextCursor,
-          cursorMode,
+          total: result.total,
         },
         filters: {
           workspaceId: query.workspaceId,
@@ -264,7 +245,7 @@ export function createFormsApiService(
           formVersionId: query.formVersionId,
           state: query.state,
         },
-        sort,
+        sort: query.sort,
       };
     },
 

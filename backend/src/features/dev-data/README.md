@@ -103,9 +103,9 @@ sign-in restores it from their IdP claims.
 
 ## What gets built
 
-Anchor workspaces are created last so they hold the newest ids and lead the default `id:desc`
-list. The frontend asks for one page and does not follow the cursor, so at `large` the anchors
-would otherwise be the rows that fall off it.
+Anchor workspaces are named so they sort early under the workspace list default, `name:asc`. The
+lists page on the server, so a row past the first page is reachable; the naming keeps the anchors
+in front of the generated bulk rather than hiding them behind it.
 
 Three anchor workspaces hold the anchored row count for the chosen size:
 

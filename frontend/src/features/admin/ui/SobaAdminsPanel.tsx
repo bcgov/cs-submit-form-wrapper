@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Button, Form, InlineAlert, TextField } from '@bcgov/design-system-react-components';
+import { Button, Form, TextField } from '@bcgov/design-system-react-components';
 import { ConfirmModal } from '@/src/components/ConfirmModal';
 import { DataTable, type Column } from '@/src/components/DataTable';
+import { ListPageSearchField } from '@/src/components/ListPageSearchField';
 import { ListPageToolbar } from '@/src/components/ListPageLayout';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { SecondaryText } from '@/src/components/SecondaryText';
@@ -13,6 +14,8 @@ import { useNotificationStore } from '@/lib/hooks/useNotificationStore';
 import { addSobaAdmin, removeSobaAdmin } from '@/src/shared/api/sobaApiAdmin';
 import { useCurrentUser, useRefreshCurrentUser } from '@/src/shared/api/useCurrentUser';
 import { useSobaAdmins } from '../useAdminData';
+import { SOBA_ADMINS_LIST_QUERY } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
 import type { SobaAdminItem } from '@/src/types/admin';
 import styles from './AdminPanel.module.css';
 
@@ -37,13 +40,22 @@ export function SobaAdminsPanel() {
     },
     [addNotification, dictAdmin.admins.loadError],
   );
+  const listQuery = useListQuery(SOBA_ADMINS_LIST_QUERY);
   const {
     admins,
-    truncatedAt,
+    total,
     isLoading: loading,
     error: loadError,
     refresh: reload,
-  } = useSobaAdmins(reportLoadError);
+  } = useSobaAdmins(
+    {
+      offset: listQuery.offset,
+      limit: listQuery.pageSize,
+      sort: listQuery.sort,
+      q: listQuery.q,
+    },
+    reportLoadError,
+  );
   const error = loadError ? dictAdmin.admins.loadError : null;
 
   const handleAdd = useCallback(async () => {
@@ -108,6 +120,7 @@ export function SobaAdminsPanel() {
       {
         key: 'displayLabel',
         label: dictAdmin.admins.columns.user,
+        sortField: 'displayLabel',
         width: '40%',
         render: (admin) => (
           <span className="d-inline-flex flex-column">
@@ -119,6 +132,7 @@ export function SobaAdminsPanel() {
       {
         key: 'source',
         label: dictAdmin.admins.columns.source,
+        sortField: 'source',
         render: (admin) => admin.source,
       },
       {
@@ -148,7 +162,13 @@ export function SobaAdminsPanel() {
   return (
     <div className={styles.tabContent}>
       <p className={styles.panelIntro}>{dictAdmin.admins.intro}</p>
-      <ListPageToolbar align="end">
+      <ListPageToolbar align="between">
+        <ListPageSearchField
+          value={listQuery.searchInput}
+          onChange={listQuery.setSearchInput}
+          onSubmit={listQuery.commitSearch}
+          testIdPrefix="admins"
+        />
         <Form
           className="d-flex align-items-end gap-3"
           onSubmit={(event) => {
@@ -174,15 +194,6 @@ export function SobaAdminsPanel() {
         </Form>
       </ListPageToolbar>
 
-      {truncatedAt !== null ? (
-        <InlineAlert
-          description={dictAdmin.truncated.replace('{limit}', String(truncatedAt))}
-          title={dictAdmin.admins.heading}
-          variant="info"
-          data-testid="admins-truncated"
-        />
-      ) : null}
-
       <DataTable<SobaAdminItem>
         data={admins}
         columns={columns}
@@ -191,6 +202,14 @@ export function SobaAdminsPanel() {
         emptyMessage={dictAdmin.admins.empty}
         loadingMessage={dict.general.loading}
         caption={dictAdmin.admins.heading}
+        totalItems={total}
+        pageSize={listQuery.pageSize}
+        currentPage={listQuery.page}
+        onPageChange={listQuery.setPage}
+        onPageSizeChange={listQuery.setPageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        sort={listQuery.sort}
+        onSortChange={listQuery.setSort}
         keyExtractor={(admin) => admin.userId}
       />
 

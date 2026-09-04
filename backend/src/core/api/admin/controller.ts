@@ -20,12 +20,12 @@ import { appUsers } from '../../db/schema';
 import { FeatureAvailability } from '../../db/codes';
 import { NotFoundError, ValidationError } from '../../errors';
 import { asyncHandler } from '../shared/asyncHandler';
-import { decodeCursor, encodeCursor } from '../shared/pagination';
 import {
   AddSobaAdminBodySchema,
   FeatureScopeIdParamsSchema,
   ListFeatureScopesQuerySchema,
   ListDocumentGenerationAuditsQuerySchema,
+  ListSobaAdminsQuerySchema,
   UpsertFeatureScopeBodySchema,
 } from './schema';
 import type { Request } from 'express';
@@ -34,6 +34,7 @@ type AddSobaAdminBody = z.infer<typeof AddSobaAdminBodySchema>;
 type UpsertFeatureScopeBody = z.infer<typeof UpsertFeatureScopeBodySchema>;
 type ListFeatureScopesQuery = z.infer<typeof ListFeatureScopesQuerySchema>;
 type ListDocumentGenerationAuditsQuery = z.infer<typeof ListDocumentGenerationAuditsQuerySchema>;
+type ListSobaAdminsQuery = z.infer<typeof ListSobaAdminsQuerySchema>;
 
 type FeatureScopeRow = NonNullable<Awaited<ReturnType<typeof getFeatureScopeById>>>;
 
@@ -50,20 +51,14 @@ const toFeatureScopeItem = (row: FeatureScopeRow) => ({
 });
 
 export const listSobaAdminsHandler = asyncHandler(async (req: Request, res: Response) => {
-  const limit = Number(req.query.limit) || 20;
-  const cursorRaw = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
-  let afterUserId: string | undefined;
-  if (cursorRaw) {
-    try {
-      const decoded = decodeCursor(cursorRaw);
-      if (decoded.m === 'id') afterUserId = decoded.id;
-    } catch {
-      // invalid cursor; first page
-    }
-  }
-  const { items, hasMore } = await listSobaAdmins({ limit, afterUserId });
-  const lastItem = items[items.length - 1];
-  const nextCursor = hasMore && lastItem ? encodeCursor({ m: 'id', id: lastItem.userId }) : null;
+  const query = req.query as unknown as ListSobaAdminsQuery;
+  const { items, total } = await listSobaAdmins({
+    offset: query.offset,
+    limit: query.limit,
+    sort: query.sort,
+    source: query.source,
+    q: query.q,
+  });
   res.json({
     items: items.map((r) => ({
       userId: r.userId,
@@ -73,11 +68,15 @@ export const listSobaAdminsHandler = asyncHandler(async (req: Request, res: Resp
       displayLabel: r.displayLabel,
     })),
     page: {
-      limit,
-      hasMore,
-      nextCursor,
-      cursorMode: 'id' as const,
+      offset: query.offset,
+      limit: query.limit,
+      total,
     },
+    filters: {
+      source: query.source,
+      q: query.q,
+    },
+    sort: query.sort,
   });
 });
 
@@ -139,10 +138,16 @@ export const upsertFeatureScopeHandler = asyncHandler(
 
 export const listFeatureScopesHandler = asyncHandler(async (req: Request, res: Response) => {
   const query = req.query as unknown as ListFeatureScopesQuery;
-  const { items, hasMore } = await listFeatureScopes(query);
+  const { items, total } = await listFeatureScopes(query);
   res.json({
     items: items.map(toFeatureScopeItem),
-    page: { limit: query.limit, hasMore },
+    page: { offset: query.offset, limit: query.limit, total },
+    filters: {
+      featureCode: query.featureCode,
+      scopeType: query.scopeType,
+      status: query.status,
+    },
+    sort: query.sort,
   });
 });
 
@@ -165,17 +170,21 @@ export const removeFeatureScopeHandler = asyncHandler(
 export const listDocumentGenerationAuditsHandler = asyncHandler(
   async (req: Request, res: Response) => {
     const query = req.query as unknown as ListDocumentGenerationAuditsQuery;
-    const { items, hasMore } = await listDocumentGenerationAudits({
+    const { items, total } = await listDocumentGenerationAudits({
       workspaceId: query.workspaceId,
       formId: query.formId,
+      offset: query.offset,
       limit: query.limit,
+      sort: query.sort,
     });
     res.json({
       items: items.map((row) => ({
         ...row,
         createdAt: row.createdAt.toISOString(),
       })),
-      page: { limit: query.limit, hasMore },
+      page: { offset: query.offset, limit: query.limit, total },
+      filters: { workspaceId: query.workspaceId, formId: query.formId },
+      sort: query.sort,
     });
   },
 );

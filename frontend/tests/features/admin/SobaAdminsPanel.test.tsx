@@ -43,11 +43,10 @@ vi.mock('@/src/shared/api/sobaApiAdmin', () => ({
 vi.mock('@/app/[lang]/Providers', () => ({
   useDictionary: () => ({
     locale: 'en',
-    general: { loading: 'Loading…', cancel: 'Cancel' },
+    general: { loading: 'Loading…', cancel: 'Cancel', search: 'Search' },
     dataTable: { itemName: 'items', pageOf: 'of {totalPages} page(s)' },
     modal: { dialogActions: 'Dialog actions' },
     admin: {
-      truncated: 'Showing the first {limit}. Narrow the filters to see the rest.',
       admins: {
         removeConfirmTitle: 'Remove platform administrator',
         removeConfirmMessage: '{user} loses platform administration access immediately.',
@@ -78,6 +77,16 @@ vi.mock('@/app/[lang]/Providers', () => ({
 import makeStore from '@/lib/store';
 import { setAuthenticated, setToken } from '@/lib/slices/keycloakSlice';
 import { SobaAdminsPanel } from '@/src/features/admin/ui/SobaAdminsPanel';
+
+vi.mock('next/navigation', async () => {
+  const actual = await vi.importActual<unknown>('next/navigation');
+  return {
+    ...(actual as Record<string, unknown>),
+    useRouter: () => ({ push: vi.fn() }),
+    usePathname: () => '/en/admin',
+    useSearchParams: () => new URLSearchParams(''),
+  };
+});
 
 let store: ReturnType<typeof makeStore>;
 
@@ -117,7 +126,7 @@ describe('SobaAdminsPanel', () => {
     store.dispatch(setAuthenticated(true));
     mockFetchSobaAdmins.mockResolvedValue({
       items: [DIRECT_ADMIN, IDP_ADMIN],
-      page: { limit: 100, hasMore: false, nextCursor: null, cursorMode: 'id' },
+      page: { offset: 0, limit: 10, total: 2 },
     });
   });
 
@@ -167,17 +176,17 @@ describe('SobaAdminsPanel', () => {
     await waitFor(() => expect(mockRefreshCurrentUser).toHaveBeenCalled());
   });
 
-  it('reports a list the server cut short', async () => {
+  it('pages against the total the server reports', async () => {
     mockFetchSobaAdmins.mockResolvedValue({
       items: [DIRECT_ADMIN],
-      page: { limit: 100, hasMore: true, nextCursor: 'x', cursorMode: 'id' },
+      page: { offset: 0, limit: 10, total: 42 },
     });
 
     await act(async () => {
       renderPanel();
     });
 
-    expect(await screen.findByTestId('admins-truncated')).toBeInTheDocument();
+    expect(await screen.findByText(/of 5 page\(s\)/)).toBeInTheDocument();
   });
 
   it('adds an administrator and reloads the list', async () => {
@@ -188,7 +197,7 @@ describe('SobaAdminsPanel', () => {
     });
     await screen.findByText('Direct Admin');
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByLabelText('User ID');
     await userEvent.type(input, '33333333-3333-4333-8333-333333333333');
     await userEvent.click(screen.getByRole('button', { name: 'Add' }));
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useMemo, type Key } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { navLink } from '@/src/shared/list/listQueryMemory';
 import { Tabs, Tab } from 'react-bootstrap';
 import {
   Button,
@@ -85,7 +86,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
   }, []);
 
   const handleCancel = useCallback(() => {
-    router.push(`/${locale}/workspaces`);
+    router.push(navLink(`/${locale}/workspaces`));
   }, [router, locale]);
 
   const handleSave = useCallback(async () => {
@@ -107,7 +108,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
         const patch = changedFields(seed, { name: trimmedName, org, useCase, disclaimerAccepted });
         // Saving an unchanged workspace is a no-op, not a request.
         if (Object.keys(patch).length === 0) {
-          router.push(`/${locale}/workspaces`);
+          router.push(navLink(`/${locale}/workspaces`));
           return;
         }
         await updateWorkspace(token, seed.id, patch);
@@ -115,7 +116,7 @@ function WorkspaceSettings({ workspace, first }: Readonly<WorkspaceSettingsProps
       }
 
       await refreshWorkspaces();
-      router.push(`/${locale}/workspaces`);
+      router.push(navLink(`/${locale}/workspaces`));
     } catch (error) {
       addNotification({
         text: seed ? dictWorkspaces.saveError : dictWorkspaces.createError,
@@ -247,7 +248,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
         text: dictWorkspaces.createForbidden,
         type: 'error',
       });
-      router.push(`/${locale}/workspaces`);
+      router.push(navLink(`/${locale}/workspaces`));
     }
   }, [
     isCreate,
@@ -269,7 +270,7 @@ function WorkspaceForm({ workspaceId, first = false }: Readonly<WorkspaceFormPro
       text: dictWorkspaces.manageForbidden,
       type: 'error',
     });
-    router.push(`/${locale}/workspaces`);
+    router.push(navLink(`/${locale}/workspaces`));
   }, [workspace, addNotification, dictWorkspaces.manageForbidden, router, locale]);
 
   const heading = isCreate ? dictWorkspaces.createHeading : dictWorkspaces.manageHeading;

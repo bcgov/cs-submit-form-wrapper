@@ -46,5 +46,25 @@ export const documentGenerationAudits = sobaSchema.table(
       table.formId,
       table.createdAt,
     ),
+    workspaceDurationIdx: index('document_generation_audit_workspace_duration_idx').on(
+      table.workspaceId,
+      table.durationMs.desc(),
+      table.id.desc(),
+    ),
+    workspaceOutcomeIdx: index('document_generation_audit_workspace_outcome_idx').on(
+      table.workspaceId,
+      table.outcome,
+      table.id.desc(),
+    ),
+    formDurationIdx: index('document_generation_audit_form_duration_idx').on(
+      table.formId,
+      table.durationMs.desc(),
+      table.id.desc(),
+    ),
+    formOutcomeIdx: index('document_generation_audit_form_outcome_idx').on(
+      table.formId,
+      table.outcome,
+      table.id.desc(),
+    ),
   }),
 );

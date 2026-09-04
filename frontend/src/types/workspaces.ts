@@ -1,3 +1,5 @@
+import type { ListPage } from './list';
+
 export type WorkspaceItem = {
   id: string;
   name: string;
@@ -11,15 +13,11 @@ export type WorkspaceItem = {
 
 export type WorkspacesResponse = {
   items: WorkspaceItem[];
-  page: {
-    limit: number;
-    hasMore: boolean;
-    nextCursor: string | null;
-    cursorMode: 'id' | 'ts_id';
-  };
+  page: ListPage;
   filters: {
     kind?: string;
     status?: string;
+    q?: string;
   };
   sort: string;
 };

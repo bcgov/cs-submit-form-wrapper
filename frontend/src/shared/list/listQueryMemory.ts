@@ -5,19 +5,99 @@ import {
 } from '@/src/shared/storage/sessionStore';
 
 /**
- * The URL params a list owns. They are remembered and restored as one set, so a list that gains a
- * param only has to declare it here.
+ * A list's URL params: the filters it owns plus the paging set every list carries. They are
+ * remembered and restored as one set, so a list that gains a filter only has to declare it here.
  */
 export type ListQuerySpec = {
   resource: string;
-  params: readonly string[];
+  filters: readonly string[];
+  /** Sort tokens the endpoint accepts. Anything else in the URL falls back to the default. */
+  sortOptions: readonly string[];
+  defaultSort: string;
 };
 
 export type ListQueryParams = Record<string, string>;
 
+/** Paging, search and sort, resolved by the server on every list. */
+export const SHARED_LIST_PARAMS = ['q', 'sort', 'page', 'pageSize'] as const;
+
+export const listQueryParams = (spec: ListQuerySpec): string[] => [
+  ...spec.filters,
+  ...SHARED_LIST_PARAMS,
+];
+
+/**
+ * The URL name for one of a list's params. Namespaced by resource, because two lists can share a
+ * route: the designer holds version history and submissions at once, and a bare `page` would have
+ * each of them answering for the other's table.
+ */
+export const urlParamName = (spec: ListQuerySpec, name: string): string =>
+  `${spec.resource}.${name}`;
+
+/** Both directions of every field the endpoint declares. */
+const sortOptionsFor = (fields: readonly string[]): string[] =>
+  fields.flatMap((field) => [`${field}:asc`, `${field}:desc`]);
+
+const SUBMISSION_SORT_FIELDS = ['formName', 'submittedAt', 'createdAt', 'updatedAt'] as const;
+const UPDATED_DESC = 'updatedAt:desc';
+
 export const FORMS_LIST_QUERY: ListQuerySpec = {
   resource: 'forms',
-  params: ['workspace'],
+  filters: ['workspace'],
+  sortOptions: sortOptionsFor(['name', 'status', 'createdAt', 'updatedAt']),
+  defaultSort: 'createdAt:desc',
+};
+
+export const WORKSPACES_LIST_QUERY: ListQuerySpec = {
+  resource: 'workspaces',
+  filters: [],
+  sortOptions: sortOptionsFor(['name', 'kind', 'status', 'updatedAt']),
+  defaultSort: 'name:asc',
+};
+
+/** The submissions tab inside the designer. Same shape, its own remembered query. */
+export const FORM_SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
+  resource: 'formSubmissions',
+  filters: [],
+  sortOptions: sortOptionsFor(SUBMISSION_SORT_FIELDS),
+  // A column carries this one, so the header can report the order and reverse it.
+  defaultSort: 'submittedAt:desc',
+};
+
+/** The version history tab inside the designer. */
+export const FORM_VERSIONS_LIST_QUERY: ListQuerySpec = {
+  resource: 'formVersions',
+  filters: [],
+  sortOptions: sortOptionsFor(['versionNo', 'state', 'createdAt', 'updatedAt']),
+  defaultSort: 'versionNo:desc',
+};
+
+export const SUBMISSIONS_LIST_QUERY: ListQuerySpec = {
+  resource: 'submissions',
+  filters: [],
+  sortOptions: sortOptionsFor(['formName', 'submittedAt', 'createdAt', 'updatedAt']),
+  defaultSort: 'updatedAt:desc',
+};
+
+export const SOBA_ADMINS_LIST_QUERY: ListQuerySpec = {
+  resource: 'sobaAdmins',
+  filters: [],
+  sortOptions: sortOptionsFor(['displayLabel', 'source', 'syncedAt']),
+  defaultSort: 'displayLabel:asc',
+};
+
+export const FEATURE_SCOPES_LIST_QUERY: ListQuerySpec = {
+  resource: 'featureScopes',
+  filters: [],
+  sortOptions: sortOptionsFor(['featureCode', 'scopeType', 'status', 'createdAt', 'updatedAt']),
+  defaultSort: UPDATED_DESC,
+};
+
+export const DOCGEN_AUDITS_LIST_QUERY: ListQuerySpec = {
+  resource: 'docgenAudits',
+  filters: [],
+  sortOptions: sortOptionsFor(['createdAt', 'outcome', 'durationMs']),
+  defaultSort: 'createdAt:desc',
 };
 
 const KEY_PREFIX = 'soba.listQuery.';
@@ -33,22 +113,35 @@ const NAV_MARKER_VALUE = 'nav';
 
 export const navLink = (href: string) => `${href}?${NAV_MARKER}=${NAV_MARKER_VALUE}`;
 
+/**
+ * A link to a list with its query already set. The names come from the spec, so a caller cannot
+ * hand-write one the list will not read back.
+ */
+export function listLink(href: string, spec: ListQuerySpec, params: ListQueryParams): string {
+  const search = new URLSearchParams();
+  for (const name of listQueryParams(spec)) {
+    if (params[name]) search.set(urlParamName(spec, name), params[name]);
+  }
+  const query = search.toString();
+  return query ? `${href}?${query}` : href;
+}
+
 export function isNavArrival(search: URLSearchParams): boolean {
   return search.get(NAV_MARKER) === NAV_MARKER_VALUE;
 }
 
-/** This list's params as the URL currently carries them. */
+/** This list's params as the URL currently carries them, under their own names. */
 export function readUrlParams(spec: ListQuerySpec, search: URLSearchParams): ListQueryParams {
   const params: ListQueryParams = {};
-  for (const name of spec.params) {
-    const value = search.get(name);
+  for (const name of listQueryParams(spec)) {
+    const value = search.get(urlParamName(spec, name));
     if (value) params[name] = value;
   }
   return params;
 }
 
 export function urlHasListParams(spec: ListQuerySpec, search: URLSearchParams): boolean {
-  return spec.params.some((name) => search.has(name));
+  return listQueryParams(spec).some((name) => search.has(urlParamName(spec, name)));
 }
 
 export function rememberListQuery(spec: ListQuerySpec, params: ListQueryParams): void {

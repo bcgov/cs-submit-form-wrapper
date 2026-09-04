@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { Button as DSButton } from '@bcgov/design-system-react-components';
 import { DataTable, type Column } from '@/src/components/DataTable';
 import { Tag } from '@/src/components/Tag';
@@ -9,7 +9,7 @@ import { ListPageSearchField } from '@/src/components/ListPageSearchField';
 import { RowActionButton } from '@/src/components/RowActionButton';
 import { useKeycloak } from '@/lib/hooks/useKeycloak';
 import { useDictionary } from '@/app/[lang]/Providers';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { getLocaleFromPath } from '@/src/shared/util/locale';
 import { getSobaForms } from '@/src/shared/api/sobaApi';
 import type { SobaFormSummary } from '@/src/shared/api/sobaApiDesign';
@@ -17,16 +17,9 @@ import { useFormatLongDate } from '@/src/shared/hooks/useFormatLongDate';
 import { usePageNotices } from '@/src/components/PageHeader';
 import { useAuthedSWR } from '@/src/shared/api/useAuthedSWR';
 import { useWorkspaces, useWritableWorkspaces } from '@/src/shared/api/useWorkspaces';
-import {
-  FORMS_LIST_QUERY,
-  NAV_MARKER,
-  isNavArrival,
-  readUrlParams,
-  recallListQuery,
-  rememberListQuery,
-  urlHasListParams,
-  type ListQueryParams,
-} from '@/src/shared/list/listQueryMemory';
+import { FORMS_LIST_QUERY, rememberListQuery } from '@/src/shared/list/listQueryMemory';
+import { PAGE_SIZE_OPTIONS, useListQuery } from '@/src/shared/list/useListQuery';
+import { listReadConfig } from '@/src/shared/api/swrConfig';
 import { WorkspaceSelector } from '@/app/ui/WorkspaceSelector';
 import { FaDatabase, FaLink } from 'react-icons/fa6';
 import styles from './FormList.module.css';
@@ -79,39 +72,21 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
 
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const locale = getLocaleFromPath(pathname);
 
-  const { workspaces, loaded: workspacesLoaded } = useWorkspaces();
+  const { workspaces, loaded: workspacesLoaded, error: workspacesError } = useWorkspaces();
   const { workspaces: writableWorkspaces } = useWritableWorkspaces();
 
-  // Only a link from inside the app asks for the list as the user left it. A bare URL is a bookmark
-  // or someone else's link, and means the unfiltered list. Read during render, not from an effect:
-  // an effect would let the first request go out unscoped and land another workspace's rows first.
-  // Not keyed on mount, because clicking the nav link while already on this page does not remount.
-  const arrivalQuery = useMemo(
-    () =>
-      isNavArrival(searchParams) && !urlHasListParams(FORMS_LIST_QUERY, searchParams)
-        ? recallListQuery(FORMS_LIST_QUERY)
-        : null,
-    [searchParams],
-  );
-
-  // The URL wins as soon as it says anything, so a cleared filter stays cleared rather than reading
-  // as "nothing set, restore again".
-  const workspaceParam = urlHasListParams(FORMS_LIST_QUERY, searchParams)
-    ? searchParams.get('workspace')
-    : (arrivalQuery?.workspace ?? null);
+  const listQuery = useListQuery(FORMS_LIST_QUERY);
+  const workspaceParam = listQuery.filters.workspace ?? null;
   // The filter comes from the URL, so it can name a workspace that does not exist or that this user
   // cannot see. Resolve it against their own list before it reaches the request.
   const selectedWorkspaceId =
     workspaceParam && workspaces.some((w) => w.id === workspaceParam) ? workspaceParam : undefined;
   const workspaceRejected = workspacesLoaded && !!workspaceParam && !selectedWorkspaceId;
+  // The request is held back until the filter can be resolved, so the table is loading, not empty.
+  const waitingForWorkspaces = !!workspaceParam && !workspacesLoaded && !workspacesError;
 
   const {
     data,
@@ -121,8 +96,25 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
     // Wait for the workspace list before reading, or the id resolves against nothing and every
     // arrival scopes to no workspace. An id that never resolves reads unscoped on purpose: the
     // picker reads "all workspaces" and the notice says the filter was not applied.
-    workspaceParam && !workspacesLoaded ? null : ['forms', selectedWorkspaceId ?? null],
-    (token) => getSobaForms(token, selectedWorkspaceId),
+    workspaceParam && !workspacesLoaded
+      ? null
+      : [
+          'forms',
+          selectedWorkspaceId ?? null,
+          listQuery.offset,
+          listQuery.pageSize,
+          listQuery.sort,
+          listQuery.q,
+        ],
+    (token) =>
+      getSobaForms(token, {
+        offset: listQuery.offset,
+        limit: listQuery.pageSize,
+        sort: listQuery.sort,
+        q: listQuery.q,
+        workspaceId: selectedWorkspaceId,
+      }),
+    listReadConfig,
   );
 
   const forms: SobaFormSummary[] = useMemo(
@@ -130,72 +122,22 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
     [data],
   );
 
-  const error = useMemo(
-    () =>
-      loadError
-        ? loadErrorMessage(loadError, {
-            sessionExpired: dict.general.sessionExpired,
-            noAccess: dict.general.noAccess,
-            failed: dict.form.loadFormsError,
-          })
-        : null,
-    [loadError, dict.general.sessionExpired, dict.general.noAccess, dict.form.loadFormsError],
-  );
-
-  const writeListParams = useCallback(
-    (next: ListQueryParams) => {
-      const params = new URLSearchParams(searchParams.toString());
-      // Consumed on arrival; leaving it in would make a copied URL restore the reader's own view.
-      params.delete(NAV_MARKER);
-      for (const name of FORMS_LIST_QUERY.params) {
-        if (next[name]) params.set(name, next[name]);
-        else params.delete(name);
-      }
-      const qs = params.toString();
-      // Next keeps useSearchParams in sync with replaceState. A router navigation would re-run the
-      // page's server component for what is only a client-side filter change.
-      window.history.replaceState(null, '', qs ? `${pathname}?${qs}` : pathname);
-      // Recorded from the choice, not from the URL: reading it back would race the replaceState
-      // above and record the pre-change query.
-      rememberListQuery(FORMS_LIST_QUERY, next);
-    },
-    [searchParams, pathname],
-  );
-
-  const applyListParams = useCallback(
-    (next: ListQueryParams) => {
-      // A different scope means a different set of rows, so the page number no longer refers to
-      // anything the user chose.
-      setCurrentPage(1);
-      writeListParams(next);
-    },
-    [writeListParams],
-  );
-
-  // Each distinct URL is handled once. Re-running on an in-page change would undo a filter the user
-  // just cleared, because a cleared filter and a fresh arrival both look like a URL with no params.
-  const handledSearch = useRef<string | null>(null);
-  useEffect(() => {
-    const search = searchParams.toString();
-    if (handledSearch.current === search) return;
-    const firstArrival = handledSearch.current === null;
-    handledSearch.current = search;
-
-    // Writing drops the nav marker, so it never survives into a URL the user might copy.
-    if (arrivalQuery) {
-      writeListParams(arrivalQuery);
-      return;
-    }
-    if (isNavArrival(searchParams)) {
-      writeListParams(readUrlParams(FORMS_LIST_QUERY, searchParams));
-      return;
-    }
-    // A link that names a scope is a choice, wherever it came from. A bare one is a visit, and must
-    // not erase the view the user set for this tab. Later in-page changes record themselves.
-    if (firstArrival && urlHasListParams(FORMS_LIST_QUERY, searchParams)) {
-      rememberListQuery(FORMS_LIST_QUERY, readUrlParams(FORMS_LIST_QUERY, searchParams));
-    }
-  }, [arrivalQuery, searchParams, writeListParams]);
+  const error = useMemo(() => {
+    const failure = loadError ?? workspacesError;
+    return failure
+      ? loadErrorMessage(failure, {
+          sessionExpired: dict.general.sessionExpired,
+          noAccess: dict.general.noAccess,
+          failed: dict.form.loadFormsError,
+        })
+      : null;
+  }, [
+    loadError,
+    workspacesError,
+    dict.general.sessionExpired,
+    dict.general.noAccess,
+    dict.form.loadFormsError,
+  ]);
 
   // A filter this user cannot resolve is not a view worth restoring. Without this it stays in the
   // memory and every later arrival from the nav replays it and raises the same notice again.
@@ -212,32 +154,11 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
   // Create permission somewhere but no disclaimer accepted yet — the case worth prompting on.
   const needsDisclaimer = writableWorkspaces.length > 0 && !canCreate;
 
+  const { setFilters } = listQuery;
   const handleWorkspaceChange = useCallback(
-    (key: string | number | null) => applyListParams(key ? { workspace: String(key) } : {}),
-    [applyListParams],
+    (key: string | number | null) => setFilters(key ? { workspace: String(key) } : {}),
+    [setFilters],
   );
-
-  const filteredForms = useMemo(() => {
-    if (!searchQuery.trim()) return forms;
-    const query = searchQuery.toLowerCase();
-    return forms.filter((f) => (f.name || '').toLowerCase().includes(query));
-  }, [forms, searchQuery]);
-
-  // Removed unused totalPages
-  const paginatedForms = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredForms.slice(start, start + pageSize);
-  }, [filteredForms, currentPage, pageSize]);
-
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setCurrentPage(1);
-  }, []);
-
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
-  }, []);
 
   const handleAction = useCallback(
     (name: string, id: string) => {
@@ -263,7 +184,7 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
       body: dict.workspaces.unavailableFilter,
       action: {
         label: dict.workspaces.clearFilter,
-        onPress: () => applyListParams({}),
+        onPress: () => setFilters({}),
       },
     },
     needsDisclaimer && {
@@ -283,6 +204,7 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
         key: 'name',
         label: dictFormList?.columns?.name || dictForm?.nameLabel || 'Form Name',
         width: '40%',
+        sortField: 'name',
         render: (form: SobaFormSummary) => {
           return (
             <RowActionButton
@@ -322,14 +244,16 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
         ),
       },
       {
-        key: 'updated',
+        key: 'createdAt',
         label: dictFormList?.columns?.createdAt || 'Created Date',
+        sortField: 'createdAt',
+        sortDefaultDirection: 'desc',
         render: (form: SobaFormSummary) => (
           <span className="small">{formatLongDate(form.createdAt)}</span>
         ),
       },
       {
-        key: 'created',
+        key: 'createdBy',
         label: dictFormList?.columns?.createdBy || 'Created By',
         render: (form: SobaFormSummary) => {
           if (!form.createdBy) return <span className="text-muted small">—</span>;
@@ -356,12 +280,12 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
 
   return (
     <>
-      <ListPageToolbar align={designModeEnabled ? 'between' : 'end'}>
+      <ListPageToolbar>
         <ListPageSearchField
-          value={searchQuery}
-          onChange={handleSearchChange}
+          value={listQuery.searchInput}
+          onChange={listQuery.setSearchInput}
+          onSubmit={listQuery.commitSearch}
           testIdPrefix="forms"
-          showSearchButton={true}
         />
         {designModeEnabled ? (
           <DSButton
@@ -387,30 +311,29 @@ function FormList({ designModeEnabled = true }: { designModeEnabled?: boolean })
         <DSButton
           variant="secondary"
           data-testid="clear-filters-button"
-          onPress={() => {
-            setSearchQuery('');
-            handleWorkspaceChange(null);
-          }}
+          onPress={listQuery.clear}
         >
           {dict.general.clearFilters || 'Clear'}
         </DSButton>
       </div>
 
       <DataTable<SobaFormSummary>
-        data={paginatedForms as SobaFormSummary[]}
+        data={forms}
         columns={columns}
-        loading={isLoading || initializing}
+        loading={isLoading || initializing || waitingForWorkspaces}
         error={error}
         emptyMessage="No forms found matching your criteria."
         loadingMessage={dict.general.loading}
         itemName="items"
         caption={dict.general.forms}
-        pageSize={pageSize}
-        currentPage={currentPage}
-        totalItems={filteredForms.length}
-        onPageChange={setCurrentPage}
-        onPageSizeChange={handlePageSizeChange}
-        pageSizeOptions={[5, 10, 25, 50]}
+        pageSize={listQuery.pageSize}
+        currentPage={listQuery.page}
+        totalItems={data?.page?.total}
+        onPageChange={listQuery.setPage}
+        onPageSizeChange={listQuery.setPageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        sort={listQuery.sort}
+        onSortChange={listQuery.setSort}
         keyExtractor={(form) => form.id}
       />
     </>

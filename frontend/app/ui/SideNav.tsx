@@ -48,7 +48,7 @@ export function SideNav({ showAppLinks, showHome, showWorkspaces }: Readonly<Sid
 
   if (showWorkspaces && authenticated) {
     navItems.push({
-      href: `/${locale}/workspaces`,
+      href: navLink(`/${locale}/workspaces`),
       title: dict.header.workspaces,
       testId: 'workspaces-nav',
       icon: <FaList size={20} />,

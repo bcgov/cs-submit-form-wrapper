@@ -1,5 +1,4 @@
 import {
-  SubmissionCursorMode,
   SubmissionListSort,
   appendSubmissionRevision,
   openSubmission,
@@ -44,16 +43,15 @@ interface DeleteInput {
 interface ListInput {
   workspaceIds: string[];
   actorId: string;
+  offset: number;
   limit: number;
   formId?: string;
   formVersionId?: string;
   submissionId?: string;
   workflowState?: string;
   createdBy?: string;
+  q?: string;
   sort: SubmissionListSort;
-  cursorMode: SubmissionCursorMode;
-  afterId?: string;
-  afterUpdatedAt?: Date;
 }
 
 export class SubmissionService {
