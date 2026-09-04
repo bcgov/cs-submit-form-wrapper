@@ -27,7 +27,7 @@ import { getSubmissionListContext, getWorkspaceIdForSubmission } from '../db/rep
 import type { CoreRequestContext } from './requestContext';
 
 const RESOURCE_NOT_FOUND = 'Resource not found';
-const MISSING_ACTOR_IDENTITY = 'Missing actor identity (actorId or x-soba-user-id)';
+const MISSING_ACTOR_IDENTITY = 'Missing actor identity';
 
 export type ListAnchorKind = 'workspaceId' | 'formId' | 'formVersionId' | 'submissionId';
 
